@@ -21,11 +21,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set up api database
+        shell: bash
+        run: |
+          echo 'DATABASE_URL="file:./dev.db"' > apps/api/.env
+          pnpm --filter @ponto-dcit/api exec prisma migrate deploy
+
       - name: Lint
         run: pnpm turbo run lint
 
       - name: Build
         run: pnpm turbo run build
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @ponto-dcit/web exec playwright install --with-deps chromium
 
       - name: Test
         run: pnpm turbo run test

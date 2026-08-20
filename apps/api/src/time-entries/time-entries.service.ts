@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import { TimeEntryInput } from "@ponto-dcit/shared-types";
-import { PrismaService } from "./prisma.service";
+import { Injectable } from '@nestjs/common';
+import { TimeEntryInput } from '@ponto-dcit/shared-types';
+import { PrismaService } from './prisma.service';
 
 @Injectable()
 export class TimeEntriesService {
