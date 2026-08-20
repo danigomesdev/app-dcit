@@ -48,6 +48,11 @@ gitignored). A Postgres setup via Docker Compose is already written at
 `infra/docker/docker-compose.yml` for a future move to a shared database, but it isn't wired up
 yet — Docker isn't installed on the reference dev machine for this project.
 
+Tests run against a separate, isolated `apps/api/prisma/test.db` (also gitignored) so the test
+suite can never wipe your real `dev.db`. `pnpm --filter @ponto-dcit/api run test` automatically
+migrates `test.db` first (see the `pretest` script), so there's nothing to set up manually — this
+also self-heals on a fresh checkout where `test.db` doesn't exist yet.
+
 ## Repo layout
 
 - `apps/api` — NestJS API (Prisma + SQLite)
