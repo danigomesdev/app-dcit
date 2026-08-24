@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { generators, type Client } from 'openid-client';
 import type { Role } from '@ponto-dcit/shared-types';
-import { OIDC_CLIENT } from './auth.module';
+import { OIDC_CLIENT } from './oidc-client.token';
 
 type LoginOrigin = 'web' | 'mobile';
 type PendingLogin = { nonce: string; origin: LoginOrigin };
@@ -44,17 +44,22 @@ export class AuthService {
       state: params.state,
       nonce: pending.nonce,
     });
-    const claims = tokenSet.claims() as {
-      sub: string;
+    const { sub } = tokenSet.claims();
+    // The id_token from a plain `response_type=code` exchange only carries
+    // the required OpenID claims (sub, iss, aud, ...); scope-derived profile
+    // claims like name/dcit_role are only available from the UserInfo
+    // endpoint, so they must be fetched separately rather than read off the
+    // id_token's claims.
+    const userinfo = (await this.client.userinfo(tokenSet)) as {
       name?: string;
       dcit_role?: unknown;
     };
-    const role = this.resolveRole(claims.dcit_role);
+    const role = this.resolveRole(userinfo.dcit_role);
 
     const sessionToken = this.jwt.sign({
-      sub: claims.sub,
+      sub,
       role,
-      name: claims.name,
+      name: userinfo.name,
     });
 
     return { sessionToken, origin: pending.origin };

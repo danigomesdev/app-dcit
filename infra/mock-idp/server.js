@@ -1,3 +1,4 @@
+import { pathToFileURL } from 'node:url';
 import { Provider } from 'oidc-provider';
 
 const PORT = process.env.PORT || 9000;
@@ -51,6 +52,13 @@ const configuration = {
   features: {
     devInteractions: { enabled: true },
   },
+  // This mock IdP's client uses a plain authorization_code flow with no
+  // PKCE parameters (see apps/api's AuthService). oidc-provider's default
+  // policy (RFC 9700) requires PKCE for every client, so it must be
+  // explicitly disabled here to match what the real client sends.
+  pkce: {
+    required: () => false,
+  },
   claims: {
     openid: ['sub'],
     profile: ['name', 'dcit_role'],
@@ -61,7 +69,7 @@ const configuration = {
 
 export const provider = new Provider(ISSUER, configuration);
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   provider.listen(PORT, () => {
     console.log(`Mock IdP listening at ${ISSUER}`);
     console.log('Seeded accounts (type the sub on the dev sign-in screen): colaborador-1, gestor-1, rh-1');

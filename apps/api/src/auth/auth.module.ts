@@ -4,18 +4,21 @@ import { Issuer, type Client } from 'openid-client';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth-guard';
+import { OIDC_CLIENT } from './oidc-client.token';
 
-export const OIDC_CLIENT = Symbol('OIDC_CLIENT');
+// Kept as a single reference so the exact same dynamic module instance is
+// both imported (so AuthModule's own providers can use JwtService) and
+// re-exported (so AuthGuard, when instantiated for a *different* module via
+// `@UseGuards(AuthGuard)`, can still resolve its JwtService dependency there).
+const jwtModule = JwtModule.registerAsync({
+  useFactory: () => ({
+    secret: process.env.JWT_SECRET,
+    signOptions: { expiresIn: '8h' },
+  }),
+});
 
 @Module({
-  imports: [
-    JwtModule.registerAsync({
-      useFactory: () => ({
-        secret: process.env.JWT_SECRET,
-        signOptions: { expiresIn: '8h' },
-      }),
-    }),
-  ],
+  imports: [jwtModule],
   controllers: [AuthController],
   providers: [
     AuthService,
@@ -35,6 +38,6 @@ export const OIDC_CLIENT = Symbol('OIDC_CLIENT');
       },
     },
   ],
-  exports: [AuthGuard],
+  exports: [AuthGuard, jwtModule],
 })
 export class AuthModule {}

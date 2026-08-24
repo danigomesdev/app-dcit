@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { BadRequestException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { OIDC_CLIENT } from './auth.module';
+import { OIDC_CLIENT } from './oidc-client.token';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -11,6 +11,7 @@ describe('AuthService', () => {
   const clientMock = {
     authorizationUrl: jest.fn<string, [Record<string, unknown>]>(),
     callback: jest.fn(),
+    userinfo: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -47,11 +48,11 @@ describe('AuthService', () => {
     const { state } = clientMock.authorizationUrl.mock.calls[0][0];
 
     clientMock.callback.mockResolvedValue({
-      claims: () => ({
-        sub: 'user-1',
-        name: 'Ana Colaboradora',
-        dcit_role: 'colaborador',
-      }),
+      claims: () => ({ sub: 'user-1' }),
+    });
+    clientMock.userinfo.mockResolvedValue({
+      name: 'Ana Colaboradora',
+      dcit_role: 'colaborador',
     });
 
     const result = await service.handleCallback(
@@ -88,8 +89,9 @@ describe('AuthService', () => {
     const { state } = clientMock.authorizationUrl.mock.calls[0][0];
 
     clientMock.callback.mockResolvedValue({
-      claims: () => ({ sub: 'user-2', name: 'X', dcit_role: 'admin' }),
+      claims: () => ({ sub: 'user-2' }),
     });
+    clientMock.userinfo.mockResolvedValue({ name: 'X', dcit_role: 'admin' });
 
     await expect(
       service.handleCallback('http://localhost:3000/auth/callback', {
