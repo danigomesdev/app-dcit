@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import HomeScreen from "../index";
+import HomeScreen from "@/app/(tabs)/index";
 
 globalThis.fetch = jest.fn();
 
