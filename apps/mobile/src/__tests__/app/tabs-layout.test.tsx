@@ -9,6 +9,8 @@ describe("(tabs) navigation", () => {
     expect(screen.getByText("Férias")).toBeTruthy();
     expect(screen.getByText("Documentos")).toBeTruthy();
     expect(screen.getByText("Mural")).toBeTruthy();
+
+    expect(screen.getAllByLabelText(/, tab, \d+ of \d+$/)).toHaveLength(5);
   });
 
   it("navigates to the Banco de Horas route", () => {

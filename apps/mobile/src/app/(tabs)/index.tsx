@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { Button, StyleSheet, Text, View } from "react-native";
+import { Button, StyleSheet } from "react-native";
 import type { TimeEntryInput } from "@ponto-dcit/shared-types";
+
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
 
 const API_URL = "http://localhost:3000/time-entries";
 
@@ -26,10 +29,10 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ThemedView style={styles.container}>
       <Button title="Bater Ponto" onPress={handlePress} />
-      {message ? <Text>{message}</Text> : null}
-    </View>
+      {message ? <ThemedText>{message}</ThemedText> : null}
+    </ThemedView>
   );
 }
 
