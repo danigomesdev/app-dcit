@@ -51,6 +51,9 @@
   "private": true,
   "jest": {
     "preset": "jest-expo",
-    "testTimeout": 20000
+    "testTimeout": 20000,
+    "moduleNameMapper": {
+      "\\.(css|less|scss|sass)$": "<rootDir>/__mocks__/styleMock.js"
+    }
   }
 }
