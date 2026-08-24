@@ -1,0 +1,43 @@
+.shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--color-background-element);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.identity {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.nav {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navLink {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--color-text-secondary);
+}
+
+.navLink:hover {
+  background: var(--color-background-selected);
+  color: var(--color-text);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}

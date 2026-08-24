@@ -1,12 +1,24 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  --color-background: #ffffff;
+  --color-text: #000000;
+  --color-background-element: #f0f0f3;
+  --color-background-selected: #e0e1e6;
+  --color-text-secondary: #60646c;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    --color-background: #000000;
+    --color-text: #ffffff;
+    --color-background-element: #212225;
+    --color-background-selected: #2e3135;
+    --color-text-secondary: #b0b4ba;
   }
 }
 
