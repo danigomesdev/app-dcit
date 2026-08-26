@@ -141,4 +141,32 @@ describe('AuthService', () => {
       }),
     ).rejects.toThrow(BadRequestException);
   });
+
+  // Regression test: CLAIM_TO_ROLE used to be a plain object literal, so
+  // bracket-indexing it with an IdP-controlled claim string resolved
+  // Object.prototype members (e.g. `{}['constructor']`) instead of
+  // `undefined`, which is truthy and bypassed the `!role` guard — a fail-open
+  // auth bug. It's now a Map, whose `.get()` has no prototype-chain lookup
+  // surface, so these claims must be rejected exactly like any other unknown
+  // role claim.
+  it.each(['constructor', 'toString', 'hasOwnProperty'])(
+    'rejects a callback whose role claim is the Object.prototype member %j',
+    async (claim) => {
+      clientMock.authorizationUrl.mockReturnValue('https://mock-idp/auth');
+      await service.buildAuthorizationUrl('web');
+      const { state } = clientMock.authorizationUrl.mock.calls[0][0];
+
+      clientMock.callback.mockResolvedValue({
+        claims: () => ({ sub: 'user-3' }),
+      });
+      clientMock.userinfo.mockResolvedValue({ name: 'X', dcit_role: claim });
+
+      await expect(
+        service.handleCallback('http://localhost:3000/auth/callback', {
+          state: state as string,
+          code: 'z',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    },
+  );
 });

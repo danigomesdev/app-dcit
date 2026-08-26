@@ -11,11 +11,11 @@ type PendingLogin = { nonce: string; origin: LoginOrigin };
 // role strings. When a real IdP is wired up, its claim shape (e.g. Entra
 // ID group GUIDs) is unknown yet — this is the one place to update the
 // mapping without touching any other code, per design spec §6.
-const CLAIM_TO_ROLE: Record<string, Role> = {
-  colaborador: 'colaborador',
-  gestor: 'gestor',
-  rh: 'rh',
-};
+const CLAIM_TO_ROLE = new Map<string, Role>([
+  ['colaborador', 'colaborador'],
+  ['gestor', 'gestor'],
+  ['rh', 'rh'],
+]);
 
 @Injectable()
 export class AuthService {
@@ -99,7 +99,8 @@ export class AuthService {
   }
 
   private resolveRole(claim: unknown): Role {
-    const role = typeof claim === 'string' ? CLAIM_TO_ROLE[claim] : undefined;
+    const role =
+      typeof claim === 'string' ? CLAIM_TO_ROLE.get(claim) : undefined;
     if (!role) {
       throw new BadRequestException(
         `Unrecognized role claim: ${String(claim)}`,
