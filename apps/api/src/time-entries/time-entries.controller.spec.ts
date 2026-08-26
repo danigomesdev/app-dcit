@@ -1,10 +1,31 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import type { Request } from 'express';
 import { TimeEntriesController } from './time-entries.controller';
 import { TimeEntriesService } from './time-entries.service';
 import { AuthGuard } from '../auth/auth-guard';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+describe('TimeEntriesController guard metadata', () => {
+  // Deliberately does NOT go through TestingModule/.overrideGuard: it reads
+  // the guard metadata Nest actually attached to the handler via
+  // `@UseGuards(AuthGuard)`, so it fails if that decorator is ever removed —
+  // something the behavioral tests below can't catch, since they override
+  // the guard with an always-allow stub. Design spec §8 requires API test
+  // coverage that POST /time-entries is guarded.
+  it('applies AuthGuard to the create (POST) handler', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // Read as a function reference for Reflect metadata, never called
+      // unbound.
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      TimeEntriesController.prototype.create,
+    ) as unknown[] | undefined;
+
+    expect(guards).toContain(AuthGuard);
+  });
+});
 
 describe('TimeEntriesController', () => {
   let controller: TimeEntriesController;

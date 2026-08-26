@@ -1,8 +1,21 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { BadRequestException } from '@nestjs/common';
+import { Issuer } from 'openid-client';
 import { AuthService } from './auth.service';
-import { OIDC_CLIENT } from './oidc-client.token';
+import { OIDC_CLIENT_CONFIG, type OidcClientConfig } from './oidc-client.token';
+
+// Discovery is deferred to first use (see AuthService.getClient), so unit
+// tests never make a real network call — Issuer.discover is mocked to
+// resolve a fake issuer whose `Client` constructor hands back our stub.
+jest.mock('openid-client', () => {
+  const actual =
+    jest.requireActual<typeof import('openid-client')>('openid-client');
+  return {
+    ...actual,
+    Issuer: { discover: jest.fn() },
+  };
+});
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -14,14 +27,25 @@ describe('AuthService', () => {
     userinfo: jest.fn(),
   };
 
+  const config: OidcClientConfig = {
+    issuerUrl: 'https://mock-idp.test',
+    clientId: 'test-client',
+    clientSecret: 'test-secret',
+    redirectUri: 'http://localhost:3000/auth/callback',
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
     jwt = { sign: jest.fn().mockReturnValue('signed.jwt.token') };
 
+    (Issuer.discover as jest.Mock).mockResolvedValue({
+      Client: jest.fn().mockImplementation(() => clientMock),
+    });
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: OIDC_CLIENT, useValue: clientMock },
+        { provide: OIDC_CLIENT_CONFIG, useValue: config },
         { provide: JwtService, useValue: jwt },
       ],
     }).compile();
@@ -29,12 +53,29 @@ describe('AuthService', () => {
     service = module.get(AuthService);
   });
 
-  it('builds an authorization URL requesting openid/profile/email', () => {
+  it('discovers the IdP lazily on first use and memoizes the client', async () => {
+    clientMock.authorizationUrl.mockReturnValue(
+      'https://mock-idp/auth?state=abc',
+    );
+    // Passed to jest's expect() as a mock reference, never called unbound.
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(Issuer.discover).not.toHaveBeenCalled();
+
+    await service.buildAuthorizationUrl('web');
+    await service.buildAuthorizationUrl('web');
+
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(Issuer.discover).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(Issuer.discover).toHaveBeenCalledWith(config.issuerUrl);
+  });
+
+  it('builds an authorization URL requesting openid/profile/email', async () => {
     clientMock.authorizationUrl.mockReturnValue(
       'https://mock-idp/auth?state=abc',
     );
 
-    const url = service.buildAuthorizationUrl('web');
+    const url = await service.buildAuthorizationUrl('web');
 
     expect(url).toBe('https://mock-idp/auth?state=abc');
     expect(clientMock.authorizationUrl).toHaveBeenCalledWith(
@@ -44,7 +85,7 @@ describe('AuthService', () => {
 
   it('exchanges a valid callback and issues a session JWT with the resolved role', async () => {
     clientMock.authorizationUrl.mockReturnValue('https://mock-idp/auth');
-    service.buildAuthorizationUrl('mobile');
+    await service.buildAuthorizationUrl('mobile');
     const { state } = clientMock.authorizationUrl.mock.calls[0][0];
 
     clientMock.callback.mockResolvedValue({
@@ -85,7 +126,7 @@ describe('AuthService', () => {
 
   it('rejects a callback whose role claim is not one of the known roles', async () => {
     clientMock.authorizationUrl.mockReturnValue('https://mock-idp/auth');
-    service.buildAuthorizationUrl('web');
+    await service.buildAuthorizationUrl('web');
     const { state } = clientMock.authorizationUrl.mock.calls[0][0];
 
     clientMock.callback.mockResolvedValue({

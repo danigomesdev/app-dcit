@@ -29,25 +29,25 @@ describe('AuthController', () => {
     controller = module.get(AuthController);
   });
 
-  it('redirects to the authorization URL for a web login', () => {
-    authServiceMock.buildAuthorizationUrl.mockReturnValue(
+  it('redirects to the authorization URL for a web login', async () => {
+    authServiceMock.buildAuthorizationUrl.mockResolvedValue(
       'https://mock-idp/auth',
     );
     const res = mockResponse();
 
-    controller.login('web', res as unknown as Response);
+    await controller.login('web', res as unknown as Response);
 
     expect(authServiceMock.buildAuthorizationUrl).toHaveBeenCalledWith('web');
     expect(res.redirect).toHaveBeenCalledWith('https://mock-idp/auth');
   });
 
-  it('defaults to web origin when none is given', () => {
-    authServiceMock.buildAuthorizationUrl.mockReturnValue(
+  it('defaults to web origin when none is given', async () => {
+    authServiceMock.buildAuthorizationUrl.mockResolvedValue(
       'https://mock-idp/auth',
     );
     const res = mockResponse();
 
-    controller.login(
+    await controller.login(
       undefined as unknown as string,
       res as unknown as Response,
     );

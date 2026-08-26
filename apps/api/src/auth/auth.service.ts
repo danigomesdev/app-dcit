@@ -1,27 +1,59 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { generators, type Client } from 'openid-client';
+import { Issuer, generators, type Client } from 'openid-client';
 import type { Role } from '@ponto-dcit/shared-types';
-import { OIDC_CLIENT } from './oidc-client.token';
+import { OIDC_CLIENT_CONFIG, type OidcClientConfig } from './oidc-client.token';
 
 type LoginOrigin = 'web' | 'mobile';
 type PendingLogin = { nonce: string; origin: LoginOrigin };
 
+// Identity mapping today because the mock IdP already emits our exact
+// role strings. When a real IdP is wired up, its claim shape (e.g. Entra
+// ID group GUIDs) is unknown yet — this is the one place to update the
+// mapping without touching any other code, per design spec §6.
+const CLAIM_TO_ROLE: Record<string, Role> = {
+  colaborador: 'colaborador',
+  gestor: 'gestor',
+  rh: 'rh',
+};
+
 @Injectable()
 export class AuthService {
   private readonly pendingLogins = new Map<string, PendingLogin>();
+  private clientPromise: Promise<Client> | null = null;
 
   constructor(
-    @Inject(OIDC_CLIENT) private readonly client: Client,
+    @Inject(OIDC_CLIENT_CONFIG) private readonly config: OidcClientConfig,
     private readonly jwt: JwtService,
   ) {}
 
-  buildAuthorizationUrl(origin: LoginOrigin): string {
+  // OIDC discovery hits the IdP over the network, so it can't run at module
+  // init / app boot without making the whole API's startup (including
+  // /health) depend on the IdP being reachable. Instead it's deferred to the
+  // first real login attempt and memoized here so subsequent logins reuse
+  // the same client rather than re-discovering every time.
+  private getClient(): Promise<Client> {
+    if (!this.clientPromise) {
+      this.clientPromise = Issuer.discover(this.config.issuerUrl).then(
+        (issuer) =>
+          new issuer.Client({
+            client_id: this.config.clientId,
+            client_secret: this.config.clientSecret,
+            redirect_uris: [this.config.redirectUri],
+            response_types: ['code'],
+          }),
+      );
+    }
+    return this.clientPromise;
+  }
+
+  async buildAuthorizationUrl(origin: LoginOrigin): Promise<string> {
+    const client = await this.getClient();
     const state = generators.state();
     const nonce = generators.nonce();
     this.pendingLogins.set(state, { nonce, origin });
 
-    return this.client.authorizationUrl({
+    return client.authorizationUrl({
       scope: 'openid profile email',
       state,
       nonce,
@@ -40,7 +72,8 @@ export class AuthService {
     }
     this.pendingLogins.delete(params.state);
 
-    const tokenSet = await this.client.callback(redirectUri, params, {
+    const client = await this.getClient();
+    const tokenSet = await client.callback(redirectUri, params, {
       state: params.state,
       nonce: pending.nonce,
     });
@@ -50,7 +83,7 @@ export class AuthService {
     // claims like name/dcit_role are only available from the UserInfo
     // endpoint, so they must be fetched separately rather than read off the
     // id_token's claims.
-    const userinfo = (await this.client.userinfo(tokenSet)) as {
+    const userinfo = (await client.userinfo(tokenSet)) as {
       name?: string;
       dcit_role?: unknown;
     };
@@ -66,9 +99,12 @@ export class AuthService {
   }
 
   private resolveRole(claim: unknown): Role {
-    if (claim === 'colaborador' || claim === 'gestor' || claim === 'rh') {
-      return claim;
+    const role = typeof claim === 'string' ? CLAIM_TO_ROLE[claim] : undefined;
+    if (!role) {
+      throw new BadRequestException(
+        `Unrecognized role claim: ${String(claim)}`,
+      );
     }
-    throw new BadRequestException(`Unrecognized role claim: ${String(claim)}`);
+    return role;
   }
 }

@@ -15,9 +15,9 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Get('login')
-  login(@Query('origin') origin: string, @Res() res: Response) {
+  async login(@Query('origin') origin: string, @Res() res: Response) {
     const safeOrigin = origin === 'mobile' ? 'mobile' : 'web';
-    const url = this.authService.buildAuthorizationUrl(safeOrigin);
+    const url = await this.authService.buildAuthorizationUrl(safeOrigin);
     res.redirect(url);
   }
 
