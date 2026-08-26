@@ -1,6 +1,16 @@
-import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
+import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
+import * as WebBrowser from "expo-web-browser";
+import { getSessionToken } from "@/lib/session";
+
+jest.mock("expo-web-browser", () => ({
+  openAuthSessionAsync: jest.fn(),
+}));
 
 describe("login screen", () => {
+  beforeEach(() => {
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockReset();
+  });
+
   it("renders the SSO entry point", () => {
     renderRouter("src/app", { initialUrl: "/login" });
 
@@ -8,11 +18,30 @@ describe("login screen", () => {
     expect(screen.getByText("Entrar com SSO")).toBeTruthy();
   });
 
-  it("navigates to the Ponto tab after pressing Entrar com SSO", () => {
-    renderRouter("src/app", { initialUrl: "/login" });
+  it("stores the token and navigates to the Ponto tab on a successful login", async () => {
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
+      type: "success",
+      url: "mobile://auth-callback?token=abc123",
+    });
 
+    renderRouter("src/app", { initialUrl: "/login" });
     fireEvent.press(screen.getByText("Entrar com SSO"));
 
-    expect(screen).toHavePathname("/");
+    await waitFor(async () => {
+      expect(screen).toHavePathname("/");
+    });
+    expect(await getSessionToken()).toBe("abc123");
+  });
+
+  it("stays on the login screen when the browser session is cancelled", async () => {
+    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: "cancel" });
+
+    renderRouter("src/app", { initialUrl: "/login" });
+    fireEvent.press(screen.getByText("Entrar com SSO"));
+
+    await waitFor(() => {
+      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalled();
+    });
+    expect(screen).toHavePathname("/login");
   });
 });

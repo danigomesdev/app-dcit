@@ -18,6 +18,8 @@ export const Colors = {
     secondary: '#2F5CFF',
     accent: '#F2531D',
     onAccent: '#ffffff',
+    success: '#1D8A6C',
+    backgroundScrim: 'rgba(255, 255, 255, 0.9)',
   },
   dark: {
     text: '#ffffff',
@@ -29,6 +31,8 @@ export const Colors = {
     secondary: '#5C85FF',
     accent: '#F2531D',
     onAccent: '#ffffff',
+    success: '#26A085',
+    backgroundScrim: 'rgba(16, 27, 61, 0.82)',
   },
 } as const;
 

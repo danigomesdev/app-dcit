@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter, type Href } from "expo-router";
 import type { ComponentProps } from "react";
 import type { TimeEntryInput } from "@ponto-dcit/shared-types";
 
+import { PunchConfirmationModal } from "@/components/punch-confirmation-modal";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+import { TabBackground } from "@/components/tab-background";
+import { API_URL } from "@/constants/api";
+import { formatMinutes, summarizeDay, usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
-
-const API_URL = "http://localhost:3000/time-entries";
+import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
+import { getSessionToken } from "@/lib/session";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -18,13 +22,19 @@ type QuickActionItem = {
   id: string;
   icon: IconName;
   label: string;
+  href: Href;
 };
 
 const QUICK_ACTIONS: QuickActionItem[] = [
-  { id: "historico", icon: "receipt-outline", label: "Histórico de pontos" },
-  { id: "folha", icon: "document-text-outline", label: "Folha de ponto" },
-  { id: "ajustar", icon: "briefcase-outline", label: "Ajustar meu ponto" },
-  { id: "solicitacoes", icon: "create-outline", label: "Solicitações de ajustes" },
+  { id: "historico", icon: "receipt-outline", label: "Histórico de pontos", href: "/historico" },
+  { id: "folha", icon: "document-text-outline", label: "Folha de ponto", href: "/folha" },
+  { id: "ajustar", icon: "briefcase-outline", label: "Ajustar meu ponto", href: "/ajustar" },
+  {
+    id: "solicitacoes",
+    icon: "create-outline",
+    label: "Solicitações de ajustes",
+    href: "/solicitacoes",
+  },
 ];
 
 function HeaderIconButton({ icon }: { icon: IconName }) {
@@ -36,10 +46,14 @@ function HeaderIconButton({ icon }: { icon: IconName }) {
   );
 }
 
-function QuickAction({ icon, label }: QuickActionItem) {
+function QuickAction({ icon, label, href }: QuickActionItem) {
   const theme = useTheme();
+  const router = useRouter();
   return (
-    <Pressable style={[styles.quickAction, { backgroundColor: theme.backgroundElement }]}>
+    <Pressable
+      onPress={() => router.push(href)}
+      style={[styles.quickAction, { backgroundColor: theme.backgroundElement }]}
+    >
       <View style={[styles.quickActionIcon, { backgroundColor: theme.background }]}>
         <Ionicons name={icon} size={20} color={theme.secondary} />
       </View>
@@ -52,12 +66,39 @@ function QuickAction({ icon, label }: QuickActionItem) {
 
 export default function HomeScreen() {
   const theme = useTheme();
-  const [lastPunchTime, setLastPunchTime] = useState<string | null>(null);
+  const router = useRouter();
+  const { entries, addEntry } = usePonto();
   const [error, setError] = useState<string | null>(null);
   const [hoursVisible, setHoursVisible] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const [claims, setClaims] = useState<SessionClaims | null>(null);
+  const [confirmation, setConfirmation] = useState<Date | null>(null);
+
+  useEffect(() => {
+    getSessionToken().then((token) => {
+      if (token) setClaims(decodeSessionToken(token));
+    });
+  }, []);
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayEntries = entries.filter((entry) => entry.clockedAt.slice(0, 10) === todayKey);
+  const { workedMinutes, isOpen } = summarizeDay(todayEntries);
+  const lastEntry = todayEntries[todayEntries.length - 1];
+  const lastPunchTime = lastEntry
+    ? new Date(lastEntry.clockedAt).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
 
   async function handlePress() {
+    const token = await getSessionToken();
+    if (!token) {
+      setError("Sessão expirada. Faça login novamente.");
+      router.replace("/login");
+      return;
+    }
+
     const now = new Date();
     const payload: TimeEntryInput = {
       userId: "demo-user",
@@ -65,16 +106,19 @@ export default function HomeScreen() {
     };
 
     try {
-      const response = await fetch(API_URL, {
+      const response = await fetch(`${API_URL}/time-entries`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
       if (response.ok) {
         setError(null);
-        setLastPunchTime(
-          now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        );
+        addEntry(now.toISOString());
+        setClaims(decodeSessionToken(token));
+        setConfirmation(now);
       } else {
         setError("Falha ao registrar ponto");
       }
@@ -84,7 +128,7 @@ export default function HomeScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
+    <TabBackground>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={[styles.brandMark, { backgroundColor: theme.accent }]} />
@@ -100,7 +144,7 @@ export default function HomeScreen() {
             <Ionicons name="person-outline" size={22} color={theme.secondary} />
           </View>
           <View style={styles.identityText}>
-            <ThemedText type="smallBold">Olá, Colaborador</ThemedText>
+            <ThemedText type="smallBold">Olá, {claims?.name ?? "Colaborador"}</ThemedText>
             <View style={styles.locationInline}>
               <Ionicons name="location-outline" size={14} color={theme.textSecondary} />
               <ThemedText type="small" themeColor="textSecondary">
@@ -151,7 +195,8 @@ export default function HomeScreen() {
           </View>
           {detailsExpanded ? (
             <ThemedText type="small" themeColor="textSecondary" style={styles.detailsText}>
-              Sem detalhes adicionais por enquanto.
+              {todayEntries.length} registro(s) hoje.{" "}
+              {isOpen ? "Ponto em aberto (aguardando saída)." : "Todos os pares fechados."}
             </ThemedText>
           ) : null}
 
@@ -159,7 +204,9 @@ export default function HomeScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               Total de horas trabalhadas hoje:
             </ThemedText>
-            <ThemedText type="smallBold">{hoursVisible ? "Em breve" : "••••"}</ThemedText>
+            <ThemedText type="smallBold">
+              {hoursVisible ? formatMinutes(workedMinutes) : "••••"}
+            </ThemedText>
           </View>
           <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
             Toque no ícone de olho para ver as horas trabalhadas.
@@ -178,14 +225,18 @@ export default function HomeScreen() {
           ))}
         </View>
       </ScrollView>
-    </ThemedView>
+
+      <PunchConfirmationModal
+        visible={confirmation !== null}
+        onClose={() => setConfirmation(null)}
+        clockedAt={confirmation}
+        claims={claims}
+      />
+    </TabBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
   scrollContent: {
     padding: Spacing.four,
     gap: Spacing.four,
