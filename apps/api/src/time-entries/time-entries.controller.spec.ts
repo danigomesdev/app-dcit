@@ -50,6 +50,10 @@ describe('TimeEntriesController', () => {
     } as Request & { user: AuthenticatedUser };
   }
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('delegates a valid payload to the service using the authenticated user id', async () => {
     serviceMock.create.mockResolvedValue({
       id: '1',
@@ -63,10 +67,9 @@ describe('TimeEntriesController', () => {
       requestAs('user-123'),
     );
 
-    expect(serviceMock.create).toHaveBeenCalledWith({
-      userId: 'user-123',
-      clockedAt: '2026-08-19T13:00:00.000Z',
-    });
+    expect(serviceMock.create).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'user-123' }),
+    );
   });
 
   it('ignores a userId in the request body and uses the authenticated user instead', async () => {
@@ -82,8 +85,28 @@ describe('TimeEntriesController', () => {
       requestAs('authenticated-user'),
     );
 
+    expect(serviceMock.create).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 'authenticated-user' }),
+    );
+  });
+
+  it('stamps clockedAt with the server clock, ignoring whatever the client sent', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-19T13:00:00.000Z'));
+    serviceMock.create.mockResolvedValue({
+      id: '3',
+      userId: 'user-123',
+      clockedAt: new Date(),
+      createdAt: new Date(),
+    });
+
+    // Client claims a punch from a week earlier — a spoofed device clock.
+    await controller.create(
+      { userId: 'user-123', clockedAt: '2026-08-12T09:00:00.000Z' },
+      requestAs('user-123'),
+    );
+
     expect(serviceMock.create).toHaveBeenCalledWith({
-      userId: 'authenticated-user',
+      userId: 'user-123',
       clockedAt: '2026-08-19T13:00:00.000Z',
     });
   });

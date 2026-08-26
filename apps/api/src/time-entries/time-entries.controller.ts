@@ -27,9 +27,18 @@ export class TimeEntriesController {
     if (!result.success) {
       throw new BadRequestException(result.error.flatten());
     }
+    // Trustworthy-timestamp (simplified tier): the server's own clock is
+    // the source of truth for when a punch is recorded, not whatever the
+    // device sends — a phone's clock is trivial to change, this endpoint's
+    // arrival time isn't. `clockedAt` is still accepted in the request
+    // body (the mobile app's offline queue needs it to display "when I
+    // tapped" locally before a sync succeeds), but it's never what gets
+    // persisted. The full tier — locally signed timestamps so an offline
+    // punch's original tap time is itself verifiable — is a larger,
+    // separately-scoped piece of work.
     return this.timeEntries.create({
       userId: req.user.sub,
-      clockedAt: result.data.clockedAt,
+      clockedAt: new Date().toISOString(),
     });
   }
 }
