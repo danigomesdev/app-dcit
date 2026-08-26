@@ -66,6 +66,21 @@ describe("HomeScreen", () => {
     });
   });
 
+  it("queues the punch locally when the request fails due to no connectivity", async () => {
+    (globalThis.fetch as jest.Mock).mockRejectedValue(new TypeError("Network request failed"));
+
+    renderRouter("src/app", { initialUrl: "/" });
+    fireEvent.press(screen.getByText("Bater Ponto"));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Registrado às: --:--/)).toBeNull();
+    });
+    expect(
+      screen.getByText(/1 ponto\(s\) registrado\(s\) offline/),
+    ).toBeTruthy();
+    expect(screen.queryByText(/Falha ao registrar/i)).toBeNull();
+  });
+
   it("redirects to login and shows an error when there is no session token", async () => {
     await clearSessionToken();
 
@@ -100,11 +115,43 @@ describe("HomeScreen", () => {
     });
   });
 
-  it("navigates to the history screen from the quick actions grid", () => {
+  it("navigates to the history screen from the quick actions grid", async () => {
     renderRouter("src/app", { initialUrl: "/" });
 
     fireEvent.press(screen.getByText("Histórico de pontos"));
 
-    expect(screen).toHavePathname("/historico");
+    await waitFor(() => {
+      expect(screen).toHavePathname("/historico");
+    });
+  });
+
+  it("navigates to the profile screen from the header menu icon", async () => {
+    renderRouter("src/app", { initialUrl: "/" });
+
+    fireEvent.press(screen.getByLabelText("Abrir perfil"));
+
+    await waitFor(() => {
+      expect(screen).toHavePathname("/perfil");
+    });
+  });
+
+  it("navigates to the search screen from the header search icon", async () => {
+    renderRouter("src/app", { initialUrl: "/" });
+
+    fireEvent.press(screen.getByLabelText("Buscar"));
+
+    await waitFor(() => {
+      expect(screen).toHavePathname("/busca");
+    });
+  });
+
+  it("navigates to the notifications screen from the header bell icon", async () => {
+    renderRouter("src/app", { initialUrl: "/" });
+
+    fireEvent.press(screen.getByLabelText("Notificações"));
+
+    await waitFor(() => {
+      expect(screen).toHavePathname("/notificacoes");
+    });
   });
 });

@@ -1,0 +1,122 @@
+import { useMemo } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+import { EmptyState } from "@/components/empty-state";
+import { ScreenHeader } from "@/components/screen-header";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { usePonto } from "@/context/ponto-context";
+import { useTheme } from "@/hooks/use-theme";
+import { Spacing } from "@/constants/theme";
+import { currentVacationCycle, daysUntil, formatDate } from "@/lib/ferias";
+
+type Notice = {
+  id: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  tone: "accent" | "secondary";
+  title: string;
+  description: string;
+};
+
+const VENCIMENTO_ALERT_THRESHOLD_DAYS = 90;
+
+export default function NotificacoesScreen() {
+  const theme = useTheme();
+  const { entries, vacationRequests, adjustmentRequests, compensationRequests } = usePonto();
+
+  const notices = useMemo<Notice[]>(() => {
+    const list: Notice[] = [];
+
+    const cycle = currentVacationCycle();
+    const daysToVencimento = daysUntil(cycle.vencimento);
+    if (daysToVencimento <= VENCIMENTO_ALERT_THRESHOLD_DAYS) {
+      list.push({
+        id: "ferias-vencendo",
+        icon: "warning-outline",
+        tone: "accent",
+        title: "Suas férias estão vencendo",
+        description: `Vencem em ${formatDate(cycle.vencimento)} (${daysToVencimento} dias). Agende antes do prazo.`,
+      });
+    }
+
+    const pendingSync = entries.filter((entry) => entry.synced === false).length;
+    if (pendingSync > 0) {
+      list.push({
+        id: "pontos-pendentes",
+        icon: "cloud-offline-outline",
+        tone: "accent",
+        title: "Pontos aguardando sincronização",
+        description: `${pendingSync} ponto(s) registrado(s) offline ainda não confirmado(s) pelo servidor.`,
+      });
+    }
+
+    const pendingVacation = vacationRequests.filter((r) => r.status === "pendente").length;
+    const pendingAdjustments = adjustmentRequests.length;
+    const pendingCompensation = compensationRequests.length;
+    const totalPending = pendingVacation + pendingAdjustments + pendingCompensation;
+    if (totalPending > 0) {
+      list.push({
+        id: "solicitacoes-pendentes",
+        icon: "time-outline",
+        tone: "secondary",
+        title: "Solicitações em andamento",
+        description: `Você tem ${totalPending} solicitação(ões) aguardando aprovação.`,
+      });
+    }
+
+    return list;
+  }, [entries, vacationRequests, adjustmentRequests, compensationRequests]);
+
+  return (
+    <ThemedView style={styles.container}>
+      <ScreenHeader title="Notificações" />
+      {notices.length === 0 ? (
+        <EmptyState
+          glyph="🔔"
+          title="Tudo em dia"
+          description="Nenhum aviso no momento."
+        />
+      ) : (
+        <ScrollView contentContainerStyle={styles.list}>
+          {notices.map((notice) => (
+            <View key={notice.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+              <Ionicons
+                name={notice.icon}
+                size={22}
+                color={notice.tone === "accent" ? theme.accent : theme.secondary}
+              />
+              <View style={styles.rowContent}>
+                <ThemedText type="smallBold">{notice.title}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {notice.description}
+                </ThemedText>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  list: {
+    padding: Spacing.four,
+    gap: Spacing.two,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+    borderRadius: 14,
+    padding: Spacing.three,
+  },
+  rowContent: {
+    flex: 1,
+    gap: 2,
+  },
+});

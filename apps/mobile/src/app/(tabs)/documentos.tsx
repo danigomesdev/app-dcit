@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 
 import { EmptyState } from "@/components/empty-state";
 import { TabBackground } from "@/components/tab-background";
@@ -16,6 +15,9 @@ import {
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import { ADMISSION_DOCUMENTS, PAYSLIPS, formatBRL, netPay } from "@/lib/documentos";
+import { pickPhoto } from "@/lib/photo-picker";
+import { extractAtestadoData } from "@/lib/atestado-ocr";
+import { getSessionToken } from "@/lib/session";
 
 type Category = "admissionais" | "atestados" | "holerites" | "certificacoes";
 
@@ -85,8 +87,67 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
 
 function AdmissionaisSection() {
   const theme = useTheme();
+  const { admissionUploads, addAdmissionUpload } = useDocumentos();
+  const [formOpen, setFormOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  async function handlePickPhoto(source: "camera" | "library") {
+    const uri = await pickPhoto(source);
+    if (uri) setPhotoUri(uri);
+  }
+
+  function resetForm() {
+    setTitle("");
+    setPhotoUri(null);
+    setFormOpen(false);
+  }
+
+  function handleSubmit() {
+    if (!title.trim()) return;
+    addAdmissionUpload({ title: title.trim(), photoUri: photoUri ?? undefined });
+    resetForm();
+  }
+
   return (
     <View style={styles.list}>
+      <ThemedButton
+        title={formOpen ? "Cancelar" : "Enviar documento admissional"}
+        onPress={() => (formOpen ? resetForm() : setFormOpen(true))}
+      />
+
+      {formOpen ? (
+        <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
+          <View style={styles.photoButtons}>
+            <Pressable
+              style={[styles.photoButton, { backgroundColor: theme.background }]}
+              onPress={() => handlePickPhoto("camera")}
+            >
+              <Ionicons name="camera-outline" size={20} color={theme.secondary} />
+              <ThemedText type="small">Tirar foto</ThemedText>
+            </Pressable>
+            <Pressable
+              style={[styles.photoButton, { backgroundColor: theme.background }]}
+              onPress={() => handlePickPhoto("library")}
+            >
+              <Ionicons name="image-outline" size={20} color={theme.secondary} />
+              <ThemedText type="small">Escolher da galeria</ThemedText>
+            </Pressable>
+          </View>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.preview} contentFit="cover" />
+          ) : null}
+          <TextInput
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Ex: Comprovante de residência atualizado"
+            placeholderTextColor={theme.textSecondary}
+            style={[styles.input, { backgroundColor: theme.background, color: theme.text }]}
+          />
+          <ThemedButton title="Enviar" onPress={handleSubmit} />
+        </View>
+      ) : null}
+
       {ADMISSION_DOCUMENTS.map((doc) => (
         <View key={doc.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <Ionicons name="document-text-outline" size={20} color={theme.secondary} />
@@ -99,9 +160,26 @@ function AdmissionaisSection() {
           <StatusBadge status="aprovado" />
         </View>
       ))}
+      {admissionUploads
+        .slice()
+        .reverse()
+        .map((doc) => (
+          <View key={doc.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+            <Ionicons name="document-text-outline" size={20} color={theme.secondary} />
+            <View style={styles.rowContent}>
+              <ThemedText type="smallBold">{doc.title}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Enviado em {new Date(doc.createdAt).toLocaleDateString("pt-BR")}
+              </ThemedText>
+            </View>
+            <StatusBadge status={doc.status} />
+          </View>
+        ))}
     </View>
   );
 }
+
+type OcrStatus = "idle" | "loading" | "done" | "error";
 
 function AtestadosSection() {
   const theme = useTheme();
@@ -112,22 +190,30 @@ function AtestadosSection() {
   const [crm, setCrm] = useState("");
   const [medico, setMedico] = useState("");
   const [dias, setDias] = useState("");
+  const [ocrStatus, setOcrStatus] = useState<OcrStatus>("idle");
 
-  async function pickPhoto(source: "camera" | "library") {
-    const permission =
-      source === "camera"
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) return;
+  async function handlePickPhoto(source: "camera" | "library") {
+    const uri = await pickPhoto(source);
+    if (!uri) return;
+    setPhotoUri(uri);
+    setOcrStatus("loading");
 
-    const result =
-      source === "camera"
-        ? await ImagePicker.launchCameraAsync({ quality: 0.6 })
-        : await ImagePicker.launchImageLibraryAsync({ quality: 0.6 });
-
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
+    const token = await getSessionToken();
+    if (!token) {
+      setOcrStatus("error");
+      return;
     }
+    const outcome = await extractAtestadoData(token, uri);
+    if (!outcome.ok) {
+      setOcrStatus("error");
+      return;
+    }
+    const { result } = outcome;
+    if (result.cid) setCid(result.cid);
+    if (result.crm) setCrm(result.crm);
+    if (result.medico) setMedico(result.medico);
+    if (result.dias) setDias(String(result.dias));
+    setOcrStatus("done");
   }
 
   function resetForm() {
@@ -136,6 +222,7 @@ function AtestadosSection() {
     setCrm("");
     setMedico("");
     setDias("");
+    setOcrStatus("idle");
     setFormOpen(false);
   }
 
@@ -164,14 +251,14 @@ function AtestadosSection() {
           <View style={styles.photoButtons}>
             <Pressable
               style={[styles.photoButton, { backgroundColor: theme.background }]}
-              onPress={() => pickPhoto("camera")}
+              onPress={() => handlePickPhoto("camera")}
             >
               <Ionicons name="camera-outline" size={20} color={theme.secondary} />
               <ThemedText type="small">Tirar foto</ThemedText>
             </Pressable>
             <Pressable
               style={[styles.photoButton, { backgroundColor: theme.background }]}
-              onPress={() => pickPhoto("library")}
+              onPress={() => handlePickPhoto("library")}
             >
               <Ionicons name="image-outline" size={20} color={theme.secondary} />
               <ThemedText type="small">Escolher da galeria</ThemedText>
@@ -182,9 +269,15 @@ function AtestadosSection() {
             <Image source={{ uri: photoUri }} style={styles.preview} contentFit="cover" />
           ) : null}
 
-          <ThemedText type="small" themeColor="textSecondary">
-            Leitura automática (OCR) ainda não disponível — preencha os dados abaixo manualmente.
-          </ThemedText>
+          {ocrStatus !== "idle" ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {ocrStatus === "loading"
+                ? "Lendo o atestado automaticamente…"
+                : ocrStatus === "done"
+                  ? "Dados preenchidos automaticamente — confira antes de enviar."
+                  : "Não foi possível ler automaticamente — preencha os dados abaixo manualmente."}
+            </ThemedText>
+          ) : null}
 
           <TextInput
             value={cid}

@@ -1,5 +1,6 @@
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
 import * as ImagePicker from "expo-image-picker";
+import { saveSessionToken } from "@/lib/session";
 
 jest.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync: jest.fn(),
@@ -8,14 +9,23 @@ jest.mock("expo-image-picker", () => ({
   launchImageLibraryAsync: jest.fn(),
 }));
 
+jest.mock("expo-file-system/legacy", () => ({
+  readAsStringAsync: jest.fn().mockResolvedValue("ZmFrZS1pbWFnZS1kYXRh"),
+  EncodingType: { Base64: "base64", UTF8: "utf8" },
+}));
+
+globalThis.fetch = jest.fn();
+
 describe("documentos screen", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     (ImagePicker.requestCameraPermissionsAsync as jest.Mock).mockResolvedValue({ granted: true });
     (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
       granted: true,
     });
     (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({ canceled: true });
     (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({ canceled: true });
+    (globalThis.fetch as jest.Mock).mockReset();
+    await saveSessionToken("test-token");
   });
 
   it("defaults to the Atestados category with the seeded status list", () => {
@@ -61,6 +71,51 @@ describe("documentos screen", () => {
     await waitFor(() => {
       expect(ImagePicker.launchCameraAsync).toHaveBeenCalled();
     });
+  });
+
+  it("prefills the atestado fields after a successful automatic OCR read", async () => {
+    (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file://fake-photo.jpg" }],
+    });
+    (globalThis.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        cid: "J06.9",
+        crm: "CRM-MG 45213",
+        medico: "Dr. Carlos Mendes",
+        dias: 2,
+      }),
+    });
+
+    renderRouter("src/app", { initialUrl: "/documentos" });
+    fireEvent.press(screen.getByText("Enviar Atestado"));
+    fireEvent.press(screen.getByText("Tirar foto"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Dados preenchidos automaticamente/)).toBeTruthy();
+    });
+    expect(screen.getByDisplayValue("J06.9")).toBeTruthy();
+    expect(screen.getByDisplayValue("CRM-MG 45213")).toBeTruthy();
+    expect(screen.getByDisplayValue("Dr. Carlos Mendes")).toBeTruthy();
+    expect(screen.getByDisplayValue("2")).toBeTruthy();
+  });
+
+  it("falls back to manual entry when the OCR request fails", async () => {
+    (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file://fake-photo.jpg" }],
+    });
+    (globalThis.fetch as jest.Mock).mockResolvedValue({ ok: false });
+
+    renderRouter("src/app", { initialUrl: "/documentos" });
+    fireEvent.press(screen.getByText("Enviar Atestado"));
+    fireEvent.press(screen.getByText("Tirar foto"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Não foi possível ler automaticamente/)).toBeTruthy();
+    });
+    expect(screen.getByPlaceholderText("CID").props.value).toBe("");
   });
 
   it("expands a payslip to show the discount breakdown", () => {

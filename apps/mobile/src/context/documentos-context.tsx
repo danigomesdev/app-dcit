@@ -21,8 +21,17 @@ export type Certification = {
   createdAt: string;
 };
 
+export type AdmissionUpload = {
+  id: string;
+  title: string;
+  createdAt: string;
+  status: DocumentStatus;
+  photoUri?: string;
+};
+
 type NewAtestado = Omit<AtestadoRecord, "id" | "createdAt" | "status">;
 type NewCertification = Omit<Certification, "id" | "createdAt">;
+type NewAdmissionUpload = Omit<AdmissionUpload, "id" | "createdAt" | "status">;
 
 // Seeded so the status list demonstrates more than "enviado" — these two
 // stand in for atestados that would already be on file, not user actions.
@@ -52,6 +61,8 @@ type DocumentosContextValue = {
   addAtestado: (input: NewAtestado) => void;
   certifications: Certification[];
   addCertification: (input: NewCertification) => void;
+  admissionUploads: AdmissionUpload[];
+  addAdmissionUpload: (input: NewAdmissionUpload) => void;
 };
 
 const DocumentosContext = createContext<DocumentosContextValue | null>(null);
@@ -63,6 +74,7 @@ function nextId() {
 export function DocumentosProvider({ children }: { children: ReactNode }) {
   const [atestados, setAtestados] = useState<AtestadoRecord[]>(SEEDED_ATESTADOS);
   const [certifications, setCertifications] = useState<Certification[]>([]);
+  const [admissionUploads, setAdmissionUploads] = useState<AdmissionUpload[]>([]);
 
   function addAtestado(input: NewAtestado) {
     setAtestados((current) => [
@@ -78,9 +90,23 @@ export function DocumentosProvider({ children }: { children: ReactNode }) {
     ]);
   }
 
+  function addAdmissionUpload(input: NewAdmissionUpload) {
+    setAdmissionUploads((current) => [
+      ...current,
+      { ...input, id: nextId(), createdAt: new Date().toISOString(), status: "enviado" },
+    ]);
+  }
+
   return (
     <DocumentosContext.Provider
-      value={{ atestados, addAtestado, certifications, addCertification }}
+      value={{
+        atestados,
+        addAtestado,
+        certifications,
+        addCertification,
+        admissionUploads,
+        addAdmissionUpload,
+      }}
     >
       {children}
     </DocumentosContext.Provider>

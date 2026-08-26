@@ -3,6 +3,9 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 export type TimeEntryRecord = {
   id: string;
   clockedAt: string;
+  // Absent/true = confirmed by the server. False = captured locally while
+  // offline (spec §4.5 modo offline) and still waiting to sync.
+  synced?: boolean;
 };
 
 export type AdjustmentRequest = {
@@ -54,7 +57,8 @@ const SEEDED_VACATION_REQUESTS: VacationRequest[] = [
 
 type PontoContextValue = {
   entries: TimeEntryRecord[];
-  addEntry: (clockedAt: string) => void;
+  addEntry: (clockedAt: string, synced?: boolean) => string;
+  markEntrySynced: (id: string) => void;
   adjustmentRequests: AdjustmentRequest[];
   addAdjustmentRequest: (reason: string) => void;
   compensationRequests: CompensationRequest[];
@@ -77,8 +81,16 @@ export function PontoProvider({ children }: { children: ReactNode }) {
     SEEDED_VACATION_REQUESTS,
   );
 
-  function addEntry(clockedAt: string) {
-    setEntries((current) => [...current, { id: nextId(), clockedAt }]);
+  function addEntry(clockedAt: string, synced = true): string {
+    const id = nextId();
+    setEntries((current) => [...current, { id, clockedAt, synced }]);
+    return id;
+  }
+
+  function markEntrySynced(id: string) {
+    setEntries((current) =>
+      current.map((entry) => (entry.id === id ? { ...entry, synced: true } : entry)),
+    );
   }
 
   function addAdjustmentRequest(reason: string) {
@@ -114,6 +126,7 @@ export function PontoProvider({ children }: { children: ReactNode }) {
       value={{
         entries,
         addEntry,
+        markEntrySynced,
         adjustmentRequests,
         addAdjustmentRequest,
         compensationRequests,

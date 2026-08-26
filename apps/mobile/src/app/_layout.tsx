@@ -2,11 +2,12 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 import { DocumentosProvider } from '@/context/documentos-context';
+import { OperacionalProvider } from '@/context/operacional-context';
 import { PontoProvider } from '@/context/ponto-context';
 
-// TODO: replace with a real session check (expo-secure-store) once the
-// auth/SSO integration lands — for now this just makes the login screen
-// reachable by opening the app.
+// Keeps login as the base of the stack for a cold, unauthenticated start;
+// login itself checks for a saved session on focus and redirects to
+// (tabs) when one exists (see login.tsx's useFocusEffect).
 export const unstable_settings = {
   initialRouteName: 'login',
 };
@@ -17,7 +18,9 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <PontoProvider>
         <DocumentosProvider>
-          <Stack screenOptions={{ headerShown: false }} />
+          <OperacionalProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </OperacionalProvider>
         </DocumentosProvider>
       </PontoProvider>
     </ThemeProvider>

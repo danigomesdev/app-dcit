@@ -3,18 +3,20 @@ import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import type { ComponentProps } from "react";
-import type { TimeEntryInput } from "@ponto-dcit/shared-types";
+import NetInfo from "@react-native-community/netinfo";
 
 import { PunchConfirmationModal } from "@/components/punch-confirmation-modal";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { TabBackground } from "@/components/tab-background";
-import { API_URL } from "@/constants/api";
 import { formatMinutes, summarizeDay, usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
+import { captureCurrentAddress } from "@/lib/location";
+import { cancelForgotPunchReminder, scheduleForgotPunchReminder } from "@/lib/reminders";
 import { getSessionToken } from "@/lib/session";
+import { submitTimeEntry } from "@/lib/time-entries-api";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -37,12 +39,24 @@ const QUICK_ACTIONS: QuickActionItem[] = [
   },
 ];
 
-function HeaderIconButton({ icon }: { icon: IconName }) {
+function HeaderIconButton({
+  icon,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: IconName;
+  onPress?: () => void;
+  accessibilityLabel?: string;
+}) {
   const theme = useTheme();
   return (
-    <View style={[styles.headerIcon, { backgroundColor: theme.backgroundElement }]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityLabel={accessibilityLabel}
+      style={[styles.headerIcon, { backgroundColor: theme.backgroundElement }]}
+    >
       <Ionicons name={icon} size={20} color={theme.text} />
-    </View>
+    </Pressable>
   );
 }
 
@@ -67,12 +81,13 @@ function QuickAction({ icon, label, href }: QuickActionItem) {
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { entries, addEntry } = usePonto();
+  const { entries, addEntry, markEntrySynced } = usePonto();
   const [error, setError] = useState<string | null>(null);
   const [hoursVisible, setHoursVisible] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
   const [claims, setClaims] = useState<SessionClaims | null>(null);
   const [confirmation, setConfirmation] = useState<Date | null>(null);
+  const [locationText, setLocationText] = useState<string | null>(null);
 
   useEffect(() => {
     getSessionToken().then((token) => {
@@ -80,8 +95,43 @@ export default function HomeScreen() {
     });
   }, []);
 
+  async function syncPendingEntries() {
+    const token = await getSessionToken();
+    if (!token) return;
+    const pending = entries.filter((entry) => entry.synced === false);
+    for (const entry of pending) {
+      const result = await submitTimeEntry(token, entry.clockedAt);
+      if (result.ok) {
+        markEntrySynced(entry.id);
+      }
+    }
+  }
+
+  // Offline mode (spec §4.5): a punch that fails because the device has no
+  // connectivity is still recorded locally with its real capture-time
+  // timestamp (see handlePress) rather than lost. This listener retries any
+  // such pending entries the moment connectivity returns, so syncing is
+  // automatic — never something the person has to remember to do.
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (!state.isConnected) return;
+      syncPendingEntries();
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries]);
+
+  useEffect(() => {
+    // Runs independently of the punch flow — a denied permission or a GPS
+    // failure only affects this label, it never blocks Bater Ponto.
+    captureCurrentAddress().then((address) => {
+      setLocationText(address ?? "Localização não disponível");
+    });
+  }, []);
+
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayEntries = entries.filter((entry) => entry.clockedAt.slice(0, 10) === todayKey);
+  const pendingSyncCount = entries.filter((entry) => entry.synced === false).length;
   const { workedMinutes, isOpen } = summarizeDay(todayEntries);
   const lastEntry = todayEntries[todayEntries.length - 1];
   const lastPunchTime = lastEntry
@@ -99,31 +149,34 @@ export default function HomeScreen() {
       return;
     }
 
+    // Captured on-device at the moment of the tap — this is what actually
+    // gets recorded even if the request below fails and the punch has to
+    // be queued for later sync, matching the spec's "timestamp local no
+    // momento do toque" for offline punches.
     const now = new Date();
-    const payload: TimeEntryInput = {
-      userId: "demo-user",
-      clockedAt: now.toISOString(),
-    };
+    const result = await submitTimeEntry(token, now.toISOString());
 
-    try {
-      const response = await fetch(`${API_URL}/time-entries`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-      if (response.ok) {
-        setError(null);
-        addEntry(now.toISOString());
-        setClaims(decodeSessionToken(token));
-        setConfirmation(now);
-      } else {
-        setError("Falha ao registrar ponto");
-      }
-    } catch {
+    if (result.ok) {
+      setError(null);
+      addEntry(now.toISOString(), true);
+    } else if (result.reason === "network") {
+      // Never blocks the button (spec §4.1) — record locally and let the
+      // NetInfo listener above sync it automatically once back online.
+      setError(null);
+      addEntry(now.toISOString(), false);
+    } else {
       setError("Falha ao registrar ponto");
+      return;
+    }
+
+    setClaims(decodeSessionToken(token));
+    setConfirmation(now);
+
+    const willBeOpen = (todayEntries.length + 1) % 2 === 1;
+    if (willBeOpen) {
+      scheduleForgotPunchReminder();
+    } else {
+      cancelForgotPunchReminder();
     }
   }
 
@@ -133,9 +186,21 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={[styles.brandMark, { backgroundColor: theme.accent }]} />
           <View style={styles.headerActions}>
-            <HeaderIconButton icon="search-outline" />
-            <HeaderIconButton icon="notifications-outline" />
-            <HeaderIconButton icon="menu-outline" />
+            <HeaderIconButton
+              icon="search-outline"
+              accessibilityLabel="Buscar"
+              onPress={() => router.push("/busca")}
+            />
+            <HeaderIconButton
+              icon="notifications-outline"
+              accessibilityLabel="Notificações"
+              onPress={() => router.push("/notificacoes")}
+            />
+            <HeaderIconButton
+              icon="menu-outline"
+              accessibilityLabel="Abrir perfil"
+              onPress={() => router.push("/perfil")}
+            />
           </View>
         </View>
 
@@ -148,8 +213,7 @@ export default function HomeScreen() {
             <View style={styles.locationInline}>
               <Ionicons name="location-outline" size={14} color={theme.textSecondary} />
               <ThemedText type="small" themeColor="textSecondary">
-                {/* TODO: capture real GPS once expo-location is wired up (spec §5, non-blocking audit trail) */}
-                Localização ainda não disponível
+                {locationText ?? "Obtendo localização..."}
               </ThemedText>
             </View>
           </View>
@@ -170,6 +234,16 @@ export default function HomeScreen() {
           </View>
 
           <ThemedButton title="Bater Ponto" onPress={handlePress} />
+
+          {pendingSyncCount > 0 ? (
+            <View style={styles.syncBanner}>
+              <Ionicons name="cloud-offline-outline" size={16} color={theme.accent} />
+              <ThemedText type="small" style={{ color: theme.accent }}>
+                {pendingSyncCount} ponto(s) registrado(s) offline — sincroniza automaticamente
+                quando a conexão voltar.
+              </ThemedText>
+            </View>
+          ) : null}
 
           <View style={[styles.row, { backgroundColor: theme.background }]}>
             <Ionicons name="time-outline" size={20} color={theme.secondary} />
@@ -336,6 +410,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
+  },
+  syncBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
   },
   detailsText: {
     marginTop: -Spacing.two,
