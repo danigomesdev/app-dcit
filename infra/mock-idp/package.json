@@ -1,0 +1,17 @@
+{
+  "name": "@ponto-dcit/mock-idp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "dependencies": {
+    "oidc-provider": "^8.5.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
