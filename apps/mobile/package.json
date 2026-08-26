@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.12",
+    "@expo/vector-icons": "^15.1.1",
     "@ponto-dcit/shared-types": "workspace:^",
     "expo": "~57.0.15",
     "expo-constants": "~57.0.13",
@@ -53,7 +54,9 @@
     "preset": "jest-expo",
     "testTimeout": 20000,
     "moduleNameMapper": {
-      "\\.(css|less|scss|sass)$": "<rootDir>/__mocks__/styleMock.js"
+      "\\.(css|less|scss|sass)$": "<rootDir>/__mocks__/styleMock.js",
+      "^@/assets/(.*)$": "<rootDir>/assets/$1",
+      "^@/(.*)$": "<rootDir>/src/$1"
     }
   }
 }

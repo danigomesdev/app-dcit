@@ -8,14 +8,16 @@ describe("HomeScreen", () => {
     (globalThis.fetch as jest.Mock).mockReset();
   });
 
-  it("shows a confirmation after tapping Bater Ponto", async () => {
+  it("updates the last punch time after tapping Bater Ponto", async () => {
     (globalThis.fetch as jest.Mock).mockResolvedValue({ ok: true });
 
     render(<HomeScreen />);
+    expect(screen.getByText(/Registrado às: --:--/)).toBeTruthy();
+
     fireEvent.press(screen.getByText("Bater Ponto"));
 
     await waitFor(() => {
-      expect(screen.getByText(/Ponto registrado/i)).toBeTruthy();
+      expect(screen.queryByText(/Registrado às: --:--/)).toBeNull();
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(

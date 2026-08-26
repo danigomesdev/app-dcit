@@ -4,7 +4,7 @@ describe("login screen", () => {
   it("renders the SSO entry point", () => {
     renderRouter("src/app", { initialUrl: "/login" });
 
-    expect(screen.getByText("Ponto DCIT")).toBeTruthy();
+    expect(screen.getByText("Entre com sua conta corporativa para continuar.")).toBeTruthy();
     expect(screen.getByText("Entrar com SSO")).toBeTruthy();
   });
 

@@ -1,15 +1,14 @@
-import { StyleSheet, View } from "react-native";
+import { ImageBackground, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
 
   function handleSignIn() {
     // TODO: drive the OIDC flow with expo-auth-session and store the
@@ -20,50 +19,34 @@ export default function LoginScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.brand}>
-        <View style={[styles.mark, { backgroundColor: theme.accent }]} />
-        <ThemedText type="title" themeColor="primary" style={styles.title}>
-          Ponto DCIT
+    <ImageBackground
+      source={require("@/assets/images/brand/login-background.jpg")}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.four }]}>
+        <ThemedText type="default" style={styles.description}>
+          Entre com sua conta corporativa para continuar.
         </ThemedText>
-      </View>
-      <ThemedText type="default" themeColor="textSecondary" style={styles.description}>
-        Entre com sua conta corporativa para acessar o sistema.
-      </ThemedText>
-      <View style={styles.action}>
         <ThemedButton title="Entrar com SSO" onPress={handleSignIn} />
       </View>
-    </ThemedView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: Spacing.four,
+    justifyContent: "flex-end",
   },
-  brand: {
-    alignItems: "center",
-    gap: Spacing.two,
-    marginBottom: Spacing.two,
-  },
-  mark: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-  },
-  title: {
-    fontSize: 32,
-    lineHeight: 38,
-    textAlign: "center",
+  footer: {
+    backgroundColor: "rgba(0, 0, 0, 0.35)",
+    paddingTop: Spacing.five,
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.three,
   },
   description: {
     textAlign: "center",
-    marginBottom: Spacing.five,
-  },
-  action: {
-    alignSelf: "stretch",
+    color: "#ffffff",
   },
 });
