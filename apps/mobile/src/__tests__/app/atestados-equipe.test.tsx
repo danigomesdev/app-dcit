@@ -18,7 +18,28 @@ function fakeJwt(claims: Record<string, unknown>) {
   return `${encode("{}")}.${encode(JSON.stringify(claims))}.signature`;
 }
 
+const TEAM_ATESTADOS = [
+  {
+    id: "team-1",
+    userId: "colaborador-1",
+    userName: "Ana Colaboradora",
+    status: "aprovado",
+    dias: 2,
+    cid: "J06.9",
+    crm: "CRM-MG 45213",
+    medico: "Dr. Carlos Mendes",
+    createdAt: "2026-07-10T09:00:00.000Z",
+  },
+];
+
 describe("atestados da equipe screen", () => {
+  beforeEach(() => {
+    globalThis.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => TEAM_ATESTADOS,
+    });
+  });
+
   it("hides clinical fields (CID, CRM, médico) for a gestor", async () => {
     await saveSessionToken(fakeJwt({ sub: "gestor-1", role: "gestor", name: "Bruno Gestor" }));
 

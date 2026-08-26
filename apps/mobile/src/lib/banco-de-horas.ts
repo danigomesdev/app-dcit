@@ -39,12 +39,15 @@ function seededWorkedMinutes(date: Date, expectedMinutes: number): number {
 }
 
 /**
- * Builds one record per day for [start, end] (inclusive), seeding plausible
- * history for every day before today (no real backend history exists yet)
- * and using the real, live-tracked entries for today itself, if included.
+ * Builds one record per day for [start, end] (inclusive). Uses the real
+ * time-entry history (hydrated from GET /time-entries, see ponto-context's
+ * hydrateEntries) for any day that actually has punches, and only falls
+ * back to seeded plausible data for days with none — e.g. before the app
+ * was ever used, or days that predate this employment. This means the
+ * fallback shrinks to nothing as real punch history accumulates.
  */
 export function buildDailyRecords(
-  todayEntries: TimeEntryRecord[],
+  allEntries: TimeEntryRecord[],
   start: Date,
   end: Date,
 ): DailyRecord[] {
@@ -60,10 +63,10 @@ export function buildDailyRecords(
     const expectedMinutes = expectedMinutesFor(date);
     const isToday = dateKey === todayKey;
 
-    const workedMinutes = isToday
-      ? summarizeDay(
-          todayEntries.filter((entry) => isSameDay(entry.clockedAt, dateKey)),
-        ).workedMinutes
+    const dayEntries = allEntries.filter((entry) => isSameDay(entry.clockedAt, dateKey));
+    const hasRealData = dayEntries.length > 0;
+    const workedMinutes = hasRealData
+      ? summarizeDay(dayEntries).workedMinutes
       : seededWorkedMinutes(date, expectedMinutes);
 
     records.push({
@@ -73,7 +76,7 @@ export function buildDailyRecords(
       workedMinutes,
       diffMinutes: workedMinutes - expectedMinutes,
       isToday,
-      isSeeded: !isToday,
+      isSeeded: !hasRealData,
     });
 
     cursor.setDate(cursor.getDate() + 1);

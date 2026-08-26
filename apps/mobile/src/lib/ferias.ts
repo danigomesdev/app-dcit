@@ -1,7 +1,11 @@
-// No HR/payroll backend exists yet, so the hire date and history below are a
-// fixed illustrative example — enough to demo the real CLT acquisitive/
-// concessive-period math (see currentVacationCycle) without real employee data.
+// Fallback used only until the real hire date loads from GET
+// /solicitacoes/ferias (see ferias.tsx) — e.g. during the initial fetch, or
+// if a user somehow has no Employee row yet. Once the fetch resolves, the
+// real hireDate is what currentVacationCycle actually runs on.
 export const HIRE_DATE = new Date(2024, 2, 15); // 15/03/2024
+// No payroll/HR balance backend exists yet for the accrued-days count
+// itself — CLT gives 30 days/year and this is an illustrative remaining
+// balance, not computed from real absence/accrual data.
 export const AVAILABLE_DAYS = 22;
 
 export type VacationCycle = {
@@ -22,15 +26,18 @@ function addYears(date: Date, years: number): Date {
  * paying it in double. This walks forward from the hire date to find the
  * cycle whose concessive deadline hasn't passed yet.
  */
-export function currentVacationCycle(referenceDate = new Date()): VacationCycle {
+export function currentVacationCycle(
+  hireDate: Date = HIRE_DATE,
+  referenceDate = new Date(),
+): VacationCycle {
   let n = 0;
-  while (addYears(HIRE_DATE, n + 2).getTime() <= referenceDate.getTime()) {
+  while (addYears(hireDate, n + 2).getTime() <= referenceDate.getTime()) {
     n++;
   }
   return {
-    aquisitivoInicio: addYears(HIRE_DATE, n),
-    aquisitivoFim: addYears(HIRE_DATE, n + 1),
-    vencimento: addYears(HIRE_DATE, n + 2),
+    aquisitivoInicio: addYears(hireDate, n),
+    aquisitivoFim: addYears(hireDate, n + 1),
+    vencimento: addYears(hireDate, n + 2),
   };
 }
 
@@ -38,28 +45,6 @@ export function daysUntil(date: Date, referenceDate = new Date()): number {
   const msPerDay = 24 * 60 * 60 * 1000;
   return Math.ceil((date.getTime() - referenceDate.getTime()) / msPerDay);
 }
-
-export type VacationHistoryEntry = {
-  year: number;
-  daysTaken: number;
-  startDate: Date;
-  endDate: Date;
-};
-
-export const VACATION_HISTORY: VacationHistoryEntry[] = [
-  {
-    year: 2024,
-    daysTaken: 30,
-    startDate: new Date(2024, 6, 8),
-    endDate: new Date(2024, 7, 6),
-  },
-  {
-    year: 2025,
-    daysTaken: 20,
-    startDate: new Date(2025, 11, 15),
-    endDate: new Date(2026, 0, 3),
-  },
-];
 
 export function formatDate(date: Date): string {
   return date.toLocaleDateString("pt-BR");

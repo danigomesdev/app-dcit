@@ -7,10 +7,14 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import * as z from 'zod/v4';
 import type {
+  AtestadoInput,
   AtestadoOcrRequest,
   AtestadoOcrResult,
+  Role,
 } from '@ponto-dcit/shared-types';
 import { ANTHROPIC_CLIENT } from './anthropic-client.token';
+import { PrismaService } from '../prisma/prisma.service';
+import { ExpoPushService } from '../push/expo-push.service';
 
 // Haiku 4.5, not Opus/Sonnet: this is a bounded, well-specified extraction
 // task (read four fields off a document photo), not open-ended reasoning —
@@ -41,6 +45,8 @@ const AtestadoExtractionSchema = z.object({
 export class AtestadosService {
   constructor(
     @Inject(ANTHROPIC_CLIENT) private readonly anthropic: Anthropic,
+    private readonly prisma: PrismaService,
+    private readonly push: ExpoPushService,
   ) {}
 
   async extract(input: AtestadoOcrRequest): Promise<AtestadoOcrResult> {
@@ -85,5 +91,60 @@ export class AtestadosService {
         'Não foi possível interpretar o atestado automaticamente.',
       );
     }
+  }
+
+  create(userId: string, userName: string, input: AtestadoInput) {
+    return this.prisma.atestado.create({
+      data: {
+        userId,
+        userName,
+        cid: input.cid,
+        crm: input.crm,
+        medico: input.medico,
+        dias: input.dias,
+        photoUri: input.photoUri,
+      },
+    });
+  }
+
+  listMine(userId: string) {
+    return this.prisma.atestado.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // Clinical detail (CID/CRM/médico) is only for RH's eyes — a gestor sees
+  // who's out, for how long, and the approval status, matching the spec's
+  // gestor/RH visibility split. Masked server-side now, not just hidden in
+  // the mobile UI, so the data never leaves the API for a non-RH caller.
+  async listTeam(viewerRole: Role) {
+    const atestados = await this.prisma.atestado.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    if (viewerRole === 'rh') {
+      return atestados;
+    }
+    return atestados.map((atestado) => ({
+      ...atestado,
+      cid: null,
+      crm: null,
+      medico: null,
+    }));
+  }
+
+  async updateStatus(id: string, status: 'aprovado' | 'recusado') {
+    const updated = await this.prisma.atestado.update({
+      where: { id },
+      data: { status },
+    });
+    void this.push.sendToUser(updated.userId, {
+      title: 'Atestado',
+      body:
+        status === 'aprovado'
+          ? 'Seu atestado foi aprovado.'
+          : 'Seu atestado foi recusado.',
+    });
+    return updated;
   }
 }

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
   Req,
@@ -40,5 +41,11 @@ export class TimeEntriesController {
       userId: req.user.sub,
       clockedAt: new Date().toISOString(),
     });
+  }
+
+  @UseGuards(AuthGuard)
+  @Get()
+  async findMine(@Req() req: AuthenticatedRequest) {
+    return this.timeEntries.listForUser(req.user.sub);
   }
 }

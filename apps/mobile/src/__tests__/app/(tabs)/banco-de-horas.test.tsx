@@ -1,6 +1,15 @@
-import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
+import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
+import { saveSessionToken } from "@/lib/session";
+
+globalThis.fetch = jest.fn();
 
 describe("banco de horas screen", () => {
+  beforeEach(async () => {
+    (globalThis.fetch as jest.Mock).mockReset();
+    (globalThis.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => [] });
+    await saveSessionToken("test-token");
+  });
+
   it("renders the balance card and the period filter", () => {
     renderRouter("src/app", { initialUrl: "/banco-de-horas" });
 
@@ -23,7 +32,22 @@ describe("banco de horas screen", () => {
     expect(screen.getByText("Mês passado")).toBeTruthy();
   });
 
-  it("opens the compensation request form and submits a request", () => {
+  it("opens the compensation request form and submits a request", async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method === "POST") {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: "1",
+            reason: "Compensar 2h na sexta",
+            status: "pendente",
+            createdAt: new Date().toISOString(),
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+
     renderRouter("src/app", { initialUrl: "/banco-de-horas" });
 
     fireEvent.press(screen.getByText("Solicitar compensação de banco de horas"));
@@ -33,7 +57,9 @@ describe("banco de horas screen", () => {
     );
     fireEvent.press(screen.getByText("Enviar solicitação"));
 
-    expect(screen.getByText("Solicitação enviada — status: pendente.")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getByText("Solicitação enviada — status: pendente.")).toBeTruthy();
+    });
     expect(screen.getAllByText("Compensar 2h na sexta").length).toBeGreaterThan(0);
   });
 });

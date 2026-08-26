@@ -1,67 +1,51 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
-
-type OnboardingStep = {
-  id: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  description: string;
-};
-
-const STEPS: OnboardingStep[] = [
-  {
-    id: "contrato",
-    icon: "document-text-outline",
-    title: "Assinar o contrato",
-    description: "Revise e assine seu contrato de trabalho digitalmente.",
-  },
-  {
-    id: "documentos",
-    icon: "cloud-upload-outline",
-    title: "Enviar documentos",
-    description: "RG, CPF, comprovante de residência e demais documentos admissionais.",
-  },
-  {
-    id: "video",
-    icon: "play-circle-outline",
-    title: "Assistir ao vídeo de boas-vindas",
-    description: "Conheça a cultura e os valores da DCIT Tecnologia.",
-  },
-  {
-    id: "time",
-    icon: "people-outline",
-    title: "Conhecer o time",
-    description: "Veja quem são as pessoas com quem você vai trabalhar.",
-  },
-  {
-    id: "acessos",
-    icon: "key-outline",
-    title: "Configurar seus acessos",
-    description: "E-mail corporativo, ferramentas internas e este app.",
-  },
-];
+import { fetchOnboardingTasks, toggleOnboardingTask, type OnboardingTaskRecord } from "@/lib/onboarding-api";
+import { getSessionToken } from "@/lib/session";
 
 export default function OnboardingScreen() {
   const theme = useTheme();
+  const [tasks, setTasks] = useState<OnboardingTaskRecord[]>([]);
   const [done, setDone] = useState<Set<string>>(new Set());
 
-  function toggle(id: string) {
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchOnboardingTasks(token);
+        if (cancelled || !result) return;
+        setTasks(result.tasks);
+        setDone(new Set(result.completedTaskIds));
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
+  async function toggle(id: string) {
+    const token = await getSessionToken();
+    if (!token) return;
+    const result = await toggleOnboardingTask(token, id);
+    if (!result) return;
     setDone((current) => {
       const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (result.completed) next.add(id);
+      else next.delete(id);
       return next;
     });
   }
 
-  const progress = done.size / STEPS.length;
+  const progress = tasks.length > 0 ? done.size / tasks.length : 0;
 
   return (
     <ThemedView style={styles.container}>
@@ -80,16 +64,16 @@ export default function OnboardingScreen() {
           />
         </View>
         <ThemedText type="small" themeColor="textSecondary">
-          {done.size} de {STEPS.length} concluídos
+          {done.size} de {tasks.length} concluídos
         </ThemedText>
 
         <View style={styles.list}>
-          {STEPS.map((step) => {
-            const checked = done.has(step.id);
+          {tasks.map((task) => {
+            const checked = done.has(task.id);
             return (
               <Pressable
-                key={step.id}
-                onPress={() => toggle(step.id)}
+                key={task.id}
+                onPress={() => toggle(task.id)}
                 style={[styles.row, { backgroundColor: theme.backgroundElement }]}
               >
                 <Ionicons
@@ -102,13 +86,13 @@ export default function OnboardingScreen() {
                     type="smallBold"
                     style={checked ? styles.strikethrough : undefined}
                   >
-                    {step.title}
+                    {task.title}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
-                    {step.description}
+                    {task.description}
                   </ThemedText>
                 </View>
-                <Ionicons name={step.icon} size={20} color={theme.secondary} />
+                <Ionicons name={task.icon as keyof typeof Ionicons.glyphMap} size={20} color={theme.secondary} />
               </Pressable>
             );
           })}

@@ -1,8 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
-import { DocumentosProvider } from '@/context/documentos-context';
-import { OperacionalProvider } from '@/context/operacional-context';
 import { PontoProvider } from '@/context/ponto-context';
 
 // Keeps login as the base of the stack for a cold, unauthenticated start;
@@ -17,11 +15,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <PontoProvider>
-        <DocumentosProvider>
-          <OperacionalProvider>
-            <Stack screenOptions={{ headerShown: false }} />
-          </OperacionalProvider>
-        </DocumentosProvider>
+        <Stack screenOptions={{ headerShown: false }} />
       </PontoProvider>
     </ThemeProvider>
   );

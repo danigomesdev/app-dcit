@@ -25,11 +25,21 @@ describe('TimeEntriesController guard metadata', () => {
 
     expect(guards).toContain(AuthGuard);
   });
+
+  it('applies AuthGuard to the findMine (GET) handler', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      TimeEntriesController.prototype.findMine,
+    ) as unknown[] | undefined;
+
+    expect(guards).toContain(AuthGuard);
+  });
 });
 
 describe('TimeEntriesController', () => {
   let controller: TimeEntriesController;
-  const serviceMock = { create: jest.fn() };
+  const serviceMock = { create: jest.fn(), listForUser: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -119,5 +129,21 @@ describe('TimeEntriesController', () => {
       ),
     ).rejects.toThrow(BadRequestException);
     expect(serviceMock.create).not.toHaveBeenCalled();
+  });
+
+  it("lists only the authenticated user's time entries", async () => {
+    serviceMock.listForUser.mockResolvedValue([
+      {
+        id: '1',
+        userId: 'user-123',
+        clockedAt: new Date(),
+        createdAt: new Date(),
+      },
+    ]);
+
+    const result = await controller.findMine(requestAs('user-123'));
+
+    expect(serviceMock.listForUser).toHaveBeenCalledWith('user-123');
+    expect(result).toHaveLength(1);
   });
 });

@@ -8,63 +8,11 @@ export type TimeEntryRecord = {
   synced?: boolean;
 };
 
-export type AdjustmentRequest = {
-  id: string;
-  reason: string;
-  createdAt: string;
-  status: "pendente";
-};
-
-export type CompensationRequest = {
-  id: string;
-  reason: string;
-  createdAt: string;
-  status: "pendente";
-};
-
-export type VacationStatus = "pendente" | "aprovado" | "recusado";
-
-export type VacationRequest = {
-  id: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  createdAt: string;
-  status: VacationStatus;
-};
-
-// Seeded so the status list has something to show beyond "pendente" — these
-// two are demo data standing in for requests that would already exist by
-// the time a real employee opens this screen, not something the user did.
-const SEEDED_VACATION_REQUESTS: VacationRequest[] = [
-  {
-    id: "seed-1",
-    startDate: "2026-10-05",
-    endDate: "2026-10-14",
-    days: 10,
-    createdAt: "2026-08-01T12:00:00.000Z",
-    status: "aprovado",
-  },
-  {
-    id: "seed-2",
-    startDate: "2026-12-20",
-    endDate: "2026-12-24",
-    days: 5,
-    createdAt: "2026-08-10T12:00:00.000Z",
-    status: "recusado",
-  },
-];
-
 type PontoContextValue = {
   entries: TimeEntryRecord[];
   addEntry: (clockedAt: string, synced?: boolean) => string;
   markEntrySynced: (id: string) => void;
-  adjustmentRequests: AdjustmentRequest[];
-  addAdjustmentRequest: (reason: string) => void;
-  compensationRequests: CompensationRequest[];
-  addCompensationRequest: (reason: string) => void;
-  vacationRequests: VacationRequest[];
-  addVacationRequest: (startDate: string, endDate: string, days: number) => void;
+  hydrateEntries: (serverEntries: { id: string; clockedAt: string }[]) => void;
 };
 
 const PontoContext = createContext<PontoContextValue | null>(null);
@@ -75,11 +23,6 @@ function nextId() {
 
 export function PontoProvider({ children }: { children: ReactNode }) {
   const [entries, setEntries] = useState<TimeEntryRecord[]>([]);
-  const [adjustmentRequests, setAdjustmentRequests] = useState<AdjustmentRequest[]>([]);
-  const [compensationRequests, setCompensationRequests] = useState<CompensationRequest[]>([]);
-  const [vacationRequests, setVacationRequests] = useState<VacationRequest[]>(
-    SEEDED_VACATION_REQUESTS,
-  );
 
   function addEntry(clockedAt: string, synced = true): string {
     const id = nextId();
@@ -93,32 +36,22 @@ export function PontoProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  function addAdjustmentRequest(reason: string) {
-    setAdjustmentRequests((current) => [
-      ...current,
-      { id: nextId(), reason, createdAt: new Date().toISOString(), status: "pendente" },
-    ]);
-  }
-
-  function addCompensationRequest(reason: string) {
-    setCompensationRequests((current) => [
-      ...current,
-      { id: nextId(), reason, createdAt: new Date().toISOString(), status: "pendente" },
-    ]);
-  }
-
-  function addVacationRequest(startDate: string, endDate: string, days: number) {
-    setVacationRequests((current) => [
-      ...current,
-      {
-        id: nextId(),
-        startDate,
-        endDate,
-        days,
-        createdAt: new Date().toISOString(),
-        status: "pendente",
-      },
-    ]);
+  // Replaces the synced portion of the list with the server's authoritative
+  // history and keeps only what's still queued (synced === false) — an
+  // already-synced local entry is guaranteed to have a matching server
+  // record by now, so dropping it here (rather than merging by id, which
+  // wouldn't match anyway: local ids are client-generated, server ids are
+  // Prisma's) avoids showing the same punch twice.
+  function hydrateEntries(serverEntries: { id: string; clockedAt: string }[]) {
+    setEntries((current) => {
+      const stillPending = current.filter((entry) => entry.synced === false);
+      const hydrated: TimeEntryRecord[] = serverEntries.map((entry) => ({
+        id: entry.id,
+        clockedAt: entry.clockedAt,
+        synced: true,
+      }));
+      return [...hydrated, ...stillPending];
+    });
   }
 
   return (
@@ -127,12 +60,7 @@ export function PontoProvider({ children }: { children: ReactNode }) {
         entries,
         addEntry,
         markEntrySynced,
-        adjustmentRequests,
-        addAdjustmentRequest,
-        compensationRequests,
-        addCompensationRequest,
-        vacationRequests,
-        addVacationRequest,
+        hydrateEntries,
       }}
     >
       {children}

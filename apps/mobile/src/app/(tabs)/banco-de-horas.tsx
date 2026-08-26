@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { TabBackground } from "@/components/tab-background";
 import { ThemedButton } from "@/components/themed-button";
@@ -19,6 +20,12 @@ import {
   startOfMonth,
   type DailyRecord,
 } from "@/lib/banco-de-horas";
+import { getSessionToken } from "@/lib/session";
+import {
+  fetchCompensationRequests,
+  submitCompensationRequest,
+  type CompensationRequestRecord,
+} from "@/lib/solicitacoes-api";
 
 type Period = "current" | "previous" | "last3";
 
@@ -36,11 +43,29 @@ function daysAgo(n: number): Date {
 
 export default function BancoDeHorasScreen() {
   const theme = useTheme();
-  const { entries, compensationRequests, addCompensationRequest } = usePonto();
+  const { entries } = usePonto();
   const [period, setPeriod] = useState<Period>("current");
   const [formOpen, setFormOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState(false);
+  const [compensationRequests, setCompensationRequests] = useState<CompensationRequestRecord[]>(
+    [],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchCompensationRequests(token);
+        if (!cancelled && result) setCompensationRequests(result);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const chartRecords = useMemo(
     () => buildDailyRecords(entries, daysAgo(29), new Date()),
@@ -67,11 +92,21 @@ export default function BancoDeHorasScreen() {
   const overtimeValue = estimateOvertimeValueBRL(periodRecords);
   const balanceColor = balance >= 0 ? theme.success : theme.accent;
 
-  function handleSubmitCompensation() {
+  async function handleSubmitCompensation() {
     if (!reason.trim()) return;
-    addCompensationRequest(reason.trim());
-    setReason("");
-    setSent(true);
+    const token = await getSessionToken();
+    const result = token
+      ? await submitCompensationRequest(token, { reason: reason.trim() })
+      : null;
+    if (result) {
+      setCompensationRequests((current) => [result, ...current]);
+      setReason("");
+      setSent(true);
+      setError(false);
+    } else {
+      setError(true);
+      setSent(false);
+    }
   }
 
   return (
@@ -195,26 +230,28 @@ export default function BancoDeHorasScreen() {
                 Solicitação enviada — status: pendente.
               </ThemedText>
             ) : null}
+            {error ? (
+              <ThemedText type="small" style={styles.errorText}>
+                Não foi possível enviar a solicitação. Tente novamente.
+              </ThemedText>
+            ) : null}
           </View>
         ) : null}
 
         {compensationRequests.length > 0 ? (
           <View style={styles.requestsList}>
             <ThemedText type="smallBold">Solicitações de compensação</ThemedText>
-            {compensationRequests
-              .slice()
-              .reverse()
-              .map((request) => (
-                <View
-                  key={request.id}
-                  style={[styles.requestRow, { backgroundColor: theme.backgroundElement }]}
-                >
-                  <ThemedText type="small">{request.reason}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Pendente
-                  </ThemedText>
-                </View>
-              ))}
+            {compensationRequests.map((request) => (
+              <View
+                key={request.id}
+                style={[styles.requestRow, { backgroundColor: theme.backgroundElement }]}
+              >
+                <ThemedText type="small">{request.reason}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {request.status === "pendente" ? "Pendente" : request.status}
+                </ThemedText>
+              </View>
+            ))}
           </View>
         ) : null}
       </ScrollView>
@@ -381,5 +418,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     borderRadius: 12,
     padding: Spacing.three,
+  },
+  errorText: {
+    color: "#F2531D",
   },
 });

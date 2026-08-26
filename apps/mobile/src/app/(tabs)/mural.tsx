@@ -1,49 +1,73 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { TabBackground } from "@/components/tab-background";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import {
-  ANNOUNCEMENTS,
   UNREAD_WINDOW_DAYS,
   birthdaysThisMonthExcludingToday,
   birthdaysToday,
   formatRelativeDate,
+  type Birthday,
 } from "@/lib/mural";
+import {
+  fetchBirthdays,
+  fetchMuralPosts,
+  toggleMuralReaction,
+  type MuralPostRecord,
+} from "@/lib/mural-api";
+import { getSessionToken } from "@/lib/session";
 
 export default function MuralScreen() {
   const theme = useTheme();
-  const todayBirthdays = useMemo(() => birthdaysToday(), []);
-  const monthBirthdays = useMemo(() => birthdaysThisMonthExcludingToday(), []);
+  const [posts, setPosts] = useState<MuralPostRecord[]>([]);
+  const [birthdays, setBirthdays] = useState<Birthday[]>([]);
+  const [unread, setUnread] = useState<Set<string>>(new Set());
 
-  const sorted = useMemo(
-    () =>
-      ANNOUNCEMENTS.slice().sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      ),
-    [],
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const [postsResult, birthdaysResult] = await Promise.all([
+          fetchMuralPosts(token),
+          fetchBirthdays(token),
+        ]);
+        if (cancelled) return;
+        if (postsResult) {
+          setPosts(postsResult);
+          setUnread((current) => {
+            // Only seed unread state the first time posts load — a post
+            // already marked read shouldn't reset just because the list
+            // refreshed on refocus.
+            if (current.size > 0) return current;
+            return new Set(
+              postsResult
+                .filter((post) => {
+                  const days =
+                    (Date.now() - new Date(post.createdAt).getTime()) / (24 * 60 * 60 * 1000);
+                  return days <= UNREAD_WINDOW_DAYS;
+                })
+                .map((post) => post.id),
+            );
+          });
+        }
+        if (birthdaysResult) setBirthdays(birthdaysResult);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
   );
 
-  const [unread, setUnread] = useState<Set<string>>(
-    () =>
-      new Set(
-        sorted
-          .filter((post) => {
-            const days =
-              (Date.now() - new Date(post.createdAt).getTime()) / (24 * 60 * 60 * 1000);
-            return days <= UNREAD_WINDOW_DAYS;
-          })
-          .map((post) => post.id),
-      ),
-  );
-  const [reactions, setReactions] = useState<Record<string, { reacted: boolean; count: number }>>(
-    () =>
-      Object.fromEntries(
-        sorted.map((post) => [post.id, { reacted: false, count: post.reactionCount }]),
-      ),
+  const todayBirthdays = useMemo(() => birthdaysToday(birthdays), [birthdays]);
+  const monthBirthdays = useMemo(
+    () => birthdaysThisMonthExcludingToday(birthdays),
+    [birthdays],
   );
 
   function markRead(id: string) {
@@ -55,17 +79,18 @@ export default function MuralScreen() {
     });
   }
 
-  function toggleReaction(id: string) {
-    setReactions((current) => {
-      const entry = current[id];
-      return {
-        ...current,
-        [id]: {
-          reacted: !entry.reacted,
-          count: entry.reacted ? entry.count - 1 : entry.count + 1,
-        },
-      };
-    });
+  async function handleToggleReaction(id: string) {
+    const token = await getSessionToken();
+    if (!token) return;
+    const result = await toggleMuralReaction(token, id);
+    if (!result) return;
+    setPosts((current) =>
+      current.map((post) =>
+        post.id === id
+          ? { ...post, reactionCount: result.reactionCount, reacted: result.reacted }
+          : post,
+      ),
+    );
   }
 
   return (
@@ -100,9 +125,8 @@ export default function MuralScreen() {
         ) : null}
 
         <View style={styles.feed}>
-          {sorted.map((post) => {
+          {posts.map((post) => {
             const isUnread = unread.has(post.id);
-            const reaction = reactions[post.id];
             return (
               <Pressable
                 key={post.id}
@@ -125,17 +149,17 @@ export default function MuralScreen() {
                   {post.body}
                 </ThemedText>
                 <Pressable
-                  onPress={() => toggleReaction(post.id)}
+                  onPress={() => handleToggleReaction(post.id)}
                   style={styles.reactionButton}
                   hitSlop={8}
                 >
                   <Ionicons
-                    name={reaction.reacted ? "heart" : "heart-outline"}
+                    name={post.reacted ? "heart" : "heart-outline"}
                     size={18}
-                    color={reaction.reacted ? theme.accent : theme.textSecondary}
+                    color={post.reacted ? theme.accent : theme.textSecondary}
                   />
                   <ThemedText type="small" themeColor="textSecondary">
-                    {reaction.count}
+                    {post.reactionCount}
                   </ThemedText>
                 </Pressable>
               </Pressable>

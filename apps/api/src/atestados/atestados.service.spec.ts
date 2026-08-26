@@ -1,23 +1,41 @@
+process.env.DATABASE_URL = 'file:./test.db';
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { InternalServerErrorException } from '@nestjs/common';
 import { AtestadosService } from './atestados.service';
 import { ANTHROPIC_CLIENT } from './anthropic-client.token';
+import { PrismaService } from '../prisma/prisma.service';
+import { ExpoPushService } from '../push/expo-push.service';
 
 describe('AtestadosService', () => {
   let service: AtestadosService;
+  let prisma: PrismaService;
   const parseMock = jest.fn();
   const anthropicMock = { messages: { parse: parseMock } };
+  const pushMock = { sendToUser: jest.fn() };
 
-  beforeEach(async () => {
-    jest.clearAllMocks();
+  beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AtestadosService,
         { provide: ANTHROPIC_CLIENT, useValue: anthropicMock },
+        PrismaService,
+        { provide: ExpoPushService, useValue: pushMock },
       ],
     }).compile();
 
     service = module.get(AtestadosService);
+    prisma = module.get(PrismaService);
+    await prisma.onModuleInit();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterAll(async () => {
+    await prisma.atestado.deleteMany();
+    await prisma.onModuleDestroy();
   });
 
   it('sends the image to Claude and returns the parsed extraction', async () => {
@@ -81,5 +99,65 @@ describe('AtestadosService', () => {
     await expect(
       service.extract({ imageBase64: 'aGVsbG8=', mediaType: 'image/jpeg' }),
     ).rejects.toThrow(InternalServerErrorException);
+  });
+
+  it('creates and lists atestados scoped to the user', async () => {
+    await service.create('user-a', 'Ana Colaboradora', {
+      cid: 'J06.9',
+      crm: 'CRM-MG 45213',
+      medico: 'Dr. Carlos Mendes',
+      dias: 2,
+    });
+    await service.create('user-b', 'Bruno Gestor', {
+      cid: 'M54.5',
+      crm: 'CRM-MG 11111',
+      medico: 'Dra. Fernanda Costa',
+      dias: 1,
+    });
+
+    const results = await service.listMine('user-a');
+
+    expect(results).toHaveLength(1);
+    expect(results[0].cid).toBe('J06.9');
+    expect(results[0].status).toBe('enviado');
+  });
+
+  it('masks clinical fields for a gestor viewer but not for rh', async () => {
+    await service.create('user-c', 'Carla Colaboradora', {
+      cid: 'R51',
+      crm: 'CRM-MG 33012',
+      medico: 'Dra. Fernanda Costa',
+      dias: 1,
+    });
+
+    const gestorView = await service.listTeam('gestor');
+    const rhView = await service.listTeam('rh');
+
+    const gestorEntry = gestorView.find((a) => a.userId === 'user-c');
+    const rhEntry = rhView.find((a) => a.userId === 'user-c');
+
+    expect(gestorEntry?.cid).toBeNull();
+    expect(gestorEntry?.crm).toBeNull();
+    expect(gestorEntry?.medico).toBeNull();
+    expect(rhEntry?.cid).toBe('R51');
+    expect(rhEntry?.crm).toBe('CRM-MG 33012');
+    expect(rhEntry?.medico).toBe('Dra. Fernanda Costa');
+  });
+
+  it('updates the status of an atestado', async () => {
+    const created = await service.create('user-d', 'Daniela', {
+      cid: 'J06.9',
+      crm: 'CRM-MG 45213',
+      medico: 'Dr. Carlos Mendes',
+      dias: 2,
+    });
+
+    const updated = await service.updateStatus(created.id, 'aprovado');
+
+    expect(updated.status).toBe('aprovado');
+    expect(pushMock.sendToUser).toHaveBeenCalledWith(
+      'user-d',
+      expect.objectContaining({ title: 'Atestado' }),
+    );
   });
 });

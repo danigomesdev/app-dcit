@@ -10,6 +10,7 @@ describe("login screen", () => {
   beforeEach(async () => {
     (WebBrowser.openAuthSessionAsync as jest.Mock).mockReset();
     await clearSessionToken();
+    globalThis.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
   });
 
   it("renders the SSO entry point when there is no saved session", async () => {
@@ -47,6 +48,13 @@ describe("login screen", () => {
       expect(screen).toHavePathname("/");
     });
     expect(await getSessionToken()).toBe("abc123");
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/push-tokens"),
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
   });
 
   it("stays on the login screen when the browser session is cancelled", async () => {

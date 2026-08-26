@@ -16,7 +16,7 @@ import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
 import { captureCurrentAddress } from "@/lib/location";
 import { cancelForgotPunchReminder, scheduleForgotPunchReminder } from "@/lib/reminders";
 import { getSessionToken } from "@/lib/session";
-import { submitTimeEntry } from "@/lib/time-entries-api";
+import { fetchTimeEntries, submitTimeEntry } from "@/lib/time-entries-api";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -81,7 +81,7 @@ function QuickAction({ icon, label, href }: QuickActionItem) {
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { entries, addEntry, markEntrySynced } = usePonto();
+  const { entries, addEntry, markEntrySynced, hydrateEntries } = usePonto();
   const [error, setError] = useState<string | null>(null);
   const [hoursVisible, setHoursVisible] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
@@ -90,9 +90,13 @@ export default function HomeScreen() {
   const [locationText, setLocationText] = useState<string | null>(null);
 
   useEffect(() => {
-    getSessionToken().then((token) => {
-      if (token) setClaims(decodeSessionToken(token));
+    getSessionToken().then(async (token) => {
+      if (!token) return;
+      setClaims(decodeSessionToken(token));
+      const serverEntries = await fetchTimeEntries(token);
+      if (serverEntries) hydrateEntries(serverEntries);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function syncPendingEntries() {

@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth-guard';
+import { RolesGuard } from './roles.guard';
 import { OIDC_CLIENT_CONFIG, type OidcClientConfig } from './oidc-client.token';
 
 // Kept as a single reference so the exact same dynamic module instance is
@@ -22,6 +23,7 @@ const jwtModule = JwtModule.registerAsync({
   providers: [
     AuthService,
     AuthGuard,
+    RolesGuard,
     {
       // Just plain env config — no network I/O here. Actual OIDC discovery
       // (Issuer.discover) is deferred to AuthService's first real login
@@ -35,6 +37,6 @@ const jwtModule = JwtModule.registerAsync({
       }),
     },
   ],
-  exports: [AuthGuard, jwtModule],
+  exports: [AuthGuard, RolesGuard, jwtModule],
 })
 export class AuthModule {}

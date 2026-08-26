@@ -10,6 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { API_URL } from "@/constants/api";
 import { Spacing } from "@/constants/theme";
 import { getSessionToken, saveSessionToken } from "@/lib/session";
+import { registerForPushNotifications } from "@/lib/push";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -65,6 +66,7 @@ export default function LoginScreen() {
     }
 
     await saveSessionToken(token);
+    registerForPushNotifications(token);
     router.replace("/(tabs)");
   }
 

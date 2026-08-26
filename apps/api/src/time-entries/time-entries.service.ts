@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TimeEntryInput } from '@ponto-dcit/shared-types';
-import { PrismaService } from './prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class TimeEntriesService {
@@ -12,6 +12,13 @@ export class TimeEntriesService {
         userId: input.userId,
         clockedAt: new Date(input.clockedAt),
       },
+    });
+  }
+
+  listForUser(userId: string) {
+    return this.prisma.timeEntry.findMany({
+      where: { userId },
+      orderBy: { clockedAt: 'asc' },
     });
   }
 }

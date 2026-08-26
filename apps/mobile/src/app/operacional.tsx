@@ -1,33 +1,83 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { useOperacional } from "@/context/operacional-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import { PLANTAO_SEMANA, formatElapsed } from "@/lib/operacional";
+import {
+  createDeslocamento,
+  fetchDeslocamentos,
+  fetchSobreavisoStatus,
+  toggleSobreaviso as toggleSobreavisoRequest,
+  type DeslocamentoRecord,
+} from "@/lib/operacional-api";
+import { getSessionToken } from "@/lib/session";
 
 export default function OperacionalScreen() {
   const theme = useTheme();
-  const {
-    sobreavisoActive,
-    sobreavisoStartedAt,
-    toggleSobreaviso,
-    deslocamentoActive,
-    deslocamentoStartedAt,
-    toggleDeslocamento,
-    deslocamentos,
-  } = useOperacional();
+  const [sobreavisoActive, setSobreavisoActive] = useState(false);
+  const [sobreavisoStartedAt, setSobreavisoStartedAt] = useState<string | null>(null);
+  const [deslocamentoActive, setDeslocamentoActive] = useState(false);
+  const [deslocamentoStartedAt, setDeslocamentoStartedAt] = useState<string | null>(null);
+  const [deslocamentos, setDeslocamentos] = useState<DeslocamentoRecord[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const [status, records] = await Promise.all([
+          fetchSobreavisoStatus(token),
+          fetchDeslocamentos(token),
+        ]);
+        if (cancelled) return;
+        if (status) {
+          setSobreavisoActive(status.active);
+          setSobreavisoStartedAt(status.startedAt);
+        }
+        if (records) setDeslocamentos(records);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const [, forceTick] = useState(0);
   useEffect(() => {
     const interval = setInterval(() => forceTick((n) => n + 1), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  async function handleToggleSobreaviso() {
+    const token = await getSessionToken();
+    if (!token) return;
+    const result = await toggleSobreavisoRequest(token);
+    if (!result) return;
+    setSobreavisoActive(result.active);
+    setSobreavisoStartedAt(result.startedAt);
+  }
+
+  async function handleToggleDeslocamento() {
+    if (deslocamentoActive && deslocamentoStartedAt) {
+      const token = await getSessionToken();
+      const endedAt = new Date().toISOString();
+      setDeslocamentoActive(false);
+      setDeslocamentoStartedAt(null);
+      if (!token) return;
+      const created = await createDeslocamento(token, deslocamentoStartedAt, endedAt);
+      if (created) setDeslocamentos((current) => [created, ...current]);
+    } else {
+      setDeslocamentoActive(true);
+      setDeslocamentoStartedAt(new Date().toISOString());
+    }
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -69,7 +119,7 @@ export default function OperacionalScreen() {
           <ThemedButton
             title={sobreavisoActive ? "Encerrar sobreaviso" : "Ativar sobreaviso"}
             variant={sobreavisoActive ? "accent" : "secondary"}
-            onPress={toggleSobreaviso}
+            onPress={handleToggleSobreaviso}
           />
         </View>
 
@@ -97,37 +147,34 @@ export default function OperacionalScreen() {
           <ThemedButton
             title={deslocamentoActive ? "Encerrar deslocamento" : "Iniciar deslocamento"}
             variant={deslocamentoActive ? "accent" : "secondary"}
-            onPress={toggleDeslocamento}
+            onPress={handleToggleDeslocamento}
           />
         </View>
 
         {deslocamentos.length > 0 ? (
           <>
             <ThemedText type="smallBold" style={styles.sectionTitle}>
-              Deslocamentos de hoje
+              Deslocamentos recentes
             </ThemedText>
-            {deslocamentos
-              .slice()
-              .reverse()
-              .map((record) => (
-                <View
-                  key={record.id}
-                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}
-                >
-                  <Ionicons name="time-outline" size={18} color={theme.secondary} />
-                  <ThemedText type="small">
-                    {new Date(record.startedAt).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}{" "}
-                    —{" "}
-                    {new Date(record.endedAt).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </ThemedText>
-                </View>
-              ))}
+            {deslocamentos.map((record) => (
+              <View
+                key={record.id}
+                style={[styles.row, { backgroundColor: theme.backgroundElement }]}
+              >
+                <Ionicons name="time-outline" size={18} color={theme.secondary} />
+                <ThemedText type="small">
+                  {new Date(record.startedAt).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}{" "}
+                  —{" "}
+                  {new Date(record.endedAt).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </ThemedText>
+              </View>
+            ))}
           </>
         ) : null}
       </ScrollView>

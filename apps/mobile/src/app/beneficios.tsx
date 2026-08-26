@@ -1,22 +1,52 @@
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
-import { BENEFIT_BALANCES, PARTNERS, formatBRL } from "@/lib/beneficios";
+import { formatBRL } from "@/lib/beneficios";
+import {
+  fetchBenefitBalances,
+  fetchPartners,
+  type BenefitBalanceRecord,
+  type PartnerRecord,
+} from "@/lib/beneficios-api";
+import { getSessionToken } from "@/lib/session";
 
 export default function BeneficiosScreen() {
   const theme = useTheme();
+  const [balances, setBalances] = useState<BenefitBalanceRecord[]>([]);
+  const [partners, setPartners] = useState<PartnerRecord[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const [balancesResult, partnersResult] = await Promise.all([
+          fetchBenefitBalances(token),
+          fetchPartners(token),
+        ]);
+        if (cancelled) return;
+        if (balancesResult) setBalances(balancesResult);
+        if (partnersResult) setPartners(partnersResult);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   return (
     <ThemedView style={styles.container}>
       <ScreenHeader title="Benefícios" />
       <ScrollView contentContainerStyle={styles.content}>
         <ThemedText type="smallBold">Saldo dos benefícios</ThemedText>
-        {BENEFIT_BALANCES.map((benefit) => (
+        {balances.map((benefit) => (
           <View key={benefit.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <Ionicons name={benefit.icon} size={22} color={theme.secondary} />
             <View style={styles.rowContent}>
@@ -32,7 +62,7 @@ export default function BeneficiosScreen() {
         <ThemedText type="smallBold" style={styles.sectionTitle}>
           Clube de vantagens
         </ThemedText>
-        {PARTNERS.map((partner) => (
+        {partners.map((partner) => (
           <View key={partner.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
             <Ionicons name="pricetag-outline" size={22} color={theme.accent} />
             <View style={styles.rowContent}>

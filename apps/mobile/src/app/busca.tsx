@@ -1,17 +1,23 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, type Href } from "expo-router";
+import { useFocusEffect, useRouter, type Href } from "expo-router";
 
 import { EmptyState } from "@/components/empty-state";
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { useDocumentos } from "@/context/documentos-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
-import { ADMISSION_DOCUMENTS } from "@/lib/documentos";
-import { ANNOUNCEMENTS } from "@/lib/mural";
+import { fetchMyAtestados, type AtestadoRecord } from "@/lib/atestados-api";
+import {
+  fetchAdmissionDocuments,
+  fetchCertifications,
+  type AdmissionDocumentRecord,
+  type CertificationRecord,
+} from "@/lib/documentos-api";
+import { fetchMuralPosts, type MuralPostRecord } from "@/lib/mural-api";
+import { getSessionToken } from "@/lib/session";
 
 type SearchResult = {
   id: string;
@@ -30,13 +36,39 @@ function normalize(value: string): string {
 export default function BuscaScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { atestados, certifications } = useDocumentos();
   const [query, setQuery] = useState("");
+  const [atestados, setAtestados] = useState<AtestadoRecord[]>([]);
+  const [certifications, setCertifications] = useState<CertificationRecord[]>([]);
+  const [admissionDocuments, setAdmissionDocuments] = useState<AdmissionDocumentRecord[]>([]);
+  const [muralPosts, setMuralPosts] = useState<MuralPostRecord[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const [atestadoResult, certResult, admissionResult, muralResult] = await Promise.all([
+          fetchMyAtestados(token),
+          fetchCertifications(token),
+          fetchAdmissionDocuments(token),
+          fetchMuralPosts(token),
+        ]);
+        if (cancelled) return;
+        if (atestadoResult) setAtestados(atestadoResult);
+        if (certResult) setCertifications(certResult);
+        if (admissionResult) setAdmissionDocuments(admissionResult);
+        if (muralResult) setMuralPosts(muralResult);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const allResults = useMemo<SearchResult[]>(() => {
     const results: SearchResult[] = [];
 
-    for (const doc of ADMISSION_DOCUMENTS) {
+    for (const doc of admissionDocuments) {
       results.push({
         id: `adm-${doc.id}`,
         icon: "document-text-outline",
@@ -63,7 +95,7 @@ export default function BuscaScreen() {
         href: "/(tabs)/documentos",
       });
     }
-    for (const post of ANNOUNCEMENTS) {
+    for (const post of muralPosts) {
       results.push({
         id: `mural-${post.id}`,
         icon: "megaphone-outline",
@@ -74,7 +106,7 @@ export default function BuscaScreen() {
     }
 
     return results;
-  }, [atestados, certifications]);
+  }, [admissionDocuments, atestados, certifications, muralPosts]);
 
   const filtered = useMemo(() => {
     const needle = normalize(query.trim());

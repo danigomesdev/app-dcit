@@ -28,3 +28,27 @@ export async function submitTimeEntry(token: string, clockedAt: string): Promise
     return { ok: false, reason: "network" };
   }
 }
+
+export type FetchedTimeEntry = { id: string; clockedAt: string };
+
+/**
+ * Returns null on any failure (no session, network down, bad response) so
+ * the caller can fall back to whatever local state it already has — this
+ * hydrates history, it never blocks or replaces the punch flow.
+ */
+export async function fetchTimeEntries(token: string): Promise<FetchedTimeEntry[] | null> {
+  try {
+    const response = await fetch(`${API_URL}/time-entries`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return null;
+    const data: unknown = await response.json();
+    if (!Array.isArray(data)) return null;
+    return (data as { id: string; clockedAt: string }[]).map((entry) => ({
+      id: entry.id,
+      clockedAt: entry.clockedAt,
+    }));
+  } catch {
+    return null;
+  }
+}

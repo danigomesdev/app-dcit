@@ -1,19 +1,36 @@
+import { useCallback, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { EmptyState } from "@/components/empty-state";
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
+import { getSessionToken } from "@/lib/session";
+import { fetchAdjustmentRequests, type AdjustmentRequestRecord } from "@/lib/solicitacoes-api";
 
 export default function SolicitacoesScreen() {
-  const { adjustmentRequests } = usePonto();
   const theme = useTheme();
+  const [requests, setRequests] = useState<AdjustmentRequestRecord[]>([]);
 
-  const sorted = [...adjustmentRequests].sort(
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchAdjustmentRequests(token);
+        if (!cancelled && result) setRequests(result);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
+  const sorted = [...requests].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 

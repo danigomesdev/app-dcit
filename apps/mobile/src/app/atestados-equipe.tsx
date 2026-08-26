@@ -1,32 +1,35 @@
-import { useEffect, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import {
-  DOCUMENT_STATUS_LABEL,
-  type DocumentStatus,
-} from "@/context/documentos-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
+import { DOCUMENT_STATUS_LABEL, type DocumentStatus } from "@/lib/documentos";
 import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
 import { getSessionToken } from "@/lib/session";
-import { TEAM_ATESTADOS } from "@/lib/documentos";
+import {
+  fetchTeamAtestados,
+  updateAtestadoStatus,
+  type AtestadoRecord,
+} from "@/lib/atestados-api";
 
-function StatusBadge({ status }: { status: DocumentStatus }) {
+function StatusBadge({ status }: { status: string }) {
   const theme = useTheme();
-  const color: Record<DocumentStatus, string> = {
+  const color: Record<string, string> = {
     enviado: theme.secondary,
     em_analise: theme.secondary,
     aprovado: theme.success,
     recusado: theme.accent,
   };
+  const label = DOCUMENT_STATUS_LABEL[status as DocumentStatus] ?? status;
   return (
-    <View style={[styles.statusBadge, { backgroundColor: color[status] }]}>
+    <View style={[styles.statusBadge, { backgroundColor: color[status] ?? theme.secondary }]}>
       <ThemedText type="small" style={{ color: theme.onAccent }}>
-        {DOCUMENT_STATUS_LABEL[status]}
+        {label}
       </ThemedText>
     </View>
   );
@@ -35,17 +38,37 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
 export default function AtestadosEquipeScreen() {
   const theme = useTheme();
   const [claims, setClaims] = useState<SessionClaims | null>(null);
+  const [atestados, setAtestados] = useState<AtestadoRecord[]>([]);
 
-  useEffect(() => {
-    getSessionToken().then((token) => {
-      if (token) setClaims(decodeSessionToken(token));
-    });
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        setClaims(decodeSessionToken(token));
+        const result = await fetchTeamAtestados(token);
+        if (!cancelled && result) setAtestados(result);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   // RH is the only role the spec allows to see clinical fields (CID, CRM,
   // médico) — everyone else (including this screen's default, unresolved
   // state) gets the aggregated view: who, status, days. Never the reverse.
+  // The backend already masks these fields for a non-RH caller, so this is
+  // belt-and-suspenders, not the only line of defense.
   const canSeeClinicalDetails = claims?.role === "rh";
+
+  async function handleDecision(id: string, status: "aprovado" | "recusado") {
+    const token = await getSessionToken();
+    if (!token) return;
+    const updated = await updateAtestadoStatus(token, id, status);
+    if (!updated) return;
+    setAtestados((current) => current.map((a) => (a.id === id ? updated : a)));
+  }
 
   return (
     <ThemedView style={styles.container}>
@@ -56,12 +79,12 @@ export default function AtestadosEquipeScreen() {
           : "Como gestor, você vê apenas o resultado da aprovação — CID, médico e CRM são visíveis somente ao RH (LGPD)."}
       </ThemedText>
       <ScrollView contentContainerStyle={styles.list}>
-        {TEAM_ATESTADOS.map((atestado) => (
+        {atestados.map((atestado) => (
           <View key={atestado.id} style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
             <View style={styles.cardHeader}>
               <Ionicons name="person-circle-outline" size={22} color={theme.secondary} />
               <ThemedText type="smallBold" style={styles.name}>
-                {atestado.colaborador}
+                {atestado.userName}
               </ThemedText>
               <StatusBadge status={atestado.status} />
             </View>
@@ -73,6 +96,26 @@ export default function AtestadosEquipeScreen() {
                 <ThemedText type="small">CID: {atestado.cid}</ThemedText>
                 <ThemedText type="small">Médico: {atestado.medico}</ThemedText>
                 <ThemedText type="small">CRM: {atestado.crm}</ThemedText>
+              </View>
+            ) : null}
+            {atestado.status === "enviado" ? (
+              <View style={styles.actions}>
+                <Pressable
+                  style={[styles.actionButton, { backgroundColor: theme.success }]}
+                  onPress={() => handleDecision(atestado.id, "aprovado")}
+                >
+                  <ThemedText type="small" style={{ color: theme.onAccent }}>
+                    Aprovar
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.actionButton, { backgroundColor: theme.accent }]}
+                  onPress={() => handleDecision(atestado.id, "recusado")}
+                >
+                  <ThemedText type="small" style={{ color: theme.onAccent }}>
+                    Recusar
+                  </ThemedText>
+                </Pressable>
               </View>
             ) : null}
           </View>
@@ -117,5 +160,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: Spacing.two,
     gap: 2,
+  },
+  actions: {
+    flexDirection: "row",
+    gap: Spacing.two,
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: Spacing.two,
+    alignItems: "center",
   },
 });

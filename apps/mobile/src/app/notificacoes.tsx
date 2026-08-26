@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { EmptyState } from "@/components/empty-state";
 import { ScreenHeader } from "@/components/screen-header";
@@ -10,6 +11,12 @@ import { usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import { currentVacationCycle, daysUntil, formatDate } from "@/lib/ferias";
+import { getSessionToken } from "@/lib/session";
+import {
+  fetchAdjustmentRequests,
+  fetchCompensationRequests,
+  fetchFerias,
+} from "@/lib/solicitacoes-api";
 
 type Notice = {
   id: string;
@@ -23,12 +30,40 @@ const VENCIMENTO_ALERT_THRESHOLD_DAYS = 90;
 
 export default function NotificacoesScreen() {
   const theme = useTheme();
-  const { entries, vacationRequests, adjustmentRequests, compensationRequests } = usePonto();
+  const { entries } = usePonto();
+  const [hireDate, setHireDate] = useState<string | null>(null);
+  const [pendingVacation, setPendingVacation] = useState(0);
+  const [pendingAdjustments, setPendingAdjustments] = useState(0);
+  const [pendingCompensation, setPendingCompensation] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const [ferias, adjustments, compensations] = await Promise.all([
+          fetchFerias(token),
+          fetchAdjustmentRequests(token),
+          fetchCompensationRequests(token),
+        ]);
+        if (cancelled) return;
+        if (ferias) {
+          setHireDate(ferias.hireDate);
+          setPendingVacation(ferias.requests.filter((r) => r.status === "pendente").length);
+        }
+        if (adjustments) setPendingAdjustments(adjustments.length);
+        if (compensations) setPendingCompensation(compensations.length);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const notices = useMemo<Notice[]>(() => {
     const list: Notice[] = [];
 
-    const cycle = currentVacationCycle();
+    const cycle = currentVacationCycle(hireDate ? new Date(hireDate) : undefined);
     const daysToVencimento = daysUntil(cycle.vencimento);
     if (daysToVencimento <= VENCIMENTO_ALERT_THRESHOLD_DAYS) {
       list.push({
@@ -51,9 +86,6 @@ export default function NotificacoesScreen() {
       });
     }
 
-    const pendingVacation = vacationRequests.filter((r) => r.status === "pendente").length;
-    const pendingAdjustments = adjustmentRequests.length;
-    const pendingCompensation = compensationRequests.length;
     const totalPending = pendingVacation + pendingAdjustments + pendingCompensation;
     if (totalPending > 0) {
       list.push({
@@ -66,7 +98,7 @@ export default function NotificacoesScreen() {
     }
 
     return list;
-  }, [entries, vacationRequests, adjustmentRequests, compensationRequests]);
+  }, [entries, hireDate, pendingVacation, pendingAdjustments, pendingCompensation]);
 
   return (
     <ThemedView style={styles.container}>

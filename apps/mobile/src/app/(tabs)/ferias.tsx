@@ -1,16 +1,15 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 import { Calendar, type DateData } from "react-native-calendars";
 
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { TabBackground } from "@/components/tab-background";
-import { usePonto, type VacationStatus } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import {
-  VACATION_HISTORY,
   AVAILABLE_DAYS,
   currentVacationCycle,
   dateKey,
@@ -18,8 +17,15 @@ import {
   daysUntil,
   formatDate,
 } from "@/lib/ferias";
+import { getSessionToken } from "@/lib/session";
+import {
+  fetchFerias,
+  submitVacationRequest,
+  type VacationHistoryRecord,
+  type VacationRequestRecord,
+} from "@/lib/solicitacoes-api";
 
-const STATUS_LABEL: Record<VacationStatus, string> = {
+const STATUS_LABEL: Record<string, string> = {
   pendente: "Pendente",
   aprovado: "Aprovado",
   recusado: "Recusado",
@@ -29,16 +35,38 @@ const VENCIMENTO_ALERT_THRESHOLD_DAYS = 90;
 
 export default function FeriasScreen() {
   const theme = useTheme();
-  const { vacationRequests, addVacationRequest } = usePonto();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [rangeStart, setRangeStart] = useState<string | null>(null);
   const [rangeEnd, setRangeEnd] = useState<string | null>(null);
+  const [vacationRequests, setVacationRequests] = useState<VacationRequestRecord[]>([]);
+  const [hireDate, setHireDate] = useState<string | null>(null);
+  const [history, setHistory] = useState<VacationHistoryRecord[]>([]);
 
-  const cycle = useMemo(() => currentVacationCycle(), []);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchFerias(token);
+        if (cancelled || !result) return;
+        setVacationRequests(result.requests);
+        setHireDate(result.hireDate);
+        setHistory(result.history);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
+  const cycle = useMemo(
+    () => currentVacationCycle(hireDate ? new Date(hireDate) : undefined),
+    [hireDate],
+  );
   const daysToVencimento = daysUntil(cycle.vencimento);
   const vencimentoIsNear = daysToVencimento <= VENCIMENTO_ALERT_THRESHOLD_DAYS;
 
-  const statusColor: Record<VacationStatus, string> = {
+  const statusColor: Record<string, string> = {
     pendente: theme.secondary,
     aprovado: theme.success,
     recusado: theme.accent,
@@ -79,10 +107,16 @@ export default function FeriasScreen() {
     setRangeEnd(day.dateString);
   }
 
-  function handleConfirmRequest() {
+  async function handleConfirmRequest() {
     if (!rangeStart || !rangeEnd) return;
     const days = daysBetweenInclusive(new Date(rangeStart), new Date(rangeEnd));
-    addVacationRequest(rangeStart, rangeEnd, days);
+    const token = await getSessionToken();
+    const result = token
+      ? await submitVacationRequest(token, { startDate: rangeStart, endDate: rangeEnd, days })
+      : null;
+    if (result) {
+      setVacationRequests((current) => [result, ...current]);
+    }
     setPickerOpen(false);
     setRangeStart(null);
     setRangeEnd(null);
@@ -121,10 +155,7 @@ export default function FeriasScreen() {
 
         <View style={styles.requestsSection}>
           <ThemedText type="smallBold">Suas solicitações</ThemedText>
-          {vacationRequests
-            .slice()
-            .reverse()
-            .map((request) => (
+          {vacationRequests.map((request) => (
               <View
                 key={request.id}
                 style={[styles.requestRow, { backgroundColor: theme.backgroundElement }]}
@@ -141,7 +172,7 @@ export default function FeriasScreen() {
                   style={[styles.statusBadge, { backgroundColor: statusColor[request.status] }]}
                 >
                   <ThemedText type="small" style={{ color: theme.onAccent }}>
-                    {STATUS_LABEL[request.status]}
+                    {STATUS_LABEL[request.status] ?? request.status}
                   </ThemedText>
                 </View>
               </View>
@@ -150,16 +181,15 @@ export default function FeriasScreen() {
 
         <View style={styles.historySection}>
           <ThemedText type="smallBold">Histórico de férias</ThemedText>
-          {VACATION_HISTORY.slice()
-            .reverse()
-            .map((entry) => (
+          {history.map((entry) => (
               <View
-                key={entry.year}
+                key={entry.id}
                 style={[styles.historyRow, { backgroundColor: theme.backgroundElement }]}
               >
                 <ThemedText type="smallBold">{entry.year}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {formatDate(entry.startDate)} — {formatDate(entry.endDate)} · {entry.daysTaken} dias
+                  {formatDate(new Date(entry.startDate))} — {formatDate(new Date(entry.endDate))} ·{" "}
+                  {entry.daysTaken} dias
                 </ThemedText>
               </View>
             ))}

@@ -1,22 +1,34 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "expo-router";
 
 import { EmptyState } from "@/components/empty-state";
 import { TabBackground } from "@/components/tab-background";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
-import {
-  DOCUMENT_STATUS_LABEL,
-  useDocumentos,
-  type DocumentStatus,
-} from "@/context/documentos-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
-import { ADMISSION_DOCUMENTS, PAYSLIPS, formatBRL, netPay } from "@/lib/documentos";
+import {
+  DOCUMENT_STATUS_LABEL,
+  formatBRL,
+  netPay,
+  type DocumentStatus,
+} from "@/lib/documentos";
 import { pickPhoto } from "@/lib/photo-picker";
 import { extractAtestadoData } from "@/lib/atestado-ocr";
+import { fetchMyAtestados, submitAtestado, type AtestadoRecord } from "@/lib/atestados-api";
+import {
+  fetchAdmissionDocuments,
+  fetchCertifications,
+  fetchPayslips,
+  submitAdmissionDocument,
+  submitCertification,
+  type AdmissionDocumentRecord,
+  type CertificationRecord,
+  type PayslipRecord,
+} from "@/lib/documentos-api";
 import { getSessionToken } from "@/lib/session";
 
 type Category = "admissionais" | "atestados" | "holerites" | "certificacoes";
@@ -87,10 +99,24 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
 
 function AdmissionaisSection() {
   const theme = useTheme();
-  const { admissionUploads, addAdmissionUpload } = useDocumentos();
+  const [admissionDocuments, setAdmissionDocuments] = useState<AdmissionDocumentRecord[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchAdmissionDocuments(token);
+        if (!cancelled && result) setAdmissionDocuments(result);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   async function handlePickPhoto(source: "camera" | "library") {
     const uri = await pickPhoto(source);
@@ -103,10 +129,18 @@ function AdmissionaisSection() {
     setFormOpen(false);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!title.trim()) return;
-    addAdmissionUpload({ title: title.trim(), photoUri: photoUri ?? undefined });
-    resetForm();
+    const token = await getSessionToken();
+    if (!token) return;
+    const created = await submitAdmissionDocument(token, {
+      title: title.trim(),
+      photoUri: photoUri ?? undefined,
+    });
+    if (created) {
+      setAdmissionDocuments((current) => [created, ...current]);
+      resetForm();
+    }
   }
 
   return (
@@ -148,7 +182,7 @@ function AdmissionaisSection() {
         </View>
       ) : null}
 
-      {ADMISSION_DOCUMENTS.map((doc) => (
+      {admissionDocuments.map((doc) => (
         <View key={doc.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
           <Ionicons name="document-text-outline" size={20} color={theme.secondary} />
           <View style={styles.rowContent}>
@@ -157,24 +191,9 @@ function AdmissionaisSection() {
               Enviado em {new Date(doc.submittedAt).toLocaleDateString("pt-BR")}
             </ThemedText>
           </View>
-          <StatusBadge status="aprovado" />
+          <StatusBadge status={doc.status as DocumentStatus} />
         </View>
       ))}
-      {admissionUploads
-        .slice()
-        .reverse()
-        .map((doc) => (
-          <View key={doc.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-            <Ionicons name="document-text-outline" size={20} color={theme.secondary} />
-            <View style={styles.rowContent}>
-              <ThemedText type="smallBold">{doc.title}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                Enviado em {new Date(doc.createdAt).toLocaleDateString("pt-BR")}
-              </ThemedText>
-            </View>
-            <StatusBadge status={doc.status} />
-          </View>
-        ))}
     </View>
   );
 }
@@ -183,7 +202,7 @@ type OcrStatus = "idle" | "loading" | "done" | "error";
 
 function AtestadosSection() {
   const theme = useTheme();
-  const { atestados, addAtestado } = useDocumentos();
+  const [atestados, setAtestados] = useState<AtestadoRecord[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [cid, setCid] = useState("");
@@ -191,6 +210,20 @@ function AtestadosSection() {
   const [medico, setMedico] = useState("");
   const [dias, setDias] = useState("");
   const [ocrStatus, setOcrStatus] = useState<OcrStatus>("idle");
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchMyAtestados(token);
+        if (!cancelled && result) setAtestados(result);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   async function handlePickPhoto(source: "camera" | "library") {
     const uri = await pickPhoto(source);
@@ -226,17 +259,22 @@ function AtestadosSection() {
     setFormOpen(false);
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const parsedDias = parseInt(dias, 10);
     if (!cid.trim() || !crm.trim() || !medico.trim() || !parsedDias) return;
-    addAtestado({
+    const token = await getSessionToken();
+    if (!token) return;
+    const created = await submitAtestado(token, {
       cid: cid.trim(),
       crm: crm.trim(),
       medico: medico.trim(),
       dias: parsedDias,
       photoUri: photoUri ?? undefined,
     });
-    resetForm();
+    if (created) {
+      setAtestados((current) => [created, ...current]);
+      resetForm();
+    }
   }
 
   return (
@@ -320,26 +358,23 @@ function AtestadosSection() {
           description="Atestados enviados aparecem aqui com o status da análise do RH."
         />
       ) : (
-        atestados
-          .slice()
-          .reverse()
-          .map((atestado) => (
-            <View
-              key={atestado.id}
-              style={[styles.row, { backgroundColor: theme.backgroundElement }]}
-            >
-              <Ionicons name="medkit-outline" size={20} color={theme.secondary} />
-              <View style={styles.rowContent}>
-                <ThemedText type="smallBold">
-                  {atestado.dias} dia(s) · {atestado.crm}
-                </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {new Date(atestado.createdAt).toLocaleDateString("pt-BR")}
-                </ThemedText>
-              </View>
-              <StatusBadge status={atestado.status} />
+        atestados.map((atestado) => (
+          <View
+            key={atestado.id}
+            style={[styles.row, { backgroundColor: theme.backgroundElement }]}
+          >
+            <Ionicons name="medkit-outline" size={20} color={theme.secondary} />
+            <View style={styles.rowContent}>
+              <ThemedText type="smallBold">
+                {atestado.dias} dia(s) · {atestado.crm}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {new Date(atestado.createdAt).toLocaleDateString("pt-BR")}
+              </ThemedText>
             </View>
-          ))
+            <StatusBadge status={atestado.status as DocumentStatus} />
+          </View>
+        ))
       )}
     </View>
   );
@@ -348,10 +383,25 @@ function AtestadosSection() {
 function HoleritesSection() {
   const theme = useTheme();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [payslips, setPayslips] = useState<PayslipRecord[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchPayslips(token);
+        if (!cancelled && result) setPayslips(result);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   return (
     <View style={styles.list}>
-      {PAYSLIPS.map((payslip) => {
+      {payslips.map((payslip) => {
         const isOpen = expanded === payslip.id;
         return (
           <Pressable
@@ -429,19 +479,42 @@ function PayslipLine({
 
 function CertificacoesSection() {
   const theme = useTheme();
-  const { certifications, addCertification } = useDocumentos();
+  const [certifications, setCertifications] = useState<CertificationRecord[]>([]);
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState("");
   const [institution, setInstitution] = useState("");
   const [validUntil, setValidUntil] = useState("");
 
-  function handleSubmit() {
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const result = await fetchCertifications(token);
+        if (!cancelled && result) setCertifications(result);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
+  async function handleSubmit() {
     if (!name.trim() || !institution.trim() || !validUntil.trim()) return;
-    addCertification({ name: name.trim(), institution: institution.trim(), validUntil: validUntil.trim() });
-    setName("");
-    setInstitution("");
-    setValidUntil("");
-    setFormOpen(false);
+    const token = await getSessionToken();
+    if (!token) return;
+    const created = await submitCertification(token, {
+      name: name.trim(),
+      institution: institution.trim(),
+      validUntil: validUntil.trim(),
+    });
+    if (created) {
+      setCertifications((current) => [created, ...current]);
+      setName("");
+      setInstitution("");
+      setValidUntil("");
+      setFormOpen(false);
+    }
   }
 
   return (
@@ -485,16 +558,16 @@ function CertificacoesSection() {
           description="Adicione suas certificações para manter seu perfil técnico atualizado."
         />
       ) : (
-        certifications
-          .slice()
-          .reverse()
-          .map((cert) => (
+        certifications.map((cert) => (
             <View key={cert.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
               <Ionicons name="ribbon-outline" size={20} color={theme.secondary} />
               <View style={styles.rowContent}>
                 <ThemedText type="smallBold">{cert.name}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {cert.institution} · válida até {cert.validUntil}
+                  {cert.institution} · válida até{" "}
+                  {new Date(cert.validUntil).toLocaleDateString("pt-BR", {
+                    timeZone: "UTC",
+                  })}
                 </ThemedText>
               </View>
             </View>

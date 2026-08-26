@@ -81,6 +81,25 @@ describe("HomeScreen", () => {
     expect(screen.queryByText(/Falha ao registrar/i)).toBeNull();
   });
 
+  it("hydrates today's punch time from the server on mount", async () => {
+    const todayIso = new Date().toISOString();
+    (globalThis.fetch as jest.Mock).mockImplementation((_url: string, options?: RequestInit) => {
+      if (options?.method === "POST") {
+        return Promise.resolve({ ok: true });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => [{ id: "server-1", clockedAt: todayIso }],
+      });
+    });
+
+    renderRouter("src/app", { initialUrl: "/" });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Registrado às: --:--/)).toBeNull();
+    });
+  });
+
   it("redirects to login and shows an error when there is no session token", async () => {
     await clearSessionToken();
 
