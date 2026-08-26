@@ -5,7 +5,11 @@ import type { Role } from '@ponto-dcit/shared-types';
 import { OIDC_CLIENT_CONFIG, type OidcClientConfig } from './oidc-client.token';
 
 type LoginOrigin = 'web' | 'mobile';
-type PendingLogin = { nonce: string; origin: LoginOrigin };
+type PendingLogin = {
+  nonce: string;
+  origin: LoginOrigin;
+  mobileRedirectUri?: string;
+};
 
 // Identity mapping today because the mock IdP already emits our exact
 // role strings. When a real IdP is wired up, its claim shape (e.g. Entra
@@ -47,11 +51,14 @@ export class AuthService {
     return this.clientPromise;
   }
 
-  async buildAuthorizationUrl(origin: LoginOrigin): Promise<string> {
+  async buildAuthorizationUrl(
+    origin: LoginOrigin,
+    mobileRedirectUri?: string,
+  ): Promise<string> {
     const client = await this.getClient();
     const state = generators.state();
     const nonce = generators.nonce();
-    this.pendingLogins.set(state, { nonce, origin });
+    this.pendingLogins.set(state, { nonce, origin, mobileRedirectUri });
 
     return client.authorizationUrl({
       scope: 'openid profile email',
@@ -63,7 +70,11 @@ export class AuthService {
   async handleCallback(
     redirectUri: string,
     params: Record<string, string>,
-  ): Promise<{ sessionToken: string; origin: LoginOrigin }> {
+  ): Promise<{
+    sessionToken: string;
+    origin: LoginOrigin;
+    mobileRedirectUri?: string;
+  }> {
     const pending = params.state
       ? this.pendingLogins.get(params.state)
       : undefined;
@@ -95,7 +106,11 @@ export class AuthService {
       name: userinfo.name,
     });
 
-    return { sessionToken, origin: pending.origin };
+    return {
+      sessionToken,
+      origin: pending.origin,
+      mobileRedirectUri: pending.mobileRedirectUri,
+    };
   }
 
   private resolveRole(claim: unknown): Role {

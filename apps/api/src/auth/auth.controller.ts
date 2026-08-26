@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   HttpCode,
@@ -15,21 +16,42 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Get('login')
-  async login(@Query('origin') origin: string, @Res() res: Response) {
+  async login(
+    @Query('origin') origin: string,
+    @Query('redirectUri') redirectUri: string | undefined,
+    @Res() res: Response,
+  ) {
     const safeOrigin = origin === 'mobile' ? 'mobile' : 'web';
-    const url = await this.authService.buildAuthorizationUrl(safeOrigin);
+    const url = await this.authService.buildAuthorizationUrl(
+      safeOrigin,
+      safeOrigin === 'mobile' ? redirectUri : undefined,
+    );
     res.redirect(url);
   }
 
   @Get('callback')
   async callback(@Req() req: Request, @Res() res: Response) {
-    const { sessionToken, origin } = await this.authService.handleCallback(
-      process.env.OIDC_REDIRECT_URI as string,
-      req.query as Record<string, string>,
-    );
+    const { sessionToken, origin, mobileRedirectUri } =
+      await this.authService.handleCallback(
+        process.env.OIDC_REDIRECT_URI as string,
+        req.query as Record<string, string>,
+      );
 
     if (origin === 'mobile') {
-      res.json({ token: sessionToken });
+      // expo-web-browser's openAuthSessionAsync needs a redirect back to the
+      // exact redirect URI it was given to close the in-app browser and hand
+      // control back to JS. In Expo Go that's an exp:// URL computed by
+      // expo-auth-session's makeRedirectUri (Expo Go doesn't own a custom
+      // URL scheme like a standalone/dev-client build would), so the app
+      // sends it up front on /auth/login and we hand it back here rather
+      // than hardcoding one scheme that would only work in a real build.
+      if (!mobileRedirectUri) {
+        throw new BadRequestException('Missing mobile redirect URI');
+      }
+      const separator = mobileRedirectUri.includes('?') ? '&' : '?';
+      res.redirect(
+        `${mobileRedirectUri}${separator}token=${encodeURIComponent(sessionToken)}`,
+      );
       return;
     }
 

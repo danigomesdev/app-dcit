@@ -2,7 +2,11 @@ import { pathToFileURL } from 'node:url';
 import { Provider } from 'oidc-provider';
 
 const PORT = process.env.PORT || 9000;
-const ISSUER = `http://localhost:${PORT}`;
+// HOST lets local device testing (a phone on the same Wi-Fi network) reach
+// this issuer via the machine's LAN IP instead of "localhost", which would
+// resolve to the phone itself.
+const HOST = process.env.HOST || 'localhost';
+const ISSUER = `http://${HOST}:${PORT}`;
 
 export const ACCOUNTS = {
   'colaborador-1': {
@@ -43,7 +47,10 @@ const configuration = {
     {
       client_id: 'ponto-dcit',
       client_secret: 'dev-secret',
-      redirect_uris: ['http://localhost:3000/auth/callback'],
+      redirect_uris: [
+        'http://localhost:3000/auth/callback',
+        'http://192.168.1.16:3000/auth/callback',
+      ],
       grant_types: ['authorization_code'],
       response_types: ['code'],
       token_endpoint_auth_method: 'client_secret_post',
@@ -59,6 +66,16 @@ const configuration = {
   pkce: {
     required: () => false,
   },
+  // oidc-provider's default long-term (session) cookie uses SameSite=None
+  // without Secure. Real mobile browsers (Chrome/Custom Tabs) silently drop
+  // such cookies over plain HTTP, breaking session continuity partway
+  // through the login/consent redirect chain. This dev IdP intentionally
+  // runs over HTTP (no TLS cert for local/LAN testing), so the fix is
+  // SameSite=Lax instead of None+Secure — sufficient for this flow's
+  // same-tab, top-level-navigation-only redirects.
+  cookies: {
+    long: { sameSite: 'lax' },
+  },
   claims: {
     openid: ['sub'],
     profile: ['name', 'dcit_role'],
@@ -68,6 +85,9 @@ const configuration = {
 };
 
 export const provider = new Provider(ISSUER, configuration);
+provider.on('server_error', (_ctx, err) => {
+  console.error('oidc-provider server_error:', err);
+});
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   provider.listen(PORT, () => {

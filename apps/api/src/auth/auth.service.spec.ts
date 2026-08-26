@@ -115,6 +115,35 @@ describe('AuthService', () => {
     });
   });
 
+  it('threads the mobile redirect URI from login through to the callback result', async () => {
+    clientMock.authorizationUrl.mockReturnValue('https://mock-idp/auth');
+    await service.buildAuthorizationUrl(
+      'mobile',
+      'exp://192.168.1.16:8081/--/auth-callback',
+    );
+    const { state } = clientMock.authorizationUrl.mock.calls[0][0];
+
+    clientMock.callback.mockResolvedValue({
+      claims: () => ({ sub: 'user-1' }),
+    });
+    clientMock.userinfo.mockResolvedValue({
+      name: 'Ana Colaboradora',
+      dcit_role: 'colaborador',
+    });
+
+    const result = await service.handleCallback(
+      'http://localhost:3000/auth/callback',
+      {
+        state: state as string,
+        code: 'auth-code-123',
+      },
+    );
+
+    expect(result.mobileRedirectUri).toBe(
+      'exp://192.168.1.16:8081/--/auth-callback',
+    );
+  });
+
   it('rejects a callback with an unknown or expired state', async () => {
     await expect(
       service.handleCallback('http://localhost:3000/auth/callback', {
