@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Button, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import type { TimeEntryInput } from "@ponto-dcit/shared-types";
 
+import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 
@@ -30,7 +31,7 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Button title="Bater Ponto" onPress={handlePress} />
+      <ThemedButton title="Bater Ponto" onPress={handlePress} />
       {message ? <ThemedText>{message}</ThemedText> : null}
     </ThemedView>
   );
