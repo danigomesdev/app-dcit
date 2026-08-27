@@ -63,6 +63,10 @@ function mockFeriasGet() {
 }
 
 describe("ferias screen", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(async () => {
     globalThis.fetch = jest.fn();
     mockFeriasGet();
@@ -99,6 +103,14 @@ describe("ferias screen", () => {
   });
 
   it("submits a new vacation request after picking a date range", async () => {
+    // Pinned "today" comfortably mid-month (the 10th) so today+10/+14 stay
+    // within the same month the calendar opens showing — without this, the
+    // test's target days could land in next month depending on the real
+    // date, and the calendar (which always opens on the current month,
+    // with no `current`/`initialDate` override) wouldn't have rendered
+    // those day cells yet.
+    jest.useFakeTimers().setSystemTime(new Date("2026-08-10T12:00:00.000Z"));
+
     renderRouter("src/app", { initialUrl: "/ferias" });
     await waitFor(() => {
       expect(screen.getByText("Aprovado")).toBeTruthy();

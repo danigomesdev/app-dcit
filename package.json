@@ -11,5 +11,24 @@
   "devDependencies": {
     "turbo": "^2.3.0",
     "typescript": "^5.7.0"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "react-native-calendars": {
+        "peerDependencies": {
+          "react": "*"
+        }
+      },
+      "react-native-swipe-gestures": {
+        "peerDependencies": {
+          "react": "*"
+        }
+      },
+      "hoist-non-react-statics": {
+        "peerDependencies": {
+          "react": "*"
+        }
+      }
+    }
   }
 }

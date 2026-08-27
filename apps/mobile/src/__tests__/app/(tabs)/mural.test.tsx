@@ -29,6 +29,10 @@ const BIRTHDAYS = [
 ];
 
 describe("mural screen", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(async () => {
     globalThis.fetch = jest.fn().mockImplementation((url: string, options?: RequestInit) => {
       if (typeof url === "string" && url.includes("/react")) {
@@ -43,6 +47,11 @@ describe("mural screen", () => {
   });
 
   it("highlights today's birthday and lists the rest of the month", async () => {
+    // Pinned "today" to match Ana's fixture birthday (Aug 26) — without
+    // this, the test silently depended on the real wall-clock date
+    // matching the fixture, and broke the moment the clock moved past it.
+    jest.useFakeTimers().setSystemTime(new Date("2026-08-26T12:00:00.000Z"));
+
     renderRouter("src/app", { initialUrl: "/mural" });
 
     await waitFor(() => {
