@@ -1,21 +1,11 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import Image from "next/image";
 
 import type { Session } from "@/lib/session";
 import { logout } from "@/lib/session";
 
+import { NavLinks } from "./nav-links";
 import styles from "./app-shell.module.css";
-
-const NAV_SECTIONS = [
-  { href: "/", label: "Ponto" },
-  { href: "/escala", label: "Escala" },
-  { href: "/aprovacoes", label: "Aprovações" },
-  { href: "/documentos", label: "Documentos" },
-  { href: "/mural", label: "Mural" },
-  { href: "/beneficios", label: "Benefícios" },
-  { href: "/onboarding", label: "Onboarding" },
-  { href: "/operacional", label: "Operacional" },
-] as const;
 
 const ROLE_LABELS: Record<Session["role"], string> = {
   colaborador: "Colaborador",
@@ -27,28 +17,52 @@ export function AppShell({ children, user }: { children: ReactNode; user: Sessio
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
-        <div className={styles.identity}>
-          <span className={styles.identityName}>{user.name}</span>
-          <span className={styles.identityRole}>{ROLE_LABELS[user.role]}</span>
+        <div className={styles.logo}>
+          <Image
+            src="/dcit-logo-v2.png"
+            alt="DCiT Tecnologia"
+            width={1197}
+            height={658}
+            className={styles.logoImage}
+            priority
+          />
         </div>
-        <nav>
-          <ul className={styles.nav}>
-            {NAV_SECTIONS.map((section) => (
-              <li key={section.href}>
-                <Link href={section.href} className={styles.navLink}>
-                  {section.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <form action={logout} className={styles.logoutForm}>
-          <button type="submit" className={styles.logoutButton}>
-            Sair
-          </button>
-        </form>
+        <NavLinks />
       </aside>
-      <main className={styles.content}>{children}</main>
+      <div className={styles.main}>
+        <header className={styles.topbar}>
+          <details className={styles.userMenu}>
+            <summary className={styles.userMenuButton} aria-label="Menu do usuário">
+              <svg
+                className={styles.userIcon}
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="8" r="4" fill="currentColor" />
+                <path
+                  d="M4 20c0-4.418 3.582-7 8-7s8 2.582 8 7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </summary>
+            <div className={styles.userMenuPanel}>
+              <div className={styles.userMenuIdentity}>
+                <span className={styles.identityName}>{user.name}</span>
+                <span className={styles.identityRole}>{ROLE_LABELS[user.role]}</span>
+              </div>
+              <form action={logout} className={styles.userMenuLogoutForm}>
+                <button type="submit" className={styles.userMenuLogout}>
+                  Sair
+                </button>
+              </form>
+            </div>
+          </details>
+        </header>
+        <main className={styles.content}>{children}</main>
+      </div>
     </div>
   );
 }

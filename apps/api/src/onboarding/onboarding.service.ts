@@ -14,24 +14,28 @@ export class OnboardingService {
   }
 
   async listTeamProgress() {
-    const [totalCount, employees, progress] = await Promise.all([
-      this.prisma.onboardingTask.count(),
+    const [tasks, employees, progress] = await Promise.all([
+      this.prisma.onboardingTask.findMany({ orderBy: { order: 'asc' } }),
       this.prisma.employee.findMany(),
       this.prisma.onboardingProgress.findMany(),
     ]);
-    const completedByUser = new Map<string, number>();
+    const completedByUser = new Map<string, string[]>();
     for (const entry of progress) {
-      completedByUser.set(
-        entry.userId,
-        (completedByUser.get(entry.userId) ?? 0) + 1,
-      );
+      const completed = completedByUser.get(entry.userId) ?? [];
+      completed.push(entry.taskId);
+      completedByUser.set(entry.userId, completed);
     }
-    return employees.map((employee) => ({
-      userId: employee.userId,
-      userName: employee.name,
-      completedCount: completedByUser.get(employee.userId) ?? 0,
-      totalCount,
-    }));
+    return employees.map((employee) => {
+      const completedTaskIds = completedByUser.get(employee.userId) ?? [];
+      return {
+        userId: employee.userId,
+        userName: employee.name,
+        completedCount: completedTaskIds.length,
+        totalCount: tasks.length,
+        tasks,
+        completedTaskIds,
+      };
+    });
   }
 
   async toggleTask(userId: string, taskId: string) {

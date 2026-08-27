@@ -2,13 +2,22 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { OnboardingRow } from "./onboarding-row";
 import styles from "./onboarding.module.css";
+
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+};
 
 type TeamProgress = {
   userId: string;
   userName: string;
   completedCount: number;
   totalCount: number;
+  tasks: Task[];
+  completedTaskIds: string[];
 };
 
 export default async function OnboardingPage() {
@@ -37,35 +46,9 @@ export default async function OnboardingPage() {
     <div className={styles.page}>
       <h1 className={styles.heading}>Onboarding</h1>
       <ul className={styles.list}>
-        {progress.map((entry) => {
-          const percent =
-            entry.totalCount === 0
-              ? 0
-              : Math.round((entry.completedCount / entry.totalCount) * 100);
-          const complete = entry.totalCount > 0 && entry.completedCount === entry.totalCount;
-
-          return (
-            <li key={entry.userId} className={styles.item}>
-              <div className={styles.itemInfo}>
-                <span className={styles.itemName}>{entry.userName}</span>
-                <span className={styles.itemDetail}>
-                  {entry.completedCount} de {entry.totalCount} tarefas concluídas
-                </span>
-                <div className={styles.progressTrack}>
-                  <div
-                    className={styles.progressFill}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-              </div>
-              <span
-                className={complete ? styles.statusComplete : styles.statusPending}
-              >
-                {complete ? "Concluído" : `${percent}%`}
-              </span>
-            </li>
-          );
-        })}
+        {progress.map((entry) => (
+          <OnboardingRow key={entry.userId} entry={entry} />
+        ))}
       </ul>
     </div>
   );

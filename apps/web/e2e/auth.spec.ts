@@ -45,6 +45,7 @@ test("logging out clears the session and returns to /login", async ({ page, cont
   await addSessionCookie(context);
   await page.goto("/");
 
+  await page.locator('summary[aria-label="Menu do usuário"]').click();
   await page.getByRole("button", { name: "Sair" }).click();
   await expect(page).toHaveURL(/\/login$/);
 

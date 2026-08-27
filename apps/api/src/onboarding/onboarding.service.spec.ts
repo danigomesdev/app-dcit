@@ -107,5 +107,8 @@ describe('OnboardingService', () => {
     expect(carla?.completedCount).toBe(1);
     expect(davi?.completedCount).toBe(0);
     expect(carla?.totalCount).toBe(davi?.totalCount);
+    expect(carla?.completedTaskIds).toEqual([task.id]);
+    expect(davi?.completedTaskIds).toEqual([]);
+    expect(carla?.tasks.map((t) => t.id)).toContain(task.id);
   });
 });

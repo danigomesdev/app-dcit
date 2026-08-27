@@ -13,20 +13,16 @@
   gap: 24px;
 }
 
-.identity {
+.logo {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-background-selected);
 }
 
-.identityName {
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.identityRole {
-  font-size: 13px;
-  color: var(--color-text-secondary);
+.logoImage {
+  width: 55%;
+  height: auto;
 }
 
 .nav {
@@ -48,33 +44,18 @@
   color: var(--color-text);
 }
 
-.logoutForm {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-background-selected);
-}
-
-.logoutButton {
-  appearance: none;
-  width: 100%;
-  border: 1px solid var(--color-background-selected);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 14px;
+.navLinkActive,
+.navLinkActive:hover {
+  background: var(--color-text);
+  color: var(--color-background);
   font-weight: 600;
-  text-align: left;
-  color: var(--color-text);
-  background: var(--color-background);
-  cursor: pointer;
 }
 
-.logoutButton:hover {
-  background: var(--color-background-selected);
-}
-
-.content {
+.main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
   background-image:
     linear-gradient(rgba(8, 10, 16, 0.6), rgba(8, 10, 16, 0.6)),
     url("/login-background.png?v=3");
@@ -92,4 +73,102 @@
   --color-background-selected: rgba(255, 255, 255, 0.16);
   --color-text-secondary: rgba(255, 255, 255, 0.78);
   color: var(--color-text);
+}
+
+.topbar {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 24px;
+}
+
+.userMenu {
+  position: relative;
+}
+
+.userMenuButton {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--color-background-element);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.userMenuButton::-webkit-details-marker {
+  display: none;
+}
+
+.userMenuButton:hover {
+  background: var(--color-background-selected);
+}
+
+.userIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.userMenuPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #1c2230;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+}
+
+.userMenuIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--color-background-selected);
+}
+
+.identityName {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.identityRole {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.userMenuLogoutForm {
+  display: flex;
+}
+
+.userMenuLogout {
+  appearance: none;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--color-text);
+  background: none;
+  cursor: pointer;
+}
+
+.userMenuLogout:hover {
+  background: var(--color-background-selected);
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
 }

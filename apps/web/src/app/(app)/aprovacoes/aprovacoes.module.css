@@ -120,6 +120,7 @@
 }
 
 .dialog {
+  margin: auto;
   border: none;
   border-radius: 12px;
   padding: 24px;
