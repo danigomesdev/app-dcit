@@ -34,16 +34,29 @@ describe("operacional screen", () => {
         }
         return Promise.resolve({ ok: true, json: async () => [] });
       }
+      if (typeof url === "string" && url.includes("/operacional/escala")) {
+        const start = new URL(url).searchParams.get("start");
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            { id: "1", date: start, label: "Plantão", userId: "gestor-1", userName: "Bruno Gestor" },
+          ],
+        });
+      }
       return Promise.resolve({ ok: true, json: async () => [] });
     });
     await saveSessionToken("test-token");
   });
 
-  it("shows the plantão schedule for the week", () => {
+  it("shows the plantão schedule for the week", async () => {
     renderRouter("src/app", { initialUrl: "/operacional" });
 
-    expect(screen.getByText("Segunda")).toBeTruthy();
-    expect(screen.getAllByText("Bruno Gestor").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getByText("Segunda")).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Plantão: Bruno Gestor")).toBeTruthy();
+    });
   });
 
   it("toggles sobreaviso on and off", async () => {

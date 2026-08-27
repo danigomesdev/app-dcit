@@ -82,3 +82,43 @@ export async function fetchDeslocamentos(token: string): Promise<DeslocamentoRec
     return null;
   }
 }
+
+export type EscalaShift = {
+  id: string;
+  date: string;
+  label: string;
+  userId: string;
+  userName: string;
+};
+
+function isEscalaShiftArray(data: unknown): data is EscalaShift[] {
+  return (
+    Array.isArray(data) &&
+    data.every((item) => {
+      if (typeof item !== "object" || item === null) return false;
+      const candidate = item as Record<string, unknown>;
+      return (
+        typeof candidate.id === "string" &&
+        typeof candidate.date === "string" &&
+        typeof candidate.label === "string" &&
+        typeof candidate.userId === "string" &&
+        typeof candidate.userName === "string"
+      );
+    })
+  );
+}
+
+export async function fetchEscala(
+  token: string,
+  start: string,
+  end: string,
+): Promise<EscalaShift[] | null> {
+  try {
+    const response = await authedFetch(token, `/operacional/escala?start=${start}&end=${end}`);
+    if (!response.ok) return null;
+    const data: unknown = await response.json();
+    return isEscalaShiftArray(data) ? data : null;
+  } catch {
+    return null;
+  }
+}
