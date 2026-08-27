@@ -14,8 +14,19 @@
 }
 
 .identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.identityName {
   font-weight: 600;
   color: var(--color-text);
+}
+
+.identityRole {
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
 .nav {
@@ -33,6 +44,28 @@
 }
 
 .navLink:hover {
+  background: var(--color-background-selected);
+  color: var(--color-text);
+}
+
+.logoutForm {
+  margin-top: auto;
+}
+
+.logoutButton {
+  appearance: none;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  text-align: left;
+  color: var(--color-text-secondary);
+  background: none;
+  cursor: pointer;
+}
+
+.logoutButton:hover {
   background: var(--color-background-selected);
   color: var(--color-text);
 }

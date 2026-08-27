@@ -1,5 +1,11 @@
 import { test, expect } from "@playwright/test";
 
+import { addSessionCookie } from "./test-session";
+
+test.beforeEach(async ({ context }) => {
+  await addSessionCookie(context);
+});
+
 test("aprovações page renders its empty state", async ({ page }) => {
   await page.goto("/aprovacoes");
   await expect(page.getByRole("heading", { name: "Fila de aprovações" })).toBeVisible();

@@ -4,7 +4,9 @@ test("login page renders the SSO entry point without the app sidebar", async ({ 
   await page.goto("/login");
 
   await expect(page.getByRole("heading", { name: "Ponto DCIT" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Entrar com SSO" })).toBeVisible();
+  const ssoLink = page.getByRole("link", { name: "Entrar com SSO" });
+  await expect(ssoLink).toBeVisible();
+  await expect(ssoLink).toHaveAttribute("href", "http://localhost:3000/auth/login?origin=web");
   await expect(page.getByRole("link", { name: "Aprovações" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Documentos" })).toHaveCount(0);
 });

@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import type { Session } from "@/lib/session";
+import { logout } from "@/lib/session";
+
 import styles from "./app-shell.module.css";
 
 const NAV_SECTIONS = [
@@ -8,11 +11,20 @@ const NAV_SECTIONS = [
   { href: "/documentos", label: "Documentos" },
 ] as const;
 
-export function AppShell({ children }: { children: ReactNode }) {
+const ROLE_LABELS: Record<Session["role"], string> = {
+  colaborador: "Colaborador",
+  gestor: "Gestor",
+  rh: "RH",
+};
+
+export function AppShell({ children, user }: { children: ReactNode; user: Session }) {
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
-        <div className={styles.identity}>RH</div>
+        <div className={styles.identity}>
+          <span className={styles.identityName}>{user.name}</span>
+          <span className={styles.identityRole}>{ROLE_LABELS[user.role]}</span>
+        </div>
         <nav>
           <ul className={styles.nav}>
             {NAV_SECTIONS.map((section) => (
@@ -24,6 +36,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </ul>
         </nav>
+        <form action={logout} className={styles.logoutForm}>
+          <button type="submit" className={styles.logoutButton}>
+            Sair
+          </button>
+        </form>
       </aside>
       <main className={styles.content}>{children}</main>
     </div>
