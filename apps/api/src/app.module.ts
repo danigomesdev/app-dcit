@@ -10,6 +10,7 @@ import { MuralModule } from './mural/mural.module';
 import { BeneficiosModule } from './beneficios/beneficios.module';
 import { OnboardingModule } from './onboarding/onboarding.module';
 import { OperacionalModule } from './operacional/operacional.module';
+import { EmployeesModule } from './employees/employees.module';
 import { PushModule } from './push/push.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -26,6 +27,7 @@ import { AppService } from './app.service';
     BeneficiosModule,
     OnboardingModule,
     OperacionalModule,
+    EmployeesModule,
     PushModule,
   ],
   controllers: [AppController, HealthController],
