@@ -188,6 +188,14 @@ model DeslocamentoRecord {
   endedAt   DateTime
 }
 
+model PlantaoShift {
+  id        String   @id @default(uuid())
+  date      DateTime
+  label     String
+  userId    String
+  createdAt DateTime @default(now())
+}
+
 // --- Push notifications ------------------------------------------------
 
 model PushToken {
