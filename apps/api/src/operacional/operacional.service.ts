@@ -1,6 +1,42 @@
 import { Injectable } from '@nestjs/common';
-import type { DeslocamentoInput } from '@ponto-dcit/shared-types';
+import type {
+  DeslocamentoInput,
+  EscalaShiftInput,
+} from '@ponto-dcit/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+
+// Monday (UTC) of the current week through the following Sunday, unless
+// explicit start/end query params are given. Kept UTC-only throughout (no
+// local-timezone conversion) so a "day" always means the same calendar day
+// regardless of the server's or a client's timezone — same reasoning as
+// VacationRequest.startDate elsewhere in this codebase.
+export function resolveWeekRange(
+  start?: string,
+  end?: string,
+): { start: Date; end: Date } {
+  const startDate = start
+    ? new Date(`${start}T00:00:00.000Z`)
+    : mondayOfCurrentWeekUTC();
+
+  const endDate = end ? new Date(`${end}T23:59:59.999Z`) : new Date(startDate);
+  if (!end) {
+    endDate.setUTCDate(endDate.getUTCDate() + 6);
+    endDate.setUTCHours(23, 59, 59, 999);
+  }
+
+  return { start: startDate, end: endDate };
+}
+
+function mondayOfCurrentWeekUTC(): Date {
+  const now = new Date();
+  const date = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  const day = date.getUTCDay(); // 0=Sunday..6=Saturday
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setUTCDate(date.getUTCDate() + diff);
+  return date;
+}
 
 @Injectable()
 export class OperacionalService {
@@ -47,5 +83,36 @@ export class OperacionalService {
       where: { userId },
       orderBy: { startedAt: 'desc' },
     });
+  }
+
+  async listShifts(start: Date, end: Date) {
+    const shifts = await this.prisma.plantaoShift.findMany({
+      where: { date: { gte: start, lte: end } },
+      orderBy: [{ date: 'asc' }, { label: 'asc' }],
+    });
+    const employees = await this.prisma.employee.findMany({
+      where: { userId: { in: shifts.map((shift) => shift.userId) } },
+    });
+    const nameByUserId = new Map(
+      employees.map((employee) => [employee.userId, employee.name]),
+    );
+    return shifts.map((shift) => ({
+      ...shift,
+      userName: nameByUserId.get(shift.userId) ?? shift.userId,
+    }));
+  }
+
+  createShift(input: EscalaShiftInput) {
+    return this.prisma.plantaoShift.create({
+      data: {
+        date: new Date(input.date),
+        label: input.label,
+        userId: input.userId,
+      },
+    });
+  }
+
+  deleteShift(id: string) {
+    return this.prisma.plantaoShift.delete({ where: { id } });
   }
 }

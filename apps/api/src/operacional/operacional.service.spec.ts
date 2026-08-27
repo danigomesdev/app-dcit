@@ -1,7 +1,7 @@
 process.env.DATABASE_URL = 'file:./test.db';
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { OperacionalService } from './operacional.service';
+import { OperacionalService, resolveWeekRange } from './operacional.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('OperacionalService', () => {
@@ -21,6 +21,13 @@ describe('OperacionalService', () => {
   afterAll(async () => {
     await prisma.sobreavisoRecord.deleteMany();
     await prisma.deslocamentoRecord.deleteMany();
+    // Blanket-safe: plantaoShift is a table this task introduces and no
+    // other spec file writes to it (unlike `employee`, shared with
+    // solicitacoes.service.spec.ts/time-entries.service.spec.ts — a
+    // blanket deleteMany() there previously caused cross-suite flakiness,
+    // so the two tests below that touch `employee` clean up their own
+    // rows inline by userId instead of relying on this afterAll).
+    await prisma.plantaoShift.deleteMany();
     await prisma.onModuleDestroy();
   });
 
@@ -62,5 +69,119 @@ describe('OperacionalService', () => {
 
     expect(results).toHaveLength(2);
     expect(results[0].startedAt.toISOString()).toBe('2026-08-21T09:00:00.000Z');
+  });
+
+  describe('resolveWeekRange', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('defaults to Monday–Sunday of the current week when start/end are omitted', () => {
+      // 2026-08-27 is a Thursday.
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-27T15:00:00.000Z'));
+
+      const range = resolveWeekRange(undefined, undefined);
+
+      expect(range.start.toISOString()).toBe('2026-08-24T00:00:00.000Z');
+      expect(range.end.toISOString()).toBe('2026-08-30T23:59:59.999Z');
+    });
+
+    it('still resolves Monday correctly when today is itself a Sunday', () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-30T09:00:00.000Z'));
+
+      const range = resolveWeekRange(undefined, undefined);
+
+      expect(range.start.toISOString()).toBe('2026-08-24T00:00:00.000Z');
+      expect(range.end.toISOString()).toBe('2026-08-30T23:59:59.999Z');
+    });
+
+    it('uses explicit start/end when both are given', () => {
+      const range = resolveWeekRange('2026-09-01', '2026-09-07');
+
+      expect(range.start.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+      expect(range.end.toISOString()).toBe('2026-09-07T23:59:59.999Z');
+    });
+
+    it('defaults end to start+6 days when only start is given', () => {
+      const range = resolveWeekRange('2026-09-01', undefined);
+
+      expect(range.start.toISOString()).toBe('2026-09-01T00:00:00.000Z');
+      expect(range.end.toISOString()).toBe('2026-09-07T23:59:59.999Z');
+    });
+  });
+
+  describe('shifts', () => {
+    it('creates and lists shifts within a date range, joined with the employee name', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'user-shift-a',
+          name: 'Shift Ana',
+          role: 'colaborador',
+          hireDate: new Date('2024-03-15'),
+        },
+      });
+
+      const inRange = await service.createShift({
+        date: '2026-09-02',
+        label: 'Manhã',
+        userId: 'user-shift-a',
+      });
+      const outOfRange = await service.createShift({
+        date: '2026-09-15',
+        label: 'Manhã',
+        userId: 'user-shift-a',
+      });
+
+      const results = await service.listShifts(
+        new Date('2026-09-01T00:00:00.000Z'),
+        new Date('2026-09-07T23:59:59.999Z'),
+      );
+
+      const ids = results.map((r) => r.id);
+      expect(ids).toContain(inRange.id);
+      expect(ids).not.toContain(outOfRange.id);
+      expect(results.find((r) => r.id === inRange.id)?.userName).toBe(
+        'Shift Ana',
+      );
+
+      await prisma.plantaoShift.deleteMany({
+        where: { id: { in: [inRange.id, outOfRange.id] } },
+      });
+      await prisma.employee.deleteMany({ where: { userId: 'user-shift-a' } });
+    });
+
+    it('falls back to the bare userId when no Employee row exists', async () => {
+      const created = await service.createShift({
+        date: '2026-09-03',
+        label: 'Backup',
+        userId: 'user-shift-unknown',
+      });
+
+      const results = await service.listShifts(
+        new Date('2026-09-01T00:00:00.000Z'),
+        new Date('2026-09-07T23:59:59.999Z'),
+      );
+
+      expect(results.find((r) => r.id === created.id)?.userName).toBe(
+        'user-shift-unknown',
+      );
+
+      await prisma.plantaoShift.delete({ where: { id: created.id } });
+    });
+
+    it('deletes a shift', async () => {
+      const created = await service.createShift({
+        date: '2026-09-04',
+        label: 'Noite',
+        userId: 'user-shift-delete',
+      });
+
+      await service.deleteShift(created.id);
+
+      const found = await prisma.plantaoShift.findUnique({
+        where: { id: created.id },
+      });
+      expect(found).toBeNull();
+    });
   });
 });
