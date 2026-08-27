@@ -45,6 +45,23 @@ describe('SolicitacoesController guard metadata', () => {
     ) as unknown[] | undefined;
     expect(roles).toEqual(['gestor', 'rh']);
   });
+
+  it('applies AuthGuard and RolesGuard to listPendingVacations, restricted to gestor/rh', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      SolicitacoesController.prototype.listPendingVacations,
+    ) as unknown[] | undefined;
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      SolicitacoesController.prototype.listPendingVacations,
+    ) as unknown[] | undefined;
+    expect(roles).toEqual(['gestor', 'rh']);
+  });
 });
 
 describe('SolicitacoesController', () => {
@@ -58,6 +75,7 @@ describe('SolicitacoesController', () => {
     listVacations: jest.fn(),
     getVacationProfile: jest.fn(),
     updateVacationStatus: jest.fn(),
+    listPendingVacations: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -178,5 +196,16 @@ describe('SolicitacoesController', () => {
       controller.updateVacationStatus('1', { status: 'invalido' }),
     ).rejects.toThrow(BadRequestException);
     expect(serviceMock.updateVacationStatus).not.toHaveBeenCalled();
+  });
+
+  it('lists pending vacation requests', async () => {
+    serviceMock.listPendingVacations.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana' },
+    ]);
+
+    const result = await controller.listPendingVacations();
+
+    expect(result).toEqual([{ id: '1', userId: 'user-1', userName: 'Ana' }]);
+    expect(serviceMock.listPendingVacations).toHaveBeenCalledWith();
   });
 });

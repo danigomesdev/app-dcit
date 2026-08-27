@@ -102,6 +102,47 @@ describe('SolicitacoesService', () => {
     expect(profile.history).toEqual([]);
   });
 
+  it('lists pending vacation requests across users with the requester name joined', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-g',
+        name: 'Gustavo Gestorado',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    const pending = await service.createVacation('user-g', {
+      startDate: '2026-12-01',
+      endDate: '2026-12-10',
+      days: 9,
+    });
+    const approved = await service.createVacation('user-g', {
+      startDate: '2027-01-05',
+      endDate: '2027-01-09',
+      days: 4,
+    });
+    await service.updateVacationStatus(approved.id, 'aprovado');
+    // No Employee row for this user — the join must still return something
+    // usable rather than dropping the request or throwing.
+    await service.createVacation('user-h', {
+      startDate: '2026-12-15',
+      endDate: '2026-12-20',
+      days: 5,
+    });
+
+    const results = await service.listPendingVacations();
+
+    const ids = results.map((r) => r.id);
+    expect(ids).toContain(pending.id);
+    expect(ids).not.toContain(approved.id);
+    expect(results.find((r) => r.id === pending.id)?.userName).toBe(
+      'Gustavo Gestorado',
+    );
+    expect(results.find((r) => r.userId === 'user-h')?.userName).toBe(
+      'user-h',
+    );
+  });
+
   it('updates a vacation request status and notifies the requester', async () => {
     const created = await service.createVacation('user-f', {
       startDate: '2026-11-01',

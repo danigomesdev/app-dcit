@@ -103,4 +103,11 @@ export class SolicitacoesController {
     }
     return this.solicitacoes.updateVacationStatus(id, result.data.status);
   }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('ferias/pendentes')
+  listPendingVacations() {
+    return this.solicitacoes.listPendingVacations();
+  }
 }

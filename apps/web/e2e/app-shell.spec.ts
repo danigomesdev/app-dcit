@@ -1,9 +1,14 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie } from "./test-session";
+import { addSessionCookie, mockApprovalsApi } from "./test-session";
 
-test("sidebar renders both sections and navigates between them", async ({ page, context }) => {
+test("sidebar renders both sections and navigates between them", async ({
+  page,
+  context,
+  request,
+}) => {
   await addSessionCookie(context);
+  await mockApprovalsApi(request);
   await page.goto("/");
 
   await expect(page.getByRole("link", { name: "Aprovações" })).toBeVisible();

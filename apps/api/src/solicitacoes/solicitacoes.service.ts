@@ -58,6 +58,23 @@ export class SolicitacoesService {
     });
   }
 
+  async listPendingVacations() {
+    const requests = await this.prisma.vacationRequest.findMany({
+      where: { status: 'pendente' },
+      orderBy: { createdAt: 'asc' },
+    });
+    const employees = await this.prisma.employee.findMany({
+      where: { userId: { in: requests.map((request) => request.userId) } },
+    });
+    const nameByUserId = new Map(
+      employees.map((employee) => [employee.userId, employee.name]),
+    );
+    return requests.map((request) => ({
+      ...request,
+      userName: nameByUserId.get(request.userId) ?? request.userId,
+    }));
+  }
+
   async updateVacationStatus(id: string, status: 'aprovado' | 'recusado') {
     const updated = await this.prisma.vacationRequest.update({
       where: { id },
