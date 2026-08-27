@@ -40,3 +40,5 @@ export { DeslocamentoInputSchema } from "./operacional";
 export type { DeslocamentoInput } from "./operacional";
 export { PushTokenInputSchema } from "./push-token";
 export type { PushTokenInput } from "./push-token";
+export { EscalaShiftInputSchema } from "./escala";
+export type { EscalaShiftInput } from "./escala";
