@@ -1,6 +1,7 @@
 process.env.DATABASE_URL = 'file:./test.db';
 
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { OperacionalService, resolveWeekRange } from './operacional.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -182,6 +183,32 @@ describe('OperacionalService', () => {
         where: { id: created.id },
       });
       expect(found).toBeNull();
+    });
+
+    it('does not throw when deleting an id that does not exist', async () => {
+      await expect(
+        service.deleteShift('does-not-exist'),
+      ).resolves.not.toThrow();
+    });
+
+    it('rejects a duplicate shift (same date, label, userId)', async () => {
+      await service.createShift({
+        date: '2026-09-05',
+        label: 'Dup',
+        userId: 'user-shift-dup',
+      });
+
+      await expect(
+        service.createShift({
+          date: '2026-09-05',
+          label: 'Dup',
+          userId: 'user-shift-dup',
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      await prisma.plantaoShift.deleteMany({
+        where: { userId: 'user-shift-dup' },
+      });
     });
   });
 });

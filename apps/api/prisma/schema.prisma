@@ -194,6 +194,8 @@ model PlantaoShift {
   label     String
   userId    String
   createdAt DateTime @default(now())
+
+  @@unique([date, label, userId])
 }
 
 // --- Push notifications ------------------------------------------------

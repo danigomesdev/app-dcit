@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type {
   DeslocamentoInput,
   EscalaShiftInput,
@@ -102,17 +103,33 @@ export class OperacionalService {
     }));
   }
 
-  createShift(input: EscalaShiftInput) {
-    return this.prisma.plantaoShift.create({
-      data: {
-        date: new Date(input.date),
-        label: input.label,
-        userId: input.userId,
-      },
-    });
+  async createShift(input: EscalaShiftInput) {
+    try {
+      return await this.prisma.plantaoShift.create({
+        data: {
+          date: new Date(input.date),
+          label: input.label,
+          userId: input.userId,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Já existe um turno com essa data, rótulo e pessoa.',
+        );
+      }
+      throw error;
+    }
   }
 
+  // deleteMany (not delete): idempotent on a missing id — a double-click
+  // on "Remover" or two gestores editing the same week concurrently must
+  // not 500 on the second call, matching the push-tokens precedent
+  // elsewhere in this codebase.
   deleteShift(id: string) {
-    return this.prisma.plantaoShift.delete({ where: { id } });
+    return this.prisma.plantaoShift.deleteMany({ where: { id } });
   }
 }

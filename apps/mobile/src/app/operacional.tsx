@@ -23,11 +23,27 @@ import { getSessionToken } from "@/lib/session";
 
 const DAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
-// UTC-only, same reasoning as apps/web's escala page: a "day" must mean the
-// same calendar day regardless of the device's local timezone.
+// Explicit America/Sao_Paulo, not the device's ambient timezone and not
+// UTC — deciding *which week is "now"* must follow the company's actual
+// timezone (this app is built for a single Brazilian company throughout),
+// or a colaborador checking the schedule late Sunday evening would see
+// next week's roster while it's still Sunday locally. Formatting of
+// already-known date-only values from the API stays UTC-only (unaffected
+// by this — see the `.slice(0, 10)` comparisons below), only the "what is
+// today" seed changes here.
+function todaySaoPauloDateOnly(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 function currentWeekDates(): string[] {
-  const now = new Date();
-  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const date = new Date(`${todaySaoPauloDateOnly()}T00:00:00.000Z`);
   const day = date.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
   date.setUTCDate(date.getUTCDate() + diff);

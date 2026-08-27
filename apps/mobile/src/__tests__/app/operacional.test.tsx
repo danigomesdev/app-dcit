@@ -39,7 +39,7 @@ describe("operacional screen", () => {
         return Promise.resolve({
           ok: true,
           json: async () => [
-            { id: "1", date: start, label: "Plantão", userId: "gestor-1", userName: "Bruno Gestor" },
+            { id: "1", date: `${start}T00:00:00.000Z`, label: "Plantão", userId: "gestor-1", userName: "Bruno Gestor" },
           ],
         });
       }

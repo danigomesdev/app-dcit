@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { z } from 'zod';
 import {
   DeslocamentoInputSchema,
   EscalaShiftInputSchema,
@@ -23,6 +24,11 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type AuthenticatedRequest = Request & { user: AuthenticatedUser };
+
+const WeekRangeQuerySchema = z.object({
+  start: z.string().date().optional(),
+  end: z.string().date().optional(),
+});
 
 @Controller('operacional')
 export class OperacionalController {
@@ -62,8 +68,12 @@ export class OperacionalController {
 
   @UseGuards(AuthGuard)
   @Get('escala')
-  listShifts(@Query('start') start?: string, @Query('end') end?: string) {
-    const range = resolveWeekRange(start, end);
+  async listShifts(@Query() query: unknown) {
+    const result = WeekRangeQuerySchema.safeParse(query);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    const range = resolveWeekRange(result.data.start, result.data.end);
     return this.operacional.listShifts(range.start, range.end);
   }
 

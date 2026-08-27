@@ -102,6 +102,19 @@ test("removing a shift calls the API", async ({ page, context, request }) => {
     .toBeTruthy();
 });
 
+test("a malformed start query param falls back to the current week instead of erroring", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request);
+
+  const response = await page.goto("/escala?start=garbage");
+  expect(response?.status()).toBeLessThan(500);
+  await expect(page.getByRole("heading", { name: "Escala de plantão" })).toBeVisible();
+});
+
 test("week navigation changes the displayed range", async ({ page, context, request }) => {
   await addSessionCookie(context);
   await mockApi(request);

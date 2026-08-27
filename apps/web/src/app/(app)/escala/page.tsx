@@ -20,19 +20,47 @@ type Employee = {
 
 const DAY_LABELS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 
-function mondayOfCurrentWeek(): string {
-  const now = new Date();
-  const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+function addDays(dateStr: string, days: number): string {
+  const date = new Date(`${dateStr}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function todaySaoPauloDateOnly(): string {
+  // Explicit America/Sao_Paulo, not the server's ambient timezone (in
+  // production that's often UTC regardless of where users are) and not
+  // UTC — "which week is it right now" must follow the company's actual
+  // timezone, or a gestor checking the schedule late Sunday evening local
+  // time would see next week's roster while it's still Sunday. Storage
+  // and formatting of already-known date-only values stay UTC-only
+  // throughout (unaffected by this) — only the "what is today" seed
+  // changes here.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function mondayOf(dateStr: string): string {
+  const date = new Date(`${dateStr}T00:00:00.000Z`);
   const day = date.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
   date.setUTCDate(date.getUTCDate() + diff);
   return date.toISOString().slice(0, 10);
 }
 
-function addDays(dateStr: string, days: number): string {
-  const date = new Date(`${dateStr}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
+function mondayOfCurrentWeek(): string {
+  return mondayOf(todaySaoPauloDateOnly());
+}
+
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDateOnly(value: string): boolean {
+  return DATE_ONLY.test(value) && !Number.isNaN(new Date(`${value}T00:00:00.000Z`).getTime());
 }
 
 // Date-only values are stored as UTC midnight — format in UTC so the
@@ -52,7 +80,10 @@ export default async function EscalaPage({ searchParams }: PageProps<"/escala">)
   }
 
   const { start: startParam } = await searchParams;
-  const start = typeof startParam === "string" ? startParam : mondayOfCurrentWeek();
+  const start =
+    typeof startParam === "string" && isValidDateOnly(startParam)
+      ? mondayOf(startParam)
+      : mondayOfCurrentWeek();
   const end = addDays(start, 6);
   const prevWeek = addDays(start, -7);
   const nextWeek = addDays(start, 7);
@@ -116,10 +147,17 @@ export default async function EscalaPage({ searchParams }: PageProps<"/escala">)
                 type="text"
                 name="label"
                 placeholder="Rótulo (ex: Manhã)"
+                aria-label={`Rótulo do turno em ${day.label}`}
                 required
                 className={styles.labelInput}
               />
-              <select name="userId" required className={styles.select} defaultValue="">
+              <select
+                name="userId"
+                required
+                className={styles.select}
+                defaultValue=""
+                aria-label={`Funcionário do turno em ${day.label}`}
+              >
                 <option value="" disabled>
                   Escolha um funcionário
                 </option>

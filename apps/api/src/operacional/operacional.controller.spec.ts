@@ -171,13 +171,29 @@ describe('OperacionalController', () => {
       },
     ]);
 
-    const result = await controller.listShifts('2026-09-01', '2026-09-07');
+    const result = await controller.listShifts({
+      start: '2026-09-01',
+      end: '2026-09-07',
+    });
 
     expect(serviceMock.listShifts).toHaveBeenCalledWith(
       new Date('2026-09-01T00:00:00.000Z'),
       new Date('2026-09-07T23:59:59.999Z'),
     );
     expect(result).toHaveLength(1);
+  });
+
+  it('rejects a malformed start query param', async () => {
+    await expect(controller.listShifts({ start: 'garbage' })).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(serviceMock.listShifts).not.toHaveBeenCalled();
+  });
+
+  it('accepts a request with no query params at all', async () => {
+    serviceMock.listShifts.mockResolvedValue([]);
+    await controller.listShifts({});
+    expect(serviceMock.listShifts).toHaveBeenCalled();
   });
 
   it('creates a shift with a valid payload', async () => {
