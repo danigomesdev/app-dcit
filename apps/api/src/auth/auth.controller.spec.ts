@@ -85,6 +85,7 @@ describe('AuthController', () => {
     authServiceMock.handleCallback.mockResolvedValue({
       sessionToken: 'jwt-1',
       origin: 'web',
+      role: 'gestor',
     });
     const req = { query: { state: 's', code: 'c' } } as unknown as Request;
     const res = mockResponse();
@@ -98,6 +99,23 @@ describe('AuthController', () => {
     );
     expect(res.redirect).toHaveBeenCalled();
     expect(res.json).not.toHaveBeenCalled();
+  });
+
+  it('refuses a colaborador web callback without setting a cookie', async () => {
+    authServiceMock.handleCallback.mockResolvedValue({
+      sessionToken: 'jwt-1',
+      origin: 'web',
+      role: 'colaborador',
+    });
+    const req = { query: { state: 's', code: 'c' } } as unknown as Request;
+    const res = mockResponse();
+
+    await controller.callback(req, res as unknown as Response);
+
+    expect(res.cookie).not.toHaveBeenCalled();
+    expect(res.redirect).toHaveBeenCalledWith(
+      expect.stringContaining('/login?error=colaborador_web'),
+    );
   });
 
   it('redirects to the mobile redirect URI with the token for a mobile callback', async () => {

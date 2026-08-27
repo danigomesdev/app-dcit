@@ -37,8 +37,15 @@ describe("AtestadoStatusUpdateSchema", () => {
     expect(AtestadoStatusUpdateSchema.safeParse({ status: "aprovado" }).success).toBe(true);
   });
 
-  it("accepts recusado", () => {
-    expect(AtestadoStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(true);
+  it("accepts recusado with a reviewNote", () => {
+    expect(
+      AtestadoStatusUpdateSchema.safeParse({ status: "recusado", reviewNote: "Documento ilegível" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects recusado without a reviewNote", () => {
+    expect(AtestadoStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(false);
   });
 
   it("rejects an unknown status", () => {

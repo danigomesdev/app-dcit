@@ -59,7 +59,11 @@ export class SolicitacoesController {
     if (!result.success) {
       throw new BadRequestException(result.error.flatten());
     }
-    return this.solicitacoes.updateAdjustmentStatus(id, result.data.status);
+    return this.solicitacoes.updateAdjustmentStatus(
+      id,
+      result.data.status,
+      result.data.reviewNote,
+    );
   }
 
   @UseGuards(AuthGuard, RolesGuard)
@@ -67,6 +71,13 @@ export class SolicitacoesController {
   @Get('ajustes/pendentes')
   listPendingAdjustments() {
     return this.solicitacoes.listPendingAdjustments();
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('ajustes/todas')
+  listAllAdjustments() {
+    return this.solicitacoes.listAllAdjustments();
   }
 
   @UseGuards(AuthGuard)
@@ -100,7 +111,11 @@ export class SolicitacoesController {
     if (!result.success) {
       throw new BadRequestException(result.error.flatten());
     }
-    return this.solicitacoes.updateCompensationStatus(id, result.data.status);
+    return this.solicitacoes.updateCompensationStatus(
+      id,
+      result.data.status,
+      result.data.reviewNote,
+    );
   }
 
   @UseGuards(AuthGuard, RolesGuard)
@@ -108,6 +123,13 @@ export class SolicitacoesController {
   @Get('compensacoes/pendentes')
   listPendingCompensations() {
     return this.solicitacoes.listPendingCompensations();
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('compensacoes/todas')
+  listAllCompensations() {
+    return this.solicitacoes.listAllCompensations();
   }
 
   @UseGuards(AuthGuard)
@@ -142,7 +164,11 @@ export class SolicitacoesController {
     if (!result.success) {
       throw new BadRequestException(result.error.flatten());
     }
-    return this.solicitacoes.updateVacationStatus(id, result.data.status);
+    return this.solicitacoes.updateVacationStatus(
+      id,
+      result.data.status,
+      result.data.reviewNote,
+    );
   }
 
   @UseGuards(AuthGuard, RolesGuard)
@@ -150,5 +176,12 @@ export class SolicitacoesController {
   @Get('ferias/pendentes')
   listPendingVacations() {
     return this.solicitacoes.listPendingVacations();
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('ferias/todas')
+  listAllVacations() {
+    return this.solicitacoes.listAllVacations();
   }
 }

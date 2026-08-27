@@ -49,28 +49,47 @@
 }
 
 .logoutForm {
-  margin-top: auto;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-background-selected);
 }
 
 .logoutButton {
   appearance: none;
   width: 100%;
-  border: none;
+  border: 1px solid var(--color-background-selected);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 14px;
+  font-weight: 600;
   text-align: left;
-  color: var(--color-text-secondary);
-  background: none;
+  color: var(--color-text);
+  background: var(--color-background);
   cursor: pointer;
 }
 
 .logoutButton:hover {
   background: var(--color-background-selected);
-  color: var(--color-text);
 }
 
 .content {
   flex: 1;
   min-width: 0;
+  background-image:
+    linear-gradient(rgba(8, 10, 16, 0.6), rgba(8, 10, 16, 0.6)),
+    url("/login-background.png?v=3");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+
+  /* Every page under the shell reads these tokens for its own text/card
+     colors — overriding them here, instead of touching each page, gives a
+     consistent readable "glass over photo" look no matter the OS theme. */
+  --color-background: rgba(10, 14, 22, 0.55);
+  --color-text: #ffffff;
+  --color-background-element: rgba(20, 24, 32, 0.72);
+  --color-background-selected: rgba(255, 255, 255, 0.16);
+  --color-text-secondary: rgba(255, 255, 255, 0.78);
+  color: var(--color-text);
 }

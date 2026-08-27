@@ -160,4 +160,22 @@ describe('AtestadosService', () => {
       expect.objectContaining({ title: 'Atestado' }),
     );
   });
+
+  it('persists the reviewNote when recusando an atestado', async () => {
+    const created = await service.create('user-e', 'Elisa', {
+      cid: 'J06.9',
+      crm: 'CRM-MG 45213',
+      medico: 'Dr. Carlos Mendes',
+      dias: 2,
+    });
+
+    const updated = await service.updateStatus(
+      created.id,
+      'recusado',
+      'Documento ilegível',
+    );
+
+    expect(updated.status).toBe('recusado');
+    expect(updated.reviewNote).toBe('Documento ilegível');
+  });
 });

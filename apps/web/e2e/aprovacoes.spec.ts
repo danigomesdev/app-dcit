@@ -103,10 +103,10 @@ test("rejecting a compensation request calls the API", async ({ page, context, r
   });
 
   await page.goto("/aprovacoes");
-  await page
-    .locator("li", { hasText: "Fabia Colaboradora" })
-    .getByRole("button", { name: "Recusar" })
-    .click();
+  const item = page.locator("li", { hasText: "Fabia Colaboradora" });
+  await item.getByRole("button", { name: "Recusar" }).click();
+  await page.getByLabel("Motivo da recusa").fill("Saldo insuficiente");
+  await page.getByRole("button", { name: "Confirmar recusa" }).click();
 
   await expect
     .poll(async () => {
@@ -115,7 +115,7 @@ test("rejecting a compensation request calls the API", async ({ page, context, r
         (r) => r.method === "PATCH" && r.path === "/solicitacoes/compensacoes/cp-1/status"
       )?.body;
     })
-    .toEqual({ status: "recusado" });
+    .toEqual({ status: "recusado", reviewNote: "Saldo insuficiente" });
 });
 
 test("approving an atestado calls the API and refreshes the list", async ({
@@ -152,4 +152,31 @@ test("approving an atestado calls the API and refreshes the list", async ({
       )?.body;
     })
     .toEqual({ status: "aprovado" });
+});
+
+test("shows already-decided requests in the history section with their rejection reason", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request, {
+    adjustments: [
+      {
+        id: "aj-2",
+        userName: "Gil Colaborador",
+        reason: "Bateu o ponto errado",
+        status: "recusado",
+        reviewNote: "Sem batida correspondente",
+        createdAt: "2026-08-21T12:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/aprovacoes");
+
+  await expect(page.getByRole("heading", { name: "Histórico de aprovações" })).toBeVisible();
+  const historyItem = page.locator("li", { hasText: "Gil Colaborador" });
+  await expect(historyItem.getByText("Recusado")).toBeVisible();
+  await expect(historyItem.getByText("Motivo: Sem batida correspondente")).toBeVisible();
 });

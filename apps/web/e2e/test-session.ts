@@ -59,17 +59,17 @@ export async function mockApi(
   }
   if (data.vacations) {
     await request.post(`${FAKE_API_URL}/__seed`, {
-      data: { path: "/solicitacoes/ferias/pendentes", response: data.vacations },
+      data: { path: "/solicitacoes/ferias/todas", response: data.vacations },
     });
   }
   if (data.adjustments) {
     await request.post(`${FAKE_API_URL}/__seed`, {
-      data: { path: "/solicitacoes/ajustes/pendentes", response: data.adjustments },
+      data: { path: "/solicitacoes/ajustes/todas", response: data.adjustments },
     });
   }
   if (data.compensations) {
     await request.post(`${FAKE_API_URL}/__seed`, {
-      data: { path: "/solicitacoes/compensacoes/pendentes", response: data.compensations },
+      data: { path: "/solicitacoes/compensacoes/todas", response: data.compensations },
     });
   }
   if (data.team) {

@@ -31,11 +31,25 @@ export class AuthController {
 
   @Get('callback')
   async callback(@Req() req: Request, @Res() res: Response) {
-    const { sessionToken, origin, mobileRedirectUri } =
+    const { sessionToken, origin, mobileRedirectUri, role } =
       await this.authService.handleCallback(
         process.env.OIDC_REDIRECT_URI as string,
         req.query as Record<string, string>,
       );
+
+    if (origin === 'web' && role === 'colaborador') {
+      // The web portal is a gestor/RH tool only — colaboradores use the
+      // mobile app for everything they do. Refusing here (before a cookie
+      // is ever set) keeps them from landing on a sidebar full of dead
+      // links that all resolve to "Sem permissão".
+      const loginUrl = new URL(
+        '/login',
+        process.env.WEB_APP_URL ?? 'http://localhost:3001',
+      );
+      loginUrl.searchParams.set('error', 'colaborador_web');
+      res.redirect(loginUrl.toString());
+      return;
+    }
 
     if (origin === 'mobile') {
       // expo-web-browser's openAuthSessionAsync needs a redirect back to the

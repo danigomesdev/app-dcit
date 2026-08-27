@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 
 import { decideAdjustment, decideAtestado, decideCompensation, decideVacation } from "./actions";
 import { ApprovalSection } from "./approval-section";
+import { HistorySection } from "./history-section";
 import styles from "./aprovacoes.module.css";
 
 type Atestado = {
@@ -11,23 +12,32 @@ type Atestado = {
   userName: string;
   dias: number | null;
   status: string;
+  reviewNote: string | null;
   createdAt: string;
 };
 
-type PendingVacation = {
+type Vacation = {
   id: string;
   userName: string;
   startDate: string;
   endDate: string;
   days: number;
+  status: string;
+  reviewNote: string | null;
 };
 
-type PendingRequest = {
+type Request = {
   id: string;
   userName: string;
   reason: string;
+  status: string;
+  reviewNote: string | null;
   createdAt: string;
 };
+
+function isDecided(status: string): status is "aprovado" | "recusado" {
+  return status === "aprovado" || status === "recusado";
+}
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleDateString("pt-BR");
@@ -57,21 +67,35 @@ export default async function AprovacoesPage() {
 
   const [atestados, vacations, adjustments, compensations] = await Promise.all([
     apiFetchJson<Atestado[]>("/atestados/team"),
-    apiFetchJson<PendingVacation[]>("/solicitacoes/ferias/pendentes"),
-    apiFetchJson<PendingRequest[]>("/solicitacoes/ajustes/pendentes"),
-    apiFetchJson<PendingRequest[]>("/solicitacoes/compensacoes/pendentes"),
+    apiFetchJson<Vacation[]>("/solicitacoes/ferias/todas"),
+    apiFetchJson<Request[]>("/solicitacoes/ajustes/todas"),
+    apiFetchJson<Request[]>("/solicitacoes/compensacoes/todas"),
   ]);
-  const pendingAtestados = atestados.filter(
-    (atestado) => atestado.status !== "aprovado" && atestado.status !== "recusado"
+
+  const pendingAtestados = atestados.filter((atestado) => !isDecided(atestado.status));
+  const historyAtestados = atestados.filter((atestado) => isDecided(atestado.status));
+  const pendingVacations = vacations.filter((vacation) => !isDecided(vacation.status));
+  const historyVacations = vacations.filter((vacation) => isDecided(vacation.status));
+  const pendingAdjustments = adjustments.filter((adjustment) => !isDecided(adjustment.status));
+  const historyAdjustments = adjustments.filter((adjustment) => isDecided(adjustment.status));
+  const pendingCompensations = compensations.filter(
+    (compensation) => !isDecided(compensation.status)
+  );
+  const historyCompensations = compensations.filter((compensation) =>
+    isDecided(compensation.status)
   );
 
-  const nothingPending =
+  const nothingAtAll =
     pendingAtestados.length === 0 &&
-    vacations.length === 0 &&
-    adjustments.length === 0 &&
-    compensations.length === 0;
+    historyAtestados.length === 0 &&
+    pendingVacations.length === 0 &&
+    historyVacations.length === 0 &&
+    pendingAdjustments.length === 0 &&
+    historyAdjustments.length === 0 &&
+    pendingCompensations.length === 0 &&
+    historyCompensations.length === 0;
 
-  if (nothingPending) {
+  if (nothingAtAll) {
     return (
       <EmptyState
         title="Fila de aprovações"
@@ -101,7 +125,7 @@ export default async function AprovacoesPage() {
         title="Férias"
         emptyLabel="Nenhuma solicitação de férias pendente."
         onDecide={decideVacation}
-        items={vacations.map((vacation) => ({
+        items={pendingVacations.map((vacation) => ({
           id: vacation.id,
           name: vacation.userName,
           detail: `${formatDateOnly(vacation.startDate)} a ${formatDateOnly(vacation.endDate)} · ${vacation.days} dia(s)`,
@@ -112,7 +136,7 @@ export default async function AprovacoesPage() {
         title="Ajustes de ponto"
         emptyLabel="Nenhum ajuste de ponto pendente."
         onDecide={decideAdjustment}
-        items={adjustments.map((adjustment) => ({
+        items={pendingAdjustments.map((adjustment) => ({
           id: adjustment.id,
           name: adjustment.userName,
           detail: `${adjustment.reason} · enviado em ${formatTimestamp(adjustment.createdAt)}`,
@@ -123,10 +147,62 @@ export default async function AprovacoesPage() {
         title="Banco de horas"
         emptyLabel="Nenhuma solicitação de compensação pendente."
         onDecide={decideCompensation}
-        items={compensations.map((compensation) => ({
+        items={pendingCompensations.map((compensation) => ({
           id: compensation.id,
           name: compensation.userName,
           detail: `${compensation.reason} · enviado em ${formatTimestamp(compensation.createdAt)}`,
+        }))}
+      />
+
+      <h1 className={styles.heading}>Histórico de aprovações</h1>
+
+      <HistorySection
+        title="Atestados"
+        emptyLabel="Nenhum atestado decidido ainda."
+        items={historyAtestados.map((atestado) => ({
+          id: atestado.id,
+          name: atestado.userName,
+          detail: `${
+            atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"
+          } · enviado em ${formatTimestamp(atestado.createdAt)}`,
+          status: atestado.status as "aprovado" | "recusado",
+          reviewNote: atestado.reviewNote,
+        }))}
+      />
+
+      <HistorySection
+        title="Férias"
+        emptyLabel="Nenhuma solicitação de férias decidida ainda."
+        items={historyVacations.map((vacation) => ({
+          id: vacation.id,
+          name: vacation.userName,
+          detail: `${formatDateOnly(vacation.startDate)} a ${formatDateOnly(vacation.endDate)} · ${vacation.days} dia(s)`,
+          status: vacation.status as "aprovado" | "recusado",
+          reviewNote: vacation.reviewNote,
+        }))}
+      />
+
+      <HistorySection
+        title="Ajustes de ponto"
+        emptyLabel="Nenhum ajuste de ponto decidido ainda."
+        items={historyAdjustments.map((adjustment) => ({
+          id: adjustment.id,
+          name: adjustment.userName,
+          detail: `${adjustment.reason} · enviado em ${formatTimestamp(adjustment.createdAt)}`,
+          status: adjustment.status as "aprovado" | "recusado",
+          reviewNote: adjustment.reviewNote,
+        }))}
+      />
+
+      <HistorySection
+        title="Banco de horas"
+        emptyLabel="Nenhuma solicitação de compensação decidida ainda."
+        items={historyCompensations.map((compensation) => ({
+          id: compensation.id,
+          name: compensation.userName,
+          detail: `${compensation.reason} · enviado em ${formatTimestamp(compensation.createdAt)}`,
+          status: compensation.status as "aprovado" | "recusado",
+          reviewNote: compensation.reviewNote,
         }))}
       />
     </div>

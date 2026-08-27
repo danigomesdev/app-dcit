@@ -59,9 +59,19 @@ describe("VacationRequestInputSchema", () => {
 });
 
 describe("VacationStatusUpdateSchema", () => {
-  it("accepts aprovado and recusado", () => {
+  it("accepts aprovado", () => {
     expect(VacationStatusUpdateSchema.safeParse({ status: "aprovado" }).success).toBe(true);
-    expect(VacationStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(true);
+  });
+
+  it("accepts recusado with a reviewNote", () => {
+    expect(
+      VacationStatusUpdateSchema.safeParse({ status: "recusado", reviewNote: "Período já coberto" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects recusado without a reviewNote", () => {
+    expect(VacationStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(false);
   });
 
   it("rejects any other status value", () => {
@@ -70,9 +80,19 @@ describe("VacationStatusUpdateSchema", () => {
 });
 
 describe("AdjustmentStatusUpdateSchema", () => {
-  it("accepts aprovado and recusado", () => {
+  it("accepts aprovado", () => {
     expect(AdjustmentStatusUpdateSchema.safeParse({ status: "aprovado" }).success).toBe(true);
-    expect(AdjustmentStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(true);
+  });
+
+  it("accepts recusado with a reviewNote", () => {
+    expect(
+      AdjustmentStatusUpdateSchema.safeParse({ status: "recusado", reviewNote: "Sem batida correspondente" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects recusado without a reviewNote", () => {
+    expect(AdjustmentStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(false);
   });
 
   it("rejects any other status value", () => {
@@ -81,9 +101,19 @@ describe("AdjustmentStatusUpdateSchema", () => {
 });
 
 describe("CompensationStatusUpdateSchema", () => {
-  it("accepts aprovado and recusado", () => {
+  it("accepts aprovado", () => {
     expect(CompensationStatusUpdateSchema.safeParse({ status: "aprovado" }).success).toBe(true);
-    expect(CompensationStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(true);
+  });
+
+  it("accepts recusado with a reviewNote", () => {
+    expect(
+      CompensationStatusUpdateSchema.safeParse({ status: "recusado", reviewNote: "Saldo insuficiente" })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rejects recusado without a reviewNote", () => {
+    expect(CompensationStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(false);
   });
 
   it("rejects any other status value", () => {

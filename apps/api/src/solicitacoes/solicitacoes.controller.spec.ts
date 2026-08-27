@@ -66,8 +66,11 @@ describe('SolicitacoesController guard metadata', () => {
   const GESTOR_RH_HANDLERS = [
     'updateAdjustmentStatus',
     'listPendingAdjustments',
+    'listAllAdjustments',
     'updateCompensationStatus',
     'listPendingCompensations',
+    'listAllCompensations',
+    'listAllVacations',
   ] as const;
 
   it.each(GESTOR_RH_HANDLERS)(
@@ -103,10 +106,13 @@ describe('SolicitacoesController', () => {
     getVacationProfile: jest.fn(),
     updateVacationStatus: jest.fn(),
     listPendingVacations: jest.fn(),
+    listAllVacations: jest.fn(),
     updateAdjustmentStatus: jest.fn(),
     listPendingAdjustments: jest.fn(),
+    listAllAdjustments: jest.fn(),
     updateCompensationStatus: jest.fn(),
     listPendingCompensations: jest.fn(),
+    listAllCompensations: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -219,6 +225,32 @@ describe('SolicitacoesController', () => {
     expect(serviceMock.updateVacationStatus).toHaveBeenCalledWith(
       '1',
       'aprovado',
+      undefined,
+    );
+  });
+
+  it('rejects a vacation recusado without a reviewNote', async () => {
+    await expect(
+      controller.updateVacationStatus('1', { status: 'recusado' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.updateVacationStatus).not.toHaveBeenCalled();
+  });
+
+  it('passes the reviewNote through when recusando a vacation request', async () => {
+    serviceMock.updateVacationStatus.mockResolvedValue({
+      id: '1',
+      status: 'recusado',
+    });
+
+    await controller.updateVacationStatus('1', {
+      status: 'recusado',
+      reviewNote: 'Período já coberto',
+    });
+
+    expect(serviceMock.updateVacationStatus).toHaveBeenCalledWith(
+      '1',
+      'recusado',
+      'Período já coberto',
     );
   });
 
@@ -240,6 +272,19 @@ describe('SolicitacoesController', () => {
     expect(serviceMock.listPendingVacations).toHaveBeenCalledWith();
   });
 
+  it('lists all vacation requests', async () => {
+    serviceMock.listAllVacations.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana', status: 'aprovado' },
+    ]);
+
+    const result = await controller.listAllVacations();
+
+    expect(result).toEqual([
+      { id: '1', userId: 'user-1', userName: 'Ana', status: 'aprovado' },
+    ]);
+    expect(serviceMock.listAllVacations).toHaveBeenCalledWith();
+  });
+
   it('updates an adjustment request status', async () => {
     serviceMock.updateAdjustmentStatus.mockResolvedValue({
       id: '1',
@@ -251,7 +296,15 @@ describe('SolicitacoesController', () => {
     expect(serviceMock.updateAdjustmentStatus).toHaveBeenCalledWith(
       '1',
       'aprovado',
+      undefined,
     );
+  });
+
+  it('rejects an adjustment recusado without a reviewNote', async () => {
+    await expect(
+      controller.updateAdjustmentStatus('1', { status: 'recusado' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.updateAdjustmentStatus).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid adjustment status payload', async () => {
@@ -272,18 +325,42 @@ describe('SolicitacoesController', () => {
     expect(serviceMock.listPendingAdjustments).toHaveBeenCalledWith();
   });
 
+  it('lists all adjustment requests', async () => {
+    serviceMock.listAllAdjustments.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana', status: 'recusado' },
+    ]);
+
+    const result = await controller.listAllAdjustments();
+
+    expect(result).toEqual([
+      { id: '1', userId: 'user-1', userName: 'Ana', status: 'recusado' },
+    ]);
+    expect(serviceMock.listAllAdjustments).toHaveBeenCalledWith();
+  });
+
   it('updates a compensation request status', async () => {
     serviceMock.updateCompensationStatus.mockResolvedValue({
       id: '1',
       status: 'recusado',
     });
 
-    await controller.updateCompensationStatus('1', { status: 'recusado' });
+    await controller.updateCompensationStatus('1', {
+      status: 'recusado',
+      reviewNote: 'Saldo insuficiente',
+    });
 
     expect(serviceMock.updateCompensationStatus).toHaveBeenCalledWith(
       '1',
       'recusado',
+      'Saldo insuficiente',
     );
+  });
+
+  it('rejects a compensation recusado without a reviewNote', async () => {
+    await expect(
+      controller.updateCompensationStatus('1', { status: 'recusado' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.updateCompensationStatus).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid compensation status payload', async () => {
@@ -302,5 +379,18 @@ describe('SolicitacoesController', () => {
 
     expect(result).toEqual([{ id: '1', userId: 'user-1', userName: 'Ana' }]);
     expect(serviceMock.listPendingCompensations).toHaveBeenCalledWith();
+  });
+
+  it('lists all compensation requests', async () => {
+    serviceMock.listAllCompensations.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana', status: 'aprovado' },
+    ]);
+
+    const result = await controller.listAllCompensations();
+
+    expect(result).toEqual([
+      { id: '1', userId: 'user-1', userName: 'Ana', status: 'aprovado' },
+    ]);
+    expect(serviceMock.listAllCompensations).toHaveBeenCalledWith();
   });
 });

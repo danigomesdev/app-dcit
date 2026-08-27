@@ -6,11 +6,11 @@ import { apiFetch } from "@/lib/api";
 
 type Decision = "aprovado" | "recusado";
 
-async function updateStatus(path: string, status: Decision) {
+async function updateStatus(path: string, status: Decision, reviewNote?: string) {
   const res = await apiFetch(path, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, reviewNote }),
   });
   if (!res.ok) {
     throw new Error(`${path} responded with ${res.status}`);
@@ -18,38 +18,32 @@ async function updateStatus(path: string, status: Decision) {
   revalidatePath("/aprovacoes");
 }
 
-export async function decideAtestado(formData: FormData) {
+function readDecision(formData: FormData): { id: string; status: Decision; reviewNote?: string } {
   const id = formData.get("id");
   const status = formData.get("status");
   if (typeof id !== "string" || (status !== "aprovado" && status !== "recusado")) {
     throw new Error("Invalid form data");
   }
-  await updateStatus(`/atestados/${id}/status`, status);
+  const reviewNote = formData.get("reviewNote");
+  return { id, status, reviewNote: typeof reviewNote === "string" ? reviewNote : undefined };
+}
+
+export async function decideAtestado(formData: FormData) {
+  const { id, status, reviewNote } = readDecision(formData);
+  await updateStatus(`/atestados/${id}/status`, status, reviewNote);
 }
 
 export async function decideVacation(formData: FormData) {
-  const id = formData.get("id");
-  const status = formData.get("status");
-  if (typeof id !== "string" || (status !== "aprovado" && status !== "recusado")) {
-    throw new Error("Invalid form data");
-  }
-  await updateStatus(`/solicitacoes/ferias/${id}/status`, status);
+  const { id, status, reviewNote } = readDecision(formData);
+  await updateStatus(`/solicitacoes/ferias/${id}/status`, status, reviewNote);
 }
 
 export async function decideAdjustment(formData: FormData) {
-  const id = formData.get("id");
-  const status = formData.get("status");
-  if (typeof id !== "string" || (status !== "aprovado" && status !== "recusado")) {
-    throw new Error("Invalid form data");
-  }
-  await updateStatus(`/solicitacoes/ajustes/${id}/status`, status);
+  const { id, status, reviewNote } = readDecision(formData);
+  await updateStatus(`/solicitacoes/ajustes/${id}/status`, status, reviewNote);
 }
 
 export async function decideCompensation(formData: FormData) {
-  const id = formData.get("id");
-  const status = formData.get("status");
-  if (typeof id !== "string" || (status !== "aprovado" && status !== "recusado")) {
-    throw new Error("Invalid form data");
-  }
-  await updateStatus(`/solicitacoes/compensacoes/${id}/status`, status);
+  const { id, status, reviewNote } = readDecision(formData);
+  await updateStatus(`/solicitacoes/compensacoes/${id}/status`, status, reviewNote);
 }

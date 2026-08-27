@@ -107,6 +107,7 @@ describe('AuthService', () => {
     expect(result).toEqual({
       sessionToken: 'signed.jwt.token',
       origin: 'mobile',
+      role: 'colaborador',
     });
     expect(jwt.sign).toHaveBeenCalledWith({
       sub: 'user-1',

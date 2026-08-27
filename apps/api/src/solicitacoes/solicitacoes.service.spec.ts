@@ -106,6 +106,37 @@ describe('SolicitacoesService', () => {
     );
   });
 
+  it('persists the reviewNote when recusando an adjustment request', async () => {
+    const created = await service.createAdjustment('user-j', {
+      reason: 'Esqueci de bater o ponto',
+    });
+
+    const updated = await service.updateAdjustmentStatus(
+      created.id,
+      'recusado',
+      'Sem batida correspondente',
+    );
+
+    expect(updated.status).toBe('recusado');
+    expect(updated.reviewNote).toBe('Sem batida correspondente');
+  });
+
+  it('lists all adjustment requests regardless of status', async () => {
+    const pending = await service.createAdjustment('user-j', {
+      reason: 'Pendente',
+    });
+    const decided = await service.createAdjustment('user-j', {
+      reason: 'Decidido',
+    });
+    await service.updateAdjustmentStatus(decided.id, 'recusado', 'Motivo');
+
+    const results = await service.listAllAdjustments();
+    const ids = results.map((r) => r.id);
+
+    expect(ids).toContain(pending.id);
+    expect(ids).toContain(decided.id);
+  });
+
   it('lists pending compensation requests across users with the requester name joined', async () => {
     await prisma.employee.create({
       data: {

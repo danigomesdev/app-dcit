@@ -1,13 +1,12 @@
 import { z } from "zod";
+import { statusUpdateSchema } from "./status-update";
 
 export const AdjustmentRequestInputSchema = z.object({
   reason: z.string().min(1),
 });
 export type AdjustmentRequestInput = z.infer<typeof AdjustmentRequestInputSchema>;
 
-export const AdjustmentStatusUpdateSchema = z.object({
-  status: z.enum(["aprovado", "recusado"]),
-});
+export const AdjustmentStatusUpdateSchema = statusUpdateSchema();
 export type AdjustmentStatusUpdate = z.infer<typeof AdjustmentStatusUpdateSchema>;
 
 export const CompensationRequestInputSchema = z.object({
@@ -15,9 +14,7 @@ export const CompensationRequestInputSchema = z.object({
 });
 export type CompensationRequestInput = z.infer<typeof CompensationRequestInputSchema>;
 
-export const CompensationStatusUpdateSchema = z.object({
-  status: z.enum(["aprovado", "recusado"]),
-});
+export const CompensationStatusUpdateSchema = statusUpdateSchema();
 export type CompensationStatusUpdate = z.infer<typeof CompensationStatusUpdateSchema>;
 
 export const VacationRequestInputSchema = z.object({
@@ -27,7 +24,5 @@ export const VacationRequestInputSchema = z.object({
 });
 export type VacationRequestInput = z.infer<typeof VacationRequestInputSchema>;
 
-export const VacationStatusUpdateSchema = z.object({
-  status: z.enum(["aprovado", "recusado"]),
-});
+export const VacationStatusUpdateSchema = statusUpdateSchema();
 export type VacationStatusUpdate = z.infer<typeof VacationStatusUpdateSchema>;

@@ -1,3 +1,7 @@
+"use client";
+
+import { useRef } from "react";
+
 import styles from "./aprovacoes.module.css";
 
 type ApprovalItem = {
@@ -5,6 +9,58 @@ type ApprovalItem = {
   name: string;
   detail: string;
 };
+
+function RejectButton({
+  id,
+  onDecide,
+}: {
+  id: string;
+  onDecide: (formData: FormData) => Promise<void>;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.rejectButton}
+        onClick={() => dialogRef.current?.showModal()}
+      >
+        Recusar
+      </button>
+      <dialog ref={dialogRef} className={styles.dialog}>
+        <form action={onDecide}>
+          <input type="hidden" name="id" value={id} />
+          <input type="hidden" name="status" value="recusado" />
+          <p className={styles.dialogTitle}>Justificar recusa</p>
+          <label className={styles.dialogLabel} htmlFor={`reviewNote-${id}`}>
+            Motivo da recusa
+          </label>
+          <textarea
+            id={`reviewNote-${id}`}
+            name="reviewNote"
+            className={styles.dialogTextarea}
+            rows={3}
+            required
+            minLength={1}
+          />
+          <div className={styles.dialogActions}>
+            <button
+              type="button"
+              className={styles.dialogCancel}
+              onClick={() => dialogRef.current?.close()}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className={styles.dialogConfirm}>
+              Confirmar recusa
+            </button>
+          </div>
+        </form>
+      </dialog>
+    </>
+  );
+}
 
 export function ApprovalSection({
   title,
@@ -38,13 +94,7 @@ export function ApprovalSection({
                     Aprovar
                   </button>
                 </form>
-                <form action={onDecide}>
-                  <input type="hidden" name="id" value={item.id} />
-                  <input type="hidden" name="status" value="recusado" />
-                  <button type="submit" className={styles.rejectButton}>
-                    Recusar
-                  </button>
-                </form>
+                <RejectButton id={item.id} onDecide={onDecide} />
               </div>
             </li>
           ))}

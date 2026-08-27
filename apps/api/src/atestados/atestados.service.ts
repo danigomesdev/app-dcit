@@ -133,10 +133,14 @@ export class AtestadosService {
     }));
   }
 
-  async updateStatus(id: string, status: 'aprovado' | 'recusado') {
+  async updateStatus(
+    id: string,
+    status: 'aprovado' | 'recusado',
+    reviewNote?: string,
+  ) {
     const updated = await this.prisma.atestado.update({
       where: { id },
-      data: { status },
+      data: { status, reviewNote: status === 'recusado' ? reviewNote : null },
     });
     void this.push.sendToUser(updated.userId, {
       title: 'Atestado',

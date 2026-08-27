@@ -35,10 +35,21 @@ export class SolicitacoesService {
     return this.withRequesterNames(requests);
   }
 
-  async updateAdjustmentStatus(id: string, status: 'aprovado' | 'recusado') {
+  async listAllAdjustments() {
+    const requests = await this.prisma.adjustmentRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return this.withRequesterNames(requests);
+  }
+
+  async updateAdjustmentStatus(
+    id: string,
+    status: 'aprovado' | 'recusado',
+    reviewNote?: string,
+  ) {
     const updated = await this.prisma.adjustmentRequest.update({
       where: { id },
-      data: { status },
+      data: { status, reviewNote: status === 'recusado' ? reviewNote : null },
     });
     void this.push.sendToUser(updated.userId, {
       title: 'Ajuste de ponto',
@@ -71,10 +82,21 @@ export class SolicitacoesService {
     return this.withRequesterNames(requests);
   }
 
-  async updateCompensationStatus(id: string, status: 'aprovado' | 'recusado') {
+  async listAllCompensations() {
+    const requests = await this.prisma.compensationRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return this.withRequesterNames(requests);
+  }
+
+  async updateCompensationStatus(
+    id: string,
+    status: 'aprovado' | 'recusado',
+    reviewNote?: string,
+  ) {
     const updated = await this.prisma.compensationRequest.update({
       where: { id },
-      data: { status },
+      data: { status, reviewNote: status === 'recusado' ? reviewNote : null },
     });
     void this.push.sendToUser(updated.userId, {
       title: 'Banco de horas',
@@ -112,6 +134,13 @@ export class SolicitacoesService {
     return this.withRequesterNames(requests);
   }
 
+  async listAllVacations() {
+    const requests = await this.prisma.vacationRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return this.withRequesterNames(requests);
+  }
+
   // Shared by every listPending* method: joins each request against
   // Employee for a display name, falling back to the bare userId when no
   // Employee row exists (e.g. a user created outside the seed data).
@@ -130,10 +159,14 @@ export class SolicitacoesService {
     }));
   }
 
-  async updateVacationStatus(id: string, status: 'aprovado' | 'recusado') {
+  async updateVacationStatus(
+    id: string,
+    status: 'aprovado' | 'recusado',
+    reviewNote?: string,
+  ) {
     const updated = await this.prisma.vacationRequest.update({
       where: { id },
-      data: { status },
+      data: { status, reviewNote: status === 'recusado' ? reviewNote : null },
     });
     void this.push.sendToUser(updated.userId, {
       title: 'Solicitação de férias',

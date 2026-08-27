@@ -64,9 +64,9 @@ const server = http.createServer(async (req, res) => {
   if (
     req.method === "GET" &&
     [
-      "/solicitacoes/ferias/pendentes",
-      "/solicitacoes/ajustes/pendentes",
-      "/solicitacoes/compensacoes/pendentes",
+      "/solicitacoes/ferias/todas",
+      "/solicitacoes/ajustes/todas",
+      "/solicitacoes/compensacoes/todas",
     ].includes(url.pathname)
   ) {
     return sendJson(res, 200, []);

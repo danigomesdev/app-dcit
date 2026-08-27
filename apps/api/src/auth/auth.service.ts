@@ -64,6 +64,11 @@ export class AuthService {
       scope: 'openid profile email',
       state,
       nonce,
+      // Without this, the IdP's own session cookie silently re-authenticates
+      // whoever was last signed in, so logging out of the app and signing
+      // back in lands right back on the same account/role instead of
+      // letting the user pick which one to enter as.
+      prompt: 'login',
     });
   }
 
@@ -74,6 +79,7 @@ export class AuthService {
     sessionToken: string;
     origin: LoginOrigin;
     mobileRedirectUri?: string;
+    role: Role;
   }> {
     const pending = params.state
       ? this.pendingLogins.get(params.state)
@@ -110,6 +116,7 @@ export class AuthService {
       sessionToken,
       origin: pending.origin,
       mobileRedirectUri: pending.mobileRedirectUri,
+      role,
     };
   }
 

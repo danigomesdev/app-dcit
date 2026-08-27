@@ -17,29 +17,32 @@ model TimeEntry {
 // --- Solicitações ---------------------------------------------------------
 
 model AdjustmentRequest {
-  id        String   @id @default(uuid())
-  userId    String
-  reason    String
-  status    String   @default("pendente")
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  reason     String
+  status     String   @default("pendente")
+  reviewNote String?
+  createdAt  DateTime @default(now())
 }
 
 model CompensationRequest {
-  id        String   @id @default(uuid())
-  userId    String
-  reason    String
-  status    String   @default("pendente")
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  reason     String
+  status     String   @default("pendente")
+  reviewNote String?
+  createdAt  DateTime @default(now())
 }
 
 model VacationRequest {
-  id        String   @id @default(uuid())
-  userId    String
-  startDate DateTime
-  endDate   DateTime
-  days      Int
-  status    String   @default("pendente")
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  startDate  DateTime
+  endDate    DateTime
+  days       Int
+  status     String   @default("pendente")
+  reviewNote String?
+  createdAt  DateTime @default(now())
 }
 
 // HR facts needed to compute the CLT aquisitivo/concessivo vacation cycle
@@ -63,16 +66,17 @@ model VacationHistoryEntry {
 // --- Atestados -------------------------------------------------------------
 
 model Atestado {
-  id        String   @id @default(uuid())
-  userId    String
-  userName  String
-  cid       String?
-  crm       String?
-  medico    String?
-  dias      Int?
-  photoUri  String?
-  status    String   @default("enviado")
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  userName   String
+  cid        String?
+  crm        String?
+  medico     String?
+  dias       Int?
+  photoUri   String?
+  status     String   @default("enviado")
+  reviewNote String?
+  createdAt  DateTime @default(now())
 }
 
 // --- Documentos --------------------------------------------------------

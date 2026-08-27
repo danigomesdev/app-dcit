@@ -194,6 +194,32 @@ describe('AtestadosController', () => {
 
     await controller.updateStatus('1', { status: 'aprovado' });
 
-    expect(serviceMock.updateStatus).toHaveBeenCalledWith('1', 'aprovado');
+    expect(serviceMock.updateStatus).toHaveBeenCalledWith(
+      '1',
+      'aprovado',
+      undefined,
+    );
+  });
+
+  it('rejects a recusado without a reviewNote', async () => {
+    await expect(
+      controller.updateStatus('1', { status: 'recusado' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('passes the reviewNote through when recusando an atestado', async () => {
+    serviceMock.updateStatus.mockResolvedValue({ id: '1', status: 'recusado' });
+
+    await controller.updateStatus('1', {
+      status: 'recusado',
+      reviewNote: 'Documento ilegível',
+    });
+
+    expect(serviceMock.updateStatus).toHaveBeenCalledWith(
+      '1',
+      'recusado',
+      'Documento ilegível',
+    );
   });
 });

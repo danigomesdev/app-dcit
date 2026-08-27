@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { statusUpdateSchema } from "./status-update";
 
 export const AtestadoInputSchema = z.object({
   cid: z.string().min(1),
@@ -9,7 +10,5 @@ export const AtestadoInputSchema = z.object({
 });
 export type AtestadoInput = z.infer<typeof AtestadoInputSchema>;
 
-export const AtestadoStatusUpdateSchema = z.object({
-  status: z.enum(["aprovado", "recusado"]),
-});
+export const AtestadoStatusUpdateSchema = statusUpdateSchema();
 export type AtestadoStatusUpdate = z.infer<typeof AtestadoStatusUpdateSchema>;
