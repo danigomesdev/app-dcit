@@ -5,6 +5,8 @@ import type { Request } from 'express';
 import { TimeEntriesController } from './time-entries.controller';
 import { TimeEntriesService } from './time-entries.service';
 import { AuthGuard } from '../auth/auth-guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { ROLES_KEY } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 describe('TimeEntriesController guard metadata', () => {
@@ -35,11 +37,32 @@ describe('TimeEntriesController guard metadata', () => {
 
     expect(guards).toContain(AuthGuard);
   });
+
+  it('applies AuthGuard and RolesGuard to listTeamToday, restricted to gestor/rh', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      TimeEntriesController.prototype.listTeamToday,
+    ) as unknown[] | undefined;
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      TimeEntriesController.prototype.listTeamToday,
+    ) as unknown[] | undefined;
+    expect(roles).toEqual(['gestor', 'rh']);
+  });
 });
 
 describe('TimeEntriesController', () => {
   let controller: TimeEntriesController;
-  const serviceMock = { create: jest.fn(), listForUser: jest.fn() };
+  const serviceMock = {
+    create: jest.fn(),
+    listForUser: jest.fn(),
+    listTeamToday: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -144,6 +167,23 @@ describe('TimeEntriesController', () => {
     const result = await controller.findMine(requestAs('user-123'));
 
     expect(serviceMock.listForUser).toHaveBeenCalledWith('user-123');
+    expect(result).toHaveLength(1);
+  });
+
+  it("lists today's team summary", async () => {
+    serviceMock.listTeamToday.mockResolvedValue([
+      {
+        userId: 'user-1',
+        name: 'Ana',
+        entries: [],
+        workedMinutes: 0,
+        isOpen: false,
+      },
+    ]);
+
+    const result = await controller.listTeamToday();
+
+    expect(serviceMock.listTeamToday).toHaveBeenCalledWith();
     expect(result).toHaveLength(1);
   });
 });

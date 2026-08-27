@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, getRecordedRequests, mockApprovalsApi } from "./test-session";
+import { addSessionCookie, getRecordedRequests, mockApi } from "./test-session";
 
 test("colaborador sees a permission message instead of the queue", async ({ page, context }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
@@ -15,7 +15,7 @@ test("lists pending atestados and vacation requests for a gestor", async ({
   request,
 }) => {
   await addSessionCookie(context);
-  await mockApprovalsApi(request, {
+  await mockApi(request, {
     atestados: [
       {
         id: "at-1",
@@ -48,7 +48,7 @@ test("approving an atestado calls the API and refreshes the list", async ({
   request,
 }) => {
   await addSessionCookie(context);
-  await mockApprovalsApi(request, {
+  await mockApi(request, {
     atestados: [
       {
         id: "at-1",

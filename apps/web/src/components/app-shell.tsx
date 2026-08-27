@@ -7,6 +7,7 @@ import { logout } from "@/lib/session";
 import styles from "./app-shell.module.css";
 
 const NAV_SECTIONS = [
+  { href: "/", label: "Ponto" },
   { href: "/aprovacoes", label: "Aprovações" },
   { href: "/documentos", label: "Documentos" },
 ] as const;

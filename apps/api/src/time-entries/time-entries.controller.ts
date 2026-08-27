@@ -12,6 +12,8 @@ import type { Request } from 'express';
 import { TimeEntryInputSchema } from '@ponto-dcit/shared-types';
 import { TimeEntriesService } from './time-entries.service';
 import { AuthGuard } from '../auth/auth-guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type AuthenticatedRequest = Request & { user: AuthenticatedUser };
@@ -47,5 +49,12 @@ export class TimeEntriesController {
   @Get()
   async findMine(@Req() req: AuthenticatedRequest) {
     return this.timeEntries.listForUser(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('team')
+  listTeamToday() {
+    return this.timeEntries.listTeamToday();
   }
 }

@@ -28,7 +28,14 @@ describe('SolicitacoesService', () => {
     await prisma.adjustmentRequest.deleteMany();
     await prisma.compensationRequest.deleteMany();
     await prisma.vacationRequest.deleteMany();
-    await prisma.employee.deleteMany();
+    // Scoped to this file's own fixture ids, not a blanket deleteMany(): the
+    // Employee table is shared with time-entries.service.spec.ts, which runs
+    // as a separate Jest worker against the same test.db — a blanket delete
+    // here raced with that suite's own Employee rows and made both suites
+    // flaky.
+    await prisma.employee.deleteMany({
+      where: { userId: { in: ['user-e', 'user-g'] } },
+    });
     await prisma.vacationHistoryEntry.deleteMany();
     await prisma.onModuleDestroy();
   });
@@ -138,9 +145,7 @@ describe('SolicitacoesService', () => {
     expect(results.find((r) => r.id === pending.id)?.userName).toBe(
       'Gustavo Gestorado',
     );
-    expect(results.find((r) => r.userId === 'user-h')?.userName).toBe(
-      'user-h',
-    );
+    expect(results.find((r) => r.userId === 'user-h')?.userName).toBe('user-h');
   });
 
   it('updates a vacation request status and notifies the requester', async () => {

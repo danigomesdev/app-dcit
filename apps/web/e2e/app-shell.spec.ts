@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, mockApprovalsApi } from "./test-session";
+import { addSessionCookie, mockApi } from "./test-session";
 
 test("sidebar renders both sections and navigates between them", async ({
   page,
@@ -8,9 +8,10 @@ test("sidebar renders both sections and navigates between them", async ({
   request,
 }) => {
   await addSessionCookie(context);
-  await mockApprovalsApi(request);
+  await mockApi(request);
   await page.goto("/");
 
+  await expect(page.getByRole("link", { name: "Ponto" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Aprovações" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Documentos" })).toBeVisible();
 
@@ -23,8 +24,9 @@ test("sidebar renders both sections and navigates between them", async ({
   await expect(page.getByRole("heading", { name: "Documentos e atestados" })).toBeVisible();
 });
 
-test("sidebar shows the authenticated user's name and role", async ({ page, context }) => {
+test("sidebar shows the authenticated user's name and role", async ({ page, context, request }) => {
   await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request);
   await page.goto("/");
 
   await expect(page.getByText("Carla RH")).toBeVisible();

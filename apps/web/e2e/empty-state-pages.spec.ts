@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, mockApprovalsApi } from "./test-session";
+import { addSessionCookie, mockApi } from "./test-session";
 
 test.beforeEach(async ({ context }) => {
   await addSessionCookie(context);
@@ -10,7 +10,7 @@ test("aprovações page renders its empty state when there's nothing pending", a
   page,
   request,
 }) => {
-  await mockApprovalsApi(request);
+  await mockApi(request);
   await page.goto("/aprovacoes");
   await expect(page.getByRole("heading", { name: "Fila de aprovações" })).toBeVisible();
   await expect(

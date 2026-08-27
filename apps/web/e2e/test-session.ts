@@ -32,16 +32,16 @@ export async function addSessionCookie(
 
 const FAKE_API_URL = "http://localhost:3000";
 
-// /aprovacoes fetches server-side, in the Next.js Node process — never in
-// the browser — so page/context.route() can't intercept it (that only
+// Several (app) pages fetch server-side, in the Next.js Node process — never
+// in the browser — so page/context.route() can't intercept them (that only
 // catches browser-originated requests). apps/web's dev server always talks
-// to a real HTTP server at API_URL, so e2e/fake-api-server.js *is* that
+// to a real HTTP server at API_URL, so e2e/fake-api-server.mjs *is* that
 // server during tests (wired up as a second Playwright webServer). These
 // helpers drive its seed/reset/requests control endpoints over Playwright's
 // `request` fixture, a real HTTP client independent of the browser.
-export async function mockApprovalsApi(
+export async function mockApi(
   request: APIRequestContext,
-  data: { atestados?: unknown[]; vacations?: unknown[] } = {}
+  data: { atestados?: unknown[]; vacations?: unknown[]; team?: unknown[] } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
   if (data.atestados) {
@@ -52,6 +52,11 @@ export async function mockApprovalsApi(
   if (data.vacations) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/solicitacoes/ferias/pendentes", response: data.vacations },
+    });
+  }
+  if (data.team) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/time-entries/team", response: data.team },
     });
   }
 }
