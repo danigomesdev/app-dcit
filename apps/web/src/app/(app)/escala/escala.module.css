@@ -1,0 +1,117 @@
+.page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.weekNav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.weekNavLink {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.weekNavLink:hover {
+  color: var(--color-text);
+}
+
+.weekRange {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.days {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.day {
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--color-background-element);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dayTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.shiftList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shiftItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.removeButton {
+  appearance: none;
+  border: 1px solid var(--color-background-selected);
+  background: transparent;
+  color: var(--color-text);
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.removeButton:hover {
+  background: var(--color-background-selected);
+}
+
+.addForm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.labelInput,
+.select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.labelInput {
+  width: 140px;
+}
+
+.addButton {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-background);
+  background: var(--color-text);
+  cursor: pointer;
+}
+
+.addButton:hover {
+  opacity: 0.85;
+}

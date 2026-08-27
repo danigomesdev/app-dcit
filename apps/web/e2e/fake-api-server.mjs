@@ -74,6 +74,18 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/time-entries/team") {
     return sendJson(res, 200, []);
   }
+  if (req.method === "GET" && url.pathname === "/operacional/escala") {
+    return sendJson(res, 200, []);
+  }
+  if (req.method === "GET" && url.pathname === "/employees") {
+    return sendJson(res, 200, []);
+  }
+  if (req.method === "POST" && url.pathname === "/operacional/escala") {
+    return sendJson(res, 201, { id: "generated-id", ...body });
+  }
+  if (req.method === "DELETE" && /^\/operacional\/escala\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
+  }
   if (
     req.method === "PATCH" &&
     /^\/(atestados|solicitacoes\/(ferias|ajustes|compensacoes))\/[^/]+\/status$/.test(

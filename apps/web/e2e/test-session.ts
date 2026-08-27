@@ -47,6 +47,8 @@ export async function mockApi(
     adjustments?: unknown[];
     compensations?: unknown[];
     team?: unknown[];
+    shifts?: unknown[];
+    employees?: unknown[];
   } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
@@ -73,6 +75,16 @@ export async function mockApi(
   if (data.team) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/time-entries/team", response: data.team },
+    });
+  }
+  if (data.shifts) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/operacional/escala", response: data.shifts },
+    });
+  }
+  if (data.employees) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/employees", response: data.employees },
     });
   }
 }
