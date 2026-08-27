@@ -34,7 +34,7 @@ describe('SolicitacoesService', () => {
     // here raced with that suite's own Employee rows and made both suites
     // flaky.
     await prisma.employee.deleteMany({
-      where: { userId: { in: ['user-e', 'user-g'] } },
+      where: { userId: { in: ['user-e', 'user-g', 'user-i', 'user-k'] } },
     });
     await prisma.vacationHistoryEntry.deleteMany();
     await prisma.onModuleDestroy();
@@ -60,6 +60,94 @@ describe('SolicitacoesService', () => {
 
     expect(results).toHaveLength(1);
     expect(results[0].reason).toBe('Compensar 2h');
+  });
+
+  it('lists pending adjustment requests across users with the requester name joined', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-i',
+        name: 'Ivo Ajustado',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    const pending = await service.createAdjustment('user-i', {
+      reason: 'Esqueci de bater o ponto',
+    });
+    const approved = await service.createAdjustment('user-i', {
+      reason: 'Outro ajuste',
+    });
+    await service.updateAdjustmentStatus(approved.id, 'aprovado');
+
+    const results = await service.listPendingAdjustments();
+
+    const ids = results.map((r) => r.id);
+    expect(ids).toContain(pending.id);
+    expect(ids).not.toContain(approved.id);
+    expect(results.find((r) => r.id === pending.id)?.userName).toBe(
+      'Ivo Ajustado',
+    );
+  });
+
+  it('updates an adjustment request status and notifies the requester', async () => {
+    const created = await service.createAdjustment('user-j', {
+      reason: 'Esqueci de bater o ponto',
+    });
+
+    const updated = await service.updateAdjustmentStatus(
+      created.id,
+      'aprovado',
+    );
+
+    expect(updated.status).toBe('aprovado');
+    expect(pushMock.sendToUser).toHaveBeenCalledWith(
+      'user-j',
+      expect.objectContaining({ title: 'Ajuste de ponto' }),
+    );
+  });
+
+  it('lists pending compensation requests across users with the requester name joined', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-k',
+        name: 'Karina Compensada',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    const pending = await service.createCompensation('user-k', {
+      reason: 'Compensar 2h',
+    });
+    const approved = await service.createCompensation('user-k', {
+      reason: 'Outra compensação',
+    });
+    await service.updateCompensationStatus(approved.id, 'aprovado');
+
+    const results = await service.listPendingCompensations();
+
+    const ids = results.map((r) => r.id);
+    expect(ids).toContain(pending.id);
+    expect(ids).not.toContain(approved.id);
+    expect(results.find((r) => r.id === pending.id)?.userName).toBe(
+      'Karina Compensada',
+    );
+  });
+
+  it('updates a compensation request status and notifies the requester', async () => {
+    const created = await service.createCompensation('user-l', {
+      reason: 'Compensar 2h',
+    });
+
+    const updated = await service.updateCompensationStatus(
+      created.id,
+      'recusado',
+    );
+
+    expect(updated.status).toBe('recusado');
+    expect(pushMock.sendToUser).toHaveBeenCalledWith(
+      'user-l',
+      expect.objectContaining({ title: 'Banco de horas' }),
+    );
   });
 
   it('creates and lists vacation requests scoped to the user', async () => {

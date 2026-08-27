@@ -13,7 +13,9 @@ import {
 import type { Request } from 'express';
 import {
   AdjustmentRequestInputSchema,
+  AdjustmentStatusUpdateSchema,
   CompensationRequestInputSchema,
+  CompensationStatusUpdateSchema,
   VacationRequestInputSchema,
   VacationStatusUpdateSchema,
 } from '@ponto-dcit/shared-types';
@@ -49,6 +51,24 @@ export class SolicitacoesController {
     return this.solicitacoes.listAdjustments(req.user.sub);
   }
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Patch('ajustes/:id/status')
+  async updateAdjustmentStatus(@Param('id') id: string, @Body() body: unknown) {
+    const result = AdjustmentStatusUpdateSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    return this.solicitacoes.updateAdjustmentStatus(id, result.data.status);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('ajustes/pendentes')
+  listPendingAdjustments() {
+    return this.solicitacoes.listPendingAdjustments();
+  }
+
   @UseGuards(AuthGuard)
   @Post('compensacoes')
   @HttpCode(201)
@@ -67,6 +87,27 @@ export class SolicitacoesController {
   @Get('compensacoes')
   listCompensations(@Req() req: AuthenticatedRequest) {
     return this.solicitacoes.listCompensations(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Patch('compensacoes/:id/status')
+  async updateCompensationStatus(
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    const result = CompensationStatusUpdateSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    return this.solicitacoes.updateCompensationStatus(id, result.data.status);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('compensacoes/pendentes')
+  listPendingCompensations() {
+    return this.solicitacoes.listPendingCompensations();
   }
 
   @UseGuards(AuthGuard)

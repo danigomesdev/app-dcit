@@ -9,7 +9,7 @@ test("colaborador sees a permission message instead of the queue", async ({ page
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
 });
 
-test("lists pending atestados and vacation requests for a gestor", async ({
+test("lists pending atestados, vacation, adjustment and compensation requests for a gestor", async ({
   page,
   context,
   request,
@@ -34,12 +34,88 @@ test("lists pending atestados and vacation requests for a gestor", async ({
         days: 9,
       },
     ],
+    adjustments: [
+      {
+        id: "aj-1",
+        userName: "Elias Colaborador",
+        reason: "Esqueci de bater o ponto",
+        createdAt: "2026-08-21T12:00:00.000Z",
+      },
+    ],
+    compensations: [
+      {
+        id: "cp-1",
+        userName: "Fabia Colaboradora",
+        reason: "Compensar 2h",
+        createdAt: "2026-08-22T12:00:00.000Z",
+      },
+    ],
   });
 
   await page.goto("/aprovacoes");
 
   await expect(page.getByText("Carlos Colaborador")).toBeVisible();
   await expect(page.getByText("Diana Colaboradora")).toBeVisible();
+  await expect(page.getByText("Elias Colaborador")).toBeVisible();
+  await expect(page.getByText("Fabia Colaboradora")).toBeVisible();
+});
+
+test("approving an adjustment request calls the API", async ({ page, context, request }) => {
+  await addSessionCookie(context);
+  await mockApi(request, {
+    adjustments: [
+      {
+        id: "aj-1",
+        userName: "Elias Colaborador",
+        reason: "Esqueci de bater o ponto",
+        createdAt: "2026-08-21T12:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/aprovacoes");
+  await page
+    .locator("li", { hasText: "Elias Colaborador" })
+    .getByRole("button", { name: "Aprovar" })
+    .click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "PATCH" && r.path === "/solicitacoes/ajustes/aj-1/status"
+      )?.body;
+    })
+    .toEqual({ status: "aprovado" });
+});
+
+test("rejecting a compensation request calls the API", async ({ page, context, request }) => {
+  await addSessionCookie(context);
+  await mockApi(request, {
+    compensations: [
+      {
+        id: "cp-1",
+        userName: "Fabia Colaboradora",
+        reason: "Compensar 2h",
+        createdAt: "2026-08-22T12:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/aprovacoes");
+  await page
+    .locator("li", { hasText: "Fabia Colaboradora" })
+    .getByRole("button", { name: "Recusar" })
+    .click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "PATCH" && r.path === "/solicitacoes/compensacoes/cp-1/status"
+      )?.body;
+    })
+    .toEqual({ status: "recusado" });
 });
 
 test("approving an atestado calls the API and refreshes the list", async ({

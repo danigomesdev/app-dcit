@@ -35,3 +35,21 @@ export async function decideVacation(formData: FormData) {
   }
   await updateStatus(`/solicitacoes/ferias/${id}/status`, status);
 }
+
+export async function decideAdjustment(formData: FormData) {
+  const id = formData.get("id");
+  const status = formData.get("status");
+  if (typeof id !== "string" || (status !== "aprovado" && status !== "recusado")) {
+    throw new Error("Invalid form data");
+  }
+  await updateStatus(`/solicitacoes/ajustes/${id}/status`, status);
+}
+
+export async function decideCompensation(formData: FormData) {
+  const id = formData.get("id");
+  const status = formData.get("status");
+  if (typeof id !== "string" || (status !== "aprovado" && status !== "recusado")) {
+    throw new Error("Invalid form data");
+  }
+  await updateStatus(`/solicitacoes/compensacoes/${id}/status`, status);
+}

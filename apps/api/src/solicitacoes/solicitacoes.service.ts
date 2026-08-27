@@ -27,6 +27,29 @@ export class SolicitacoesService {
     });
   }
 
+  async listPendingAdjustments() {
+    const requests = await this.prisma.adjustmentRequest.findMany({
+      where: { status: 'pendente' },
+      orderBy: { createdAt: 'asc' },
+    });
+    return this.withRequesterNames(requests);
+  }
+
+  async updateAdjustmentStatus(id: string, status: 'aprovado' | 'recusado') {
+    const updated = await this.prisma.adjustmentRequest.update({
+      where: { id },
+      data: { status },
+    });
+    void this.push.sendToUser(updated.userId, {
+      title: 'Ajuste de ponto',
+      body:
+        status === 'aprovado'
+          ? 'Sua solicitação de ajuste de ponto foi aprovada.'
+          : 'Sua solicitação de ajuste de ponto foi recusada.',
+    });
+    return updated;
+  }
+
   createCompensation(userId: string, input: CompensationRequestInput) {
     return this.prisma.compensationRequest.create({
       data: { userId, reason: input.reason },
@@ -38,6 +61,29 @@ export class SolicitacoesService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async listPendingCompensations() {
+    const requests = await this.prisma.compensationRequest.findMany({
+      where: { status: 'pendente' },
+      orderBy: { createdAt: 'asc' },
+    });
+    return this.withRequesterNames(requests);
+  }
+
+  async updateCompensationStatus(id: string, status: 'aprovado' | 'recusado') {
+    const updated = await this.prisma.compensationRequest.update({
+      where: { id },
+      data: { status },
+    });
+    void this.push.sendToUser(updated.userId, {
+      title: 'Banco de horas',
+      body:
+        status === 'aprovado'
+          ? 'Sua solicitação de compensação foi aprovada.'
+          : 'Sua solicitação de compensação foi recusada.',
+    });
+    return updated;
   }
 
   createVacation(userId: string, input: VacationRequestInput) {
@@ -63,6 +109,15 @@ export class SolicitacoesService {
       where: { status: 'pendente' },
       orderBy: { createdAt: 'asc' },
     });
+    return this.withRequesterNames(requests);
+  }
+
+  // Shared by every listPending* method: joins each request against
+  // Employee for a display name, falling back to the bare userId when no
+  // Employee row exists (e.g. a user created outside the seed data).
+  private async withRequesterNames<T extends { userId: string }>(
+    requests: T[],
+  ): Promise<(T & { userName: string })[]> {
     const employees = await this.prisma.employee.findMany({
       where: { userId: { in: requests.map((request) => request.userId) } },
     });

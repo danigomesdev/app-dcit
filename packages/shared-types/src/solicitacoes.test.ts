@@ -1,6 +1,8 @@
 import {
   AdjustmentRequestInputSchema,
+  AdjustmentStatusUpdateSchema,
   CompensationRequestInputSchema,
+  CompensationStatusUpdateSchema,
   VacationRequestInputSchema,
   VacationStatusUpdateSchema,
 } from "./solicitacoes";
@@ -64,5 +66,27 @@ describe("VacationStatusUpdateSchema", () => {
 
   it("rejects any other status value", () => {
     expect(VacationStatusUpdateSchema.safeParse({ status: "pendente" }).success).toBe(false);
+  });
+});
+
+describe("AdjustmentStatusUpdateSchema", () => {
+  it("accepts aprovado and recusado", () => {
+    expect(AdjustmentStatusUpdateSchema.safeParse({ status: "aprovado" }).success).toBe(true);
+    expect(AdjustmentStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(true);
+  });
+
+  it("rejects any other status value", () => {
+    expect(AdjustmentStatusUpdateSchema.safeParse({ status: "pendente" }).success).toBe(false);
+  });
+});
+
+describe("CompensationStatusUpdateSchema", () => {
+  it("accepts aprovado and recusado", () => {
+    expect(CompensationStatusUpdateSchema.safeParse({ status: "aprovado" }).success).toBe(true);
+    expect(CompensationStatusUpdateSchema.safeParse({ status: "recusado" }).success).toBe(true);
+  });
+
+  it("rejects any other status value", () => {
+    expect(CompensationStatusUpdateSchema.safeParse({ status: "pendente" }).success).toBe(false);
   });
 });

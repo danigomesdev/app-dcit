@@ -61,13 +61,25 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/atestados/team") {
     return sendJson(res, 200, []);
   }
-  if (req.method === "GET" && url.pathname === "/solicitacoes/ferias/pendentes") {
+  if (
+    req.method === "GET" &&
+    [
+      "/solicitacoes/ferias/pendentes",
+      "/solicitacoes/ajustes/pendentes",
+      "/solicitacoes/compensacoes/pendentes",
+    ].includes(url.pathname)
+  ) {
     return sendJson(res, 200, []);
   }
   if (req.method === "GET" && url.pathname === "/time-entries/team") {
     return sendJson(res, 200, []);
   }
-  if (req.method === "PATCH" && /^\/(atestados|solicitacoes\/ferias)\/[^/]+\/status$/.test(url.pathname)) {
+  if (
+    req.method === "PATCH" &&
+    /^\/(atestados|solicitacoes\/(ferias|ajustes|compensacoes))\/[^/]+\/status$/.test(
+      url.pathname
+    )
+  ) {
     return sendJson(res, 200, { ...body });
   }
 

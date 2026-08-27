@@ -41,7 +41,13 @@ const FAKE_API_URL = "http://localhost:3000";
 // `request` fixture, a real HTTP client independent of the browser.
 export async function mockApi(
   request: APIRequestContext,
-  data: { atestados?: unknown[]; vacations?: unknown[]; team?: unknown[] } = {}
+  data: {
+    atestados?: unknown[];
+    vacations?: unknown[];
+    adjustments?: unknown[];
+    compensations?: unknown[];
+    team?: unknown[];
+  } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
   if (data.atestados) {
@@ -52,6 +58,16 @@ export async function mockApi(
   if (data.vacations) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/solicitacoes/ferias/pendentes", response: data.vacations },
+    });
+  }
+  if (data.adjustments) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/solicitacoes/ajustes/pendentes", response: data.adjustments },
+    });
+  }
+  if (data.compensations) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/solicitacoes/compensacoes/pendentes", response: data.compensations },
     });
   }
   if (data.team) {

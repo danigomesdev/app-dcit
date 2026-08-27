@@ -2,7 +2,8 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
-import { decideAtestado, decideVacation } from "./actions";
+import { decideAdjustment, decideAtestado, decideCompensation, decideVacation } from "./actions";
+import { ApprovalSection } from "./approval-section";
 import styles from "./aprovacoes.module.css";
 
 type Atestado = {
@@ -19,6 +20,13 @@ type PendingVacation = {
   startDate: string;
   endDate: string;
   days: number;
+};
+
+type PendingRequest = {
+  id: string;
+  userName: string;
+  reason: string;
+  createdAt: string;
 };
 
 function formatTimestamp(value: string): string {
@@ -47,15 +55,23 @@ export default async function AprovacoesPage() {
     );
   }
 
-  const [atestados, vacations] = await Promise.all([
+  const [atestados, vacations, adjustments, compensations] = await Promise.all([
     apiFetchJson<Atestado[]>("/atestados/team"),
     apiFetchJson<PendingVacation[]>("/solicitacoes/ferias/pendentes"),
+    apiFetchJson<PendingRequest[]>("/solicitacoes/ajustes/pendentes"),
+    apiFetchJson<PendingRequest[]>("/solicitacoes/compensacoes/pendentes"),
   ]);
   const pendingAtestados = atestados.filter(
     (atestado) => atestado.status !== "aprovado" && atestado.status !== "recusado"
   );
 
-  if (pendingAtestados.length === 0 && vacations.length === 0) {
+  const nothingPending =
+    pendingAtestados.length === 0 &&
+    vacations.length === 0 &&
+    adjustments.length === 0 &&
+    compensations.length === 0;
+
+  if (nothingPending) {
     return (
       <EmptyState
         title="Fila de aprovações"
@@ -68,79 +84,51 @@ export default async function AprovacoesPage() {
     <div className={styles.page}>
       <h1 className={styles.heading}>Fila de aprovações</h1>
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Atestados</h2>
-        {pendingAtestados.length === 0 ? (
-          <p className={styles.sectionEmpty}>Nenhum atestado pendente.</p>
-        ) : (
-          <ul className={styles.list}>
-            {pendingAtestados.map((atestado) => (
-              <li key={atestado.id} className={styles.item}>
-                <div className={styles.itemInfo}>
-                  <span className={styles.itemName}>{atestado.userName}</span>
-                  <span className={styles.itemDetail}>
-                    {atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"} ·
-                    enviado em {formatTimestamp(atestado.createdAt)}
-                  </span>
-                </div>
-                <div className={styles.itemActions}>
-                  <form action={decideAtestado}>
-                    <input type="hidden" name="id" value={atestado.id} />
-                    <input type="hidden" name="status" value="aprovado" />
-                    <button type="submit" className={styles.approveButton}>
-                      Aprovar
-                    </button>
-                  </form>
-                  <form action={decideAtestado}>
-                    <input type="hidden" name="id" value={atestado.id} />
-                    <input type="hidden" name="status" value="recusado" />
-                    <button type="submit" className={styles.rejectButton}>
-                      Recusar
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <ApprovalSection
+        title="Atestados"
+        emptyLabel="Nenhum atestado pendente."
+        onDecide={decideAtestado}
+        items={pendingAtestados.map((atestado) => ({
+          id: atestado.id,
+          name: atestado.userName,
+          detail: `${
+            atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"
+          } · enviado em ${formatTimestamp(atestado.createdAt)}`,
+        }))}
+      />
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Férias</h2>
-        {vacations.length === 0 ? (
-          <p className={styles.sectionEmpty}>Nenhuma solicitação de férias pendente.</p>
-        ) : (
-          <ul className={styles.list}>
-            {vacations.map((vacation) => (
-              <li key={vacation.id} className={styles.item}>
-                <div className={styles.itemInfo}>
-                  <span className={styles.itemName}>{vacation.userName}</span>
-                  <span className={styles.itemDetail}>
-                    {formatDateOnly(vacation.startDate)} a {formatDateOnly(vacation.endDate)} ·{" "}
-                    {vacation.days} dia(s)
-                  </span>
-                </div>
-                <div className={styles.itemActions}>
-                  <form action={decideVacation}>
-                    <input type="hidden" name="id" value={vacation.id} />
-                    <input type="hidden" name="status" value="aprovado" />
-                    <button type="submit" className={styles.approveButton}>
-                      Aprovar
-                    </button>
-                  </form>
-                  <form action={decideVacation}>
-                    <input type="hidden" name="id" value={vacation.id} />
-                    <input type="hidden" name="status" value="recusado" />
-                    <button type="submit" className={styles.rejectButton}>
-                      Recusar
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <ApprovalSection
+        title="Férias"
+        emptyLabel="Nenhuma solicitação de férias pendente."
+        onDecide={decideVacation}
+        items={vacations.map((vacation) => ({
+          id: vacation.id,
+          name: vacation.userName,
+          detail: `${formatDateOnly(vacation.startDate)} a ${formatDateOnly(vacation.endDate)} · ${vacation.days} dia(s)`,
+        }))}
+      />
+
+      <ApprovalSection
+        title="Ajustes de ponto"
+        emptyLabel="Nenhum ajuste de ponto pendente."
+        onDecide={decideAdjustment}
+        items={adjustments.map((adjustment) => ({
+          id: adjustment.id,
+          name: adjustment.userName,
+          detail: `${adjustment.reason} · enviado em ${formatTimestamp(adjustment.createdAt)}`,
+        }))}
+      />
+
+      <ApprovalSection
+        title="Banco de horas"
+        emptyLabel="Nenhuma solicitação de compensação pendente."
+        onDecide={decideCompensation}
+        items={compensations.map((compensation) => ({
+          id: compensation.id,
+          name: compensation.userName,
+          detail: `${compensation.reason} · enviado em ${formatTimestamp(compensation.createdAt)}`,
+        }))}
+      />
     </div>
   );
 }

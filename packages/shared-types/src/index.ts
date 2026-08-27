@@ -6,13 +6,17 @@ export { AtestadoOcrRequestSchema, AtestadoOcrResultSchema } from "./atestado";
 export type { AtestadoOcrRequest, AtestadoOcrResult } from "./atestado";
 export {
   AdjustmentRequestInputSchema,
+  AdjustmentStatusUpdateSchema,
   CompensationRequestInputSchema,
+  CompensationStatusUpdateSchema,
   VacationRequestInputSchema,
   VacationStatusUpdateSchema,
 } from "./solicitacoes";
 export type {
   AdjustmentRequestInput,
+  AdjustmentStatusUpdate,
   CompensationRequestInput,
+  CompensationStatusUpdate,
   VacationRequestInput,
   VacationStatusUpdate,
 } from "./solicitacoes";

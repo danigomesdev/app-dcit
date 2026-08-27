@@ -5,10 +5,20 @@ export const AdjustmentRequestInputSchema = z.object({
 });
 export type AdjustmentRequestInput = z.infer<typeof AdjustmentRequestInputSchema>;
 
+export const AdjustmentStatusUpdateSchema = z.object({
+  status: z.enum(["aprovado", "recusado"]),
+});
+export type AdjustmentStatusUpdate = z.infer<typeof AdjustmentStatusUpdateSchema>;
+
 export const CompensationRequestInputSchema = z.object({
   reason: z.string().min(1),
 });
 export type CompensationRequestInput = z.infer<typeof CompensationRequestInputSchema>;
+
+export const CompensationStatusUpdateSchema = z.object({
+  status: z.enum(["aprovado", "recusado"]),
+});
+export type CompensationStatusUpdate = z.infer<typeof CompensationStatusUpdateSchema>;
 
 export const VacationRequestInputSchema = z.object({
   startDate: z.string().date(),

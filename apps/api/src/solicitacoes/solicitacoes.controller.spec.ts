@@ -62,6 +62,33 @@ describe('SolicitacoesController guard metadata', () => {
     ) as unknown[] | undefined;
     expect(roles).toEqual(['gestor', 'rh']);
   });
+
+  const GESTOR_RH_HANDLERS = [
+    'updateAdjustmentStatus',
+    'listPendingAdjustments',
+    'updateCompensationStatus',
+    'listPendingCompensations',
+  ] as const;
+
+  it.each(GESTOR_RH_HANDLERS)(
+    'applies AuthGuard and RolesGuard to %s, restricted to gestor/rh',
+    (handlerName) => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        SolicitacoesController.prototype[handlerName],
+      ) as unknown[] | undefined;
+      expect(guards).toContain(AuthGuard);
+      expect(guards).toContain(RolesGuard);
+
+      const roles = Reflect.getMetadata(
+        ROLES_KEY,
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        SolicitacoesController.prototype[handlerName],
+      ) as unknown[] | undefined;
+      expect(roles).toEqual(['gestor', 'rh']);
+    },
+  );
 });
 
 describe('SolicitacoesController', () => {
@@ -76,6 +103,10 @@ describe('SolicitacoesController', () => {
     getVacationProfile: jest.fn(),
     updateVacationStatus: jest.fn(),
     listPendingVacations: jest.fn(),
+    updateAdjustmentStatus: jest.fn(),
+    listPendingAdjustments: jest.fn(),
+    updateCompensationStatus: jest.fn(),
+    listPendingCompensations: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -207,5 +238,69 @@ describe('SolicitacoesController', () => {
 
     expect(result).toEqual([{ id: '1', userId: 'user-1', userName: 'Ana' }]);
     expect(serviceMock.listPendingVacations).toHaveBeenCalledWith();
+  });
+
+  it('updates an adjustment request status', async () => {
+    serviceMock.updateAdjustmentStatus.mockResolvedValue({
+      id: '1',
+      status: 'aprovado',
+    });
+
+    await controller.updateAdjustmentStatus('1', { status: 'aprovado' });
+
+    expect(serviceMock.updateAdjustmentStatus).toHaveBeenCalledWith(
+      '1',
+      'aprovado',
+    );
+  });
+
+  it('rejects an invalid adjustment status payload', async () => {
+    await expect(
+      controller.updateAdjustmentStatus('1', { status: 'invalido' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.updateAdjustmentStatus).not.toHaveBeenCalled();
+  });
+
+  it('lists pending adjustment requests', async () => {
+    serviceMock.listPendingAdjustments.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana' },
+    ]);
+
+    const result = await controller.listPendingAdjustments();
+
+    expect(result).toEqual([{ id: '1', userId: 'user-1', userName: 'Ana' }]);
+    expect(serviceMock.listPendingAdjustments).toHaveBeenCalledWith();
+  });
+
+  it('updates a compensation request status', async () => {
+    serviceMock.updateCompensationStatus.mockResolvedValue({
+      id: '1',
+      status: 'recusado',
+    });
+
+    await controller.updateCompensationStatus('1', { status: 'recusado' });
+
+    expect(serviceMock.updateCompensationStatus).toHaveBeenCalledWith(
+      '1',
+      'recusado',
+    );
+  });
+
+  it('rejects an invalid compensation status payload', async () => {
+    await expect(
+      controller.updateCompensationStatus('1', { status: 'invalido' }),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.updateCompensationStatus).not.toHaveBeenCalled();
+  });
+
+  it('lists pending compensation requests', async () => {
+    serviceMock.listPendingCompensations.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana' },
+    ]);
+
+    const result = await controller.listPendingCompensations();
+
+    expect(result).toEqual([{ id: '1', userId: 'user-1', userName: 'Ana' }]);
+    expect(serviceMock.listPendingCompensations).toHaveBeenCalledWith();
   });
 });
