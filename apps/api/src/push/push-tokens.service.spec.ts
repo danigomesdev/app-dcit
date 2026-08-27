@@ -19,7 +19,13 @@ describe('PushTokensService', () => {
   });
 
   afterAll(async () => {
-    await prisma.pushToken.deleteMany();
+    // Scoped to this file's own fixture userIds, not a blanket deleteMany():
+    // expo-push.service.spec.ts runs as a separate Jest worker against the
+    // same test.db, and a blanket delete here could race with its mid-test
+    // pushToken rows in the same way (see that file's own afterAll comment).
+    await prisma.pushToken.deleteMany({
+      where: { userId: { in: ['user-a', 'user-b', 'user-c', 'user-d', 'user-e'] } },
+    });
     await prisma.onModuleDestroy();
   });
 

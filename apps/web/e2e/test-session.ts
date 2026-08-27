@@ -49,6 +49,15 @@ export async function mockApi(
     team?: unknown[];
     shifts?: unknown[];
     employees?: unknown[];
+    muralPosts?: unknown[];
+    birthdays?: unknown[];
+    balances?: unknown[];
+    partners?: unknown[];
+    onboardingProgress?: unknown[];
+    activeSobreaviso?: unknown[];
+    deslocamentos?: unknown[];
+    admissionDocuments?: unknown[];
+    certifications?: unknown[];
   } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
@@ -85,6 +94,51 @@ export async function mockApi(
   if (data.employees) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/employees", response: data.employees },
+    });
+  }
+  if (data.muralPosts) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/mural/posts", response: data.muralPosts },
+    });
+  }
+  if (data.birthdays) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/mural/birthdays", response: data.birthdays },
+    });
+  }
+  if (data.balances) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/beneficios/saldos/equipe", response: data.balances },
+    });
+  }
+  if (data.partners) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/beneficios/parceiros", response: data.partners },
+    });
+  }
+  if (data.onboardingProgress) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/onboarding/equipe", response: data.onboardingProgress },
+    });
+  }
+  if (data.activeSobreaviso) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/operacional/sobreaviso/equipe", response: data.activeSobreaviso },
+    });
+  }
+  if (data.deslocamentos) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/operacional/deslocamentos/equipe", response: data.deslocamentos },
+    });
+  }
+  if (data.admissionDocuments) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/documentos/admissionais/equipe", response: data.admissionDocuments },
+    });
+  }
+  if (data.certifications) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/documentos/certificacoes/equipe", response: data.certifications },
     });
   }
 }

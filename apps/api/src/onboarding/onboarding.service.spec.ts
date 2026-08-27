@@ -21,6 +21,9 @@ describe('OnboardingService', () => {
   afterAll(async () => {
     await prisma.onboardingProgress.deleteMany();
     await prisma.onboardingTask.deleteMany();
+    await prisma.employee.deleteMany({
+      where: { userId: { in: ['user-c', 'user-d'] } },
+    });
     await prisma.onModuleDestroy();
   });
 
@@ -66,5 +69,43 @@ describe('OnboardingService', () => {
 
     const toggledOff = await service.toggleTask('user-b', task.id);
     expect(toggledOff).toEqual({ completed: false });
+  });
+
+  it("summarizes each employee's onboarding progress against the total task count", async () => {
+    const task = await prisma.onboardingTask.create({
+      data: {
+        icon: 'document-outline',
+        title: 'Contrato',
+        description: 'Assine o contrato',
+        order: 1,
+      },
+    });
+    await prisma.employee.create({
+      data: {
+        userId: 'user-c',
+        name: 'Carla Onboarding',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    await prisma.employee.create({
+      data: {
+        userId: 'user-d',
+        name: 'Davi Onboarding',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    await prisma.onboardingProgress.create({
+      data: { userId: 'user-c', taskId: task.id },
+    });
+
+    const results = await service.listTeamProgress();
+
+    const carla = results.find((r) => r.userId === 'user-c');
+    const davi = results.find((r) => r.userId === 'user-d');
+    expect(carla?.completedCount).toBe(1);
+    expect(davi?.completedCount).toBe(0);
+    expect(carla?.totalCount).toBe(davi?.totalCount);
   });
 });

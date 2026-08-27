@@ -69,6 +69,23 @@ export class OperacionalService {
     return { active: true, startedAt: created.startedAt };
   }
 
+  async listActiveSobreaviso() {
+    const open = await this.prisma.sobreavisoRecord.findMany({
+      where: { endedAt: null },
+      orderBy: { startedAt: 'asc' },
+    });
+    const employees = await this.prisma.employee.findMany({
+      where: { userId: { in: open.map((record) => record.userId) } },
+    });
+    const nameByUserId = new Map(
+      employees.map((employee) => [employee.userId, employee.name]),
+    );
+    return open.map((record) => ({
+      ...record,
+      userName: nameByUserId.get(record.userId) ?? record.userId,
+    }));
+  }
+
   createDeslocamento(userId: string, input: DeslocamentoInput) {
     return this.prisma.deslocamentoRecord.create({
       data: {
@@ -84,6 +101,22 @@ export class OperacionalService {
       where: { userId },
       orderBy: { startedAt: 'desc' },
     });
+  }
+
+  async listAllDeslocamentos() {
+    const records = await this.prisma.deslocamentoRecord.findMany({
+      orderBy: { startedAt: 'desc' },
+    });
+    const employees = await this.prisma.employee.findMany({
+      where: { userId: { in: records.map((record) => record.userId) } },
+    });
+    const nameByUserId = new Map(
+      employees.map((employee) => [employee.userId, employee.name]),
+    );
+    return records.map((record) => ({
+      ...record,
+      userName: nameByUserId.get(record.userId) ?? record.userId,
+    }));
   }
 
   async listShifts(start: Date, end: Date) {

@@ -62,3 +62,40 @@ test("rh sees clinical detail; gestor sees the same atestado without it", async 
   await expect(page.getByText("J11")).toHaveCount(0);
   await expect(page.getByText("Dr. Teste")).toHaveCount(0);
 });
+
+test("lists admission documents and certifications submitted by the team", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request, {
+    admissionDocuments: [
+      {
+        id: "adm-1",
+        userId: "user-1",
+        userName: "Diana Colaboradora",
+        title: "Comprovante de residência",
+        status: "enviado",
+        submittedAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+    certifications: [
+      {
+        id: "cert-1",
+        userId: "user-2",
+        userName: "Elias Colaborador",
+        name: "AWS Certified",
+        institution: "Amazon",
+        validUntil: "2028-10-10T00:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/documentos");
+
+  await expect(page.getByRole("heading", { name: "Documentos admissionais" })).toBeVisible();
+  await expect(page.getByText("Diana Colaboradora")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Certificações" })).toBeVisible();
+  await expect(page.getByText("Elias Colaborador")).toBeVisible();
+});

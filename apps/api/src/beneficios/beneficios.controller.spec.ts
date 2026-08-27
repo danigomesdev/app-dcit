@@ -4,9 +4,15 @@ import type { Request } from 'express';
 import { BeneficiosController } from './beneficios.controller';
 import { BeneficiosService } from './beneficios.service';
 import { AuthGuard } from '../auth/auth-guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { ROLES_KEY } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
-const GUARDED_HANDLERS = ['listBalances', 'listPartners'] as const;
+const GUARDED_HANDLERS = [
+  'listBalances',
+  'listAllBalances',
+  'listPartners',
+] as const;
 
 describe('BeneficiosController guard metadata', () => {
   it.each(GUARDED_HANDLERS)('applies AuthGuard to %s', (handlerName) => {
@@ -18,12 +24,29 @@ describe('BeneficiosController guard metadata', () => {
 
     expect(guards).toContain(AuthGuard);
   });
+
+  it('applies RolesGuard(gestor, rh) to listAllBalances', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      BeneficiosController.prototype.listAllBalances,
+    ) as unknown[] | undefined;
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      BeneficiosController.prototype.listAllBalances,
+    ) as unknown[] | undefined;
+
+    expect(guards).toContain(RolesGuard);
+    expect(roles).toEqual(['gestor', 'rh']);
+  });
 });
 
 describe('BeneficiosController', () => {
   let controller: BeneficiosController;
   const serviceMock = {
     listBalances: jest.fn(),
+    listAllBalances: jest.fn(),
     listPartners: jest.fn(),
   };
 
@@ -62,5 +85,18 @@ describe('BeneficiosController', () => {
     await controller.listPartners();
 
     expect(serviceMock.listPartners).toHaveBeenCalled();
+  });
+
+  it('lists balances across the whole team', async () => {
+    serviceMock.listAllBalances.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana', balance: 400 },
+    ]);
+
+    const result = await controller.listAllBalances();
+
+    expect(result).toEqual([
+      { id: '1', userId: 'user-1', userName: 'Ana', balance: 400 },
+    ]);
+    expect(serviceMock.listAllBalances).toHaveBeenCalledWith();
   });
 });

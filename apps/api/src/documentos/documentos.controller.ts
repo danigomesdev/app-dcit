@@ -15,6 +15,8 @@ import {
 } from '@ponto-dcit/shared-types';
 import { DocumentosService } from './documentos.service';
 import { AuthGuard } from '../auth/auth-guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type AuthenticatedRequest = Request & { user: AuthenticatedUser };
@@ -49,6 +51,13 @@ export class DocumentosController {
     return this.documentos.listAdmissionDocuments(req.user.sub);
   }
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('admissionais/equipe')
+  listAllAdmissionDocuments() {
+    return this.documentos.listAllAdmissionDocuments();
+  }
+
   @UseGuards(AuthGuard)
   @Post('certificacoes')
   @HttpCode(201)
@@ -67,5 +76,12 @@ export class DocumentosController {
   @Get('certificacoes')
   listCertifications(@Req() req: AuthenticatedRequest) {
     return this.documentos.listCertifications(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('certificacoes/equipe')
+  listAllCertifications() {
+    return this.documentos.listAllCertifications();
   }
 }

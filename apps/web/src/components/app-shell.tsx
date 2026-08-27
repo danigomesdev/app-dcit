@@ -11,6 +11,10 @@ const NAV_SECTIONS = [
   { href: "/escala", label: "Escala" },
   { href: "/aprovacoes", label: "Aprovações" },
   { href: "/documentos", label: "Documentos" },
+  { href: "/mural", label: "Mural" },
+  { href: "/beneficios", label: "Benefícios" },
+  { href: "/onboarding", label: "Onboarding" },
+  { href: "/operacional", label: "Operacional" },
 ] as const;
 
 const ROLE_LABELS: Record<Session["role"], string> = {

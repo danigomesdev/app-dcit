@@ -22,6 +22,9 @@ describe('DocumentosService', () => {
     await prisma.payslip.deleteMany();
     await prisma.admissionDocument.deleteMany();
     await prisma.certification.deleteMany();
+    await prisma.employee.deleteMany({
+      where: { userId: { in: ['user-e', 'user-f'] } },
+    });
     await prisma.onModuleDestroy();
   });
 
@@ -77,5 +80,45 @@ describe('DocumentosService', () => {
     expect(results).toHaveLength(1);
     expect(results[0].name).toBe('AWS Certified');
     expect(results[0].validUntil.toISOString().slice(0, 10)).toBe('2028-10-10');
+  });
+
+  it('lists admission documents across every user, joined with the employee name', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-e',
+        name: 'Ester Admissional',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    await service.createAdmissionDocument('user-e', { title: 'RG' });
+
+    const results = await service.listAllAdmissionDocuments();
+
+    expect(results.find((r) => r.userId === 'user-e')?.userName).toBe(
+      'Ester Admissional',
+    );
+  });
+
+  it('lists certifications across every user, joined with the employee name', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-f',
+        name: 'Fábio Certificado',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    await service.createCertification('user-f', {
+      name: 'Scrum Master',
+      institution: 'Scrum.org',
+      validUntil: '05/05/2029',
+    });
+
+    const results = await service.listAllCertifications();
+
+    expect(results.find((r) => r.userId === 'user-f')?.userName).toBe(
+      'Fábio Certificado',
+    );
   });
 });

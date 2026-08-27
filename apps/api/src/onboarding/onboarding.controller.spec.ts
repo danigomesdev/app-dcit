@@ -4,9 +4,11 @@ import type { Request } from 'express';
 import { OnboardingController } from './onboarding.controller';
 import { OnboardingService } from './onboarding.service';
 import { AuthGuard } from '../auth/auth-guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { ROLES_KEY } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
-const GUARDED_HANDLERS = ['getTasks', 'toggleTask'] as const;
+const GUARDED_HANDLERS = ['getTasks', 'toggleTask', 'listTeamProgress'] as const;
 
 describe('OnboardingController guard metadata', () => {
   it.each(GUARDED_HANDLERS)('applies AuthGuard to %s', (handlerName) => {
@@ -18,6 +20,22 @@ describe('OnboardingController guard metadata', () => {
 
     expect(guards).toContain(AuthGuard);
   });
+
+  it('applies RolesGuard(gestor, rh) to listTeamProgress', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      OnboardingController.prototype.listTeamProgress,
+    ) as unknown[] | undefined;
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      OnboardingController.prototype.listTeamProgress,
+    ) as unknown[] | undefined;
+
+    expect(guards).toContain(RolesGuard);
+    expect(roles).toEqual(['gestor', 'rh']);
+  });
 });
 
 describe('OnboardingController', () => {
@@ -25,6 +43,7 @@ describe('OnboardingController', () => {
   const serviceMock = {
     getTasks: jest.fn(),
     toggleTask: jest.fn(),
+    listTeamProgress: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -62,5 +81,18 @@ describe('OnboardingController', () => {
     await controller.toggleTask('task-1', requestAs('user-1'));
 
     expect(serviceMock.toggleTask).toHaveBeenCalledWith('user-1', 'task-1');
+  });
+
+  it('lists onboarding progress across the team', async () => {
+    serviceMock.listTeamProgress.mockResolvedValue([
+      { userId: 'user-1', userName: 'Ana', completedCount: 2, totalCount: 5 },
+    ]);
+
+    const result = await controller.listTeamProgress();
+
+    expect(result).toEqual([
+      { userId: 'user-1', userName: 'Ana', completedCount: 2, totalCount: 5 },
+    ]);
+    expect(serviceMock.listTeamProgress).toHaveBeenCalledWith();
   });
 });

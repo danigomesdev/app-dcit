@@ -14,6 +14,8 @@ const GUARDED_HANDLERS = [
   'toggleSobreaviso',
   'createDeslocamento',
   'listDeslocamentos',
+  'listActiveSobreaviso',
+  'listAllDeslocamentos',
 ] as const;
 
 describe('OperacionalController guard metadata', () => {
@@ -70,6 +72,26 @@ describe('OperacionalController guard metadata', () => {
     ) as unknown[] | undefined;
     expect(roles).toEqual(['gestor', 'rh']);
   });
+
+  it.each(['listActiveSobreaviso', 'listAllDeslocamentos'] as const)(
+    'applies AuthGuard and RolesGuard to %s, restricted to gestor/rh',
+    (handlerName) => {
+      const guards = Reflect.getMetadata(
+        GUARDS_METADATA,
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        OperacionalController.prototype[handlerName],
+      ) as unknown[] | undefined;
+      expect(guards).toContain(AuthGuard);
+      expect(guards).toContain(RolesGuard);
+
+      const roles = Reflect.getMetadata(
+        ROLES_KEY,
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        OperacionalController.prototype[handlerName],
+      ) as unknown[] | undefined;
+      expect(roles).toEqual(['gestor', 'rh']);
+    },
+  );
 });
 
 describe('OperacionalController', () => {
@@ -79,6 +101,8 @@ describe('OperacionalController', () => {
     toggleSobreaviso: jest.fn(),
     createDeslocamento: jest.fn(),
     listDeslocamentos: jest.fn(),
+    listActiveSobreaviso: jest.fn(),
+    listAllDeslocamentos: jest.fn(),
     listShifts: jest.fn(),
     createShift: jest.fn(),
     deleteShift: jest.fn(),
@@ -229,5 +253,27 @@ describe('OperacionalController', () => {
     await controller.deleteShift('1');
 
     expect(serviceMock.deleteShift).toHaveBeenCalledWith('1');
+  });
+
+  it('lists everyone currently on sobreaviso', async () => {
+    serviceMock.listActiveSobreaviso.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana', startedAt: new Date() },
+    ]);
+
+    const result = await controller.listActiveSobreaviso();
+
+    expect(result).toHaveLength(1);
+    expect(serviceMock.listActiveSobreaviso).toHaveBeenCalledWith();
+  });
+
+  it('lists deslocamentos across the whole team', async () => {
+    serviceMock.listAllDeslocamentos.mockResolvedValue([
+      { id: '1', userId: 'user-1', userName: 'Ana' },
+    ]);
+
+    const result = await controller.listAllDeslocamentos();
+
+    expect(result).toEqual([{ id: '1', userId: 'user-1', userName: 'Ana' }]);
+    expect(serviceMock.listAllDeslocamentos).toHaveBeenCalledWith();
   });
 });

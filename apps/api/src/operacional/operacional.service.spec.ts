@@ -52,6 +52,32 @@ describe('OperacionalService', () => {
     expect(statusAfter).toEqual({ active: false, startedAt: null });
   });
 
+  it('lists everyone currently on sobreaviso, joined with the employee name', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-sobreaviso-a',
+        name: 'Sobreaviso Ana',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    await service.toggleSobreaviso('user-sobreaviso-a');
+    await service.toggleSobreaviso('user-sobreaviso-b');
+    await service.toggleSobreaviso('user-sobreaviso-b');
+
+    const active = await service.listActiveSobreaviso();
+    const ids = active.map((r) => r.userId);
+
+    expect(ids).toContain('user-sobreaviso-a');
+    expect(ids).not.toContain('user-sobreaviso-b');
+    expect(active.find((r) => r.userId === 'user-sobreaviso-a')?.userName).toBe(
+      'Sobreaviso Ana',
+    );
+
+    await service.toggleSobreaviso('user-sobreaviso-a');
+    await prisma.employee.deleteMany({ where: { userId: 'user-sobreaviso-a' } });
+  });
+
   it('creates and lists deslocamentos scoped to the user, newest first', async () => {
     await service.createDeslocamento('user-c', {
       startedAt: '2026-08-20T10:00:00.000Z',
@@ -70,6 +96,31 @@ describe('OperacionalService', () => {
 
     expect(results).toHaveLength(2);
     expect(results[0].startedAt.toISOString()).toBe('2026-08-21T09:00:00.000Z');
+  });
+
+  it('lists deslocamentos across every user, joined with the employee name', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-deslocamento-a',
+        name: 'Deslocamento Ana',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+    await service.createDeslocamento('user-deslocamento-a', {
+      startedAt: '2026-08-22T10:00:00.000Z',
+      endedAt: '2026-08-22T10:30:00.000Z',
+    });
+
+    const results = await service.listAllDeslocamentos();
+
+    expect(
+      results.find((r) => r.userId === 'user-deslocamento-a')?.userName,
+    ).toBe('Deslocamento Ana');
+
+    await prisma.employee.deleteMany({
+      where: { userId: 'user-deslocamento-a' },
+    });
   });
 
   describe('resolveWeekRange', () => {

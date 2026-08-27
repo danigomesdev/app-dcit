@@ -46,6 +46,13 @@ export class OperacionalController {
     return this.operacional.toggleSobreaviso(req.user.sub);
   }
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('sobreaviso/equipe')
+  listActiveSobreaviso() {
+    return this.operacional.listActiveSobreaviso();
+  }
+
   @UseGuards(AuthGuard)
   @Post('deslocamentos')
   @HttpCode(201)
@@ -64,6 +71,13 @@ export class OperacionalController {
   @Get('deslocamentos')
   listDeslocamentos(@Req() req: AuthenticatedRequest) {
     return this.operacional.listDeslocamentos(req.user.sub);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('gestor', 'rh')
+  @Get('deslocamentos/equipe')
+  listAllDeslocamentos() {
+    return this.operacional.listAllDeslocamentos();
   }
 
   @UseGuards(AuthGuard)

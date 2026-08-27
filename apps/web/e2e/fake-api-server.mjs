@@ -80,6 +80,37 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/employees") {
     return sendJson(res, 200, []);
   }
+  if (
+    req.method === "GET" &&
+    ["/mural/posts", "/mural/birthdays"].includes(url.pathname)
+  ) {
+    return sendJson(res, 200, []);
+  }
+  if (
+    req.method === "GET" &&
+    ["/beneficios/saldos/equipe", "/beneficios/parceiros"].includes(url.pathname)
+  ) {
+    return sendJson(res, 200, []);
+  }
+  if (req.method === "GET" && url.pathname === "/onboarding/equipe") {
+    return sendJson(res, 200, []);
+  }
+  if (
+    req.method === "GET" &&
+    ["/operacional/sobreaviso/equipe", "/operacional/deslocamentos/equipe"].includes(
+      url.pathname
+    )
+  ) {
+    return sendJson(res, 200, []);
+  }
+  if (
+    req.method === "GET" &&
+    ["/documentos/admissionais/equipe", "/documentos/certificacoes/equipe"].includes(
+      url.pathname
+    )
+  ) {
+    return sendJson(res, 200, []);
+  }
   if (req.method === "POST" && url.pathname === "/operacional/escala") {
     return sendJson(res, 201, { id: "generated-id", ...body });
   }

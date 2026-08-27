@@ -31,6 +31,13 @@ export class DocumentosService {
     });
   }
 
+  async listAllAdmissionDocuments() {
+    const documents = await this.prisma.admissionDocument.findMany({
+      orderBy: { submittedAt: 'desc' },
+    });
+    return this.withRequesterNames(documents);
+  }
+
   createCertification(userId: string, input: CertificationInput) {
     return this.prisma.certification.create({
       data: {
@@ -47,5 +54,30 @@ export class DocumentosService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async listAllCertifications() {
+    const certifications = await this.prisma.certification.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return this.withRequesterNames(certifications);
+  }
+
+  // Shared by every listAll* method: joins each record against Employee for
+  // a display name, falling back to the bare userId when no Employee row
+  // exists — same pattern as SolicitacoesService.withRequesterNames.
+  private async withRequesterNames<T extends { userId: string }>(
+    records: T[],
+  ): Promise<(T & { userName: string })[]> {
+    const employees = await this.prisma.employee.findMany({
+      where: { userId: { in: records.map((record) => record.userId) } },
+    });
+    const nameByUserId = new Map(
+      employees.map((employee) => [employee.userId, employee.name]),
+    );
+    return records.map((record) => ({
+      ...record,
+      userName: nameByUserId.get(record.userId) ?? record.userId,
+    }));
   }
 }
