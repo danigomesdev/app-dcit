@@ -20,7 +20,8 @@ test("aprovações page renders its empty state when there's nothing pending", a
   ).toBeVisible();
 });
 
-test("documentos page renders its empty state", async ({ page }) => {
+test("documentos page renders its empty state", async ({ page, request }) => {
+  await mockApi(request);
   await page.goto("/documentos");
   await expect(page.getByRole("heading", { name: "Documentos e atestados" })).toBeVisible();
   await expect(
