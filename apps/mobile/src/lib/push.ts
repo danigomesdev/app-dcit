@@ -1,4 +1,4 @@
-import { registerPushToken } from "@/lib/push-api";
+import { registerPushToken, unregisterPushToken } from "@/lib/push-api";
 
 /**
  * See reminders.ts for why expo-notifications is imported lazily: it
@@ -32,5 +32,24 @@ export async function registerForPushNotifications(sessionToken: string): Promis
     await registerPushToken(sessionToken, expoPushToken);
   } catch {
     // Best-effort — no push for this device until the next successful login.
+  }
+}
+
+/**
+ * Best-effort: fetches this device's current Expo push token and
+ * unregisters it from the backend on logout, so a shared device re-logging
+ * in as a different user doesn't keep receiving the previous user's
+ * status-change notifications until they happen to log back in.
+ */
+export async function unregisterPushNotifications(sessionToken: string): Promise<void> {
+  try {
+    const Notifications = loadNotifications();
+    const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync();
+    if (!expoPushToken) return;
+
+    await unregisterPushToken(sessionToken, expoPushToken);
+  } catch {
+    // Best-effort — worst case the token stays registered until the next
+    // login on this device reassigns it via upsert.
   }
 }

@@ -9,6 +9,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
+import { unregisterPushNotifications } from "@/lib/push";
 import { clearSessionToken, getSessionToken } from "@/lib/session";
 
 const ROLE_LABEL: Record<SessionClaims["role"], string> = {
@@ -29,6 +30,10 @@ export default function PerfilScreen() {
   }, []);
 
   async function handleLogout() {
+    const token = await getSessionToken();
+    if (token) {
+      await unregisterPushNotifications(token);
+    }
     await clearSessionToken();
     router.replace("/login");
   }

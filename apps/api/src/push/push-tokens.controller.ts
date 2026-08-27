@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   HttpCode,
   Post,
   Req,
@@ -28,5 +29,16 @@ export class PushTokensController {
       throw new BadRequestException(result.error.flatten());
     }
     return this.pushTokens.registerToken(req.user.sub, result.data.token);
+  }
+
+  @UseGuards(AuthGuard)
+  @Delete()
+  @HttpCode(204)
+  async unregister(@Body() body: unknown, @Req() req: AuthenticatedRequest) {
+    const result = PushTokenInputSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    await this.pushTokens.unregisterToken(req.user.sub, result.data.token);
   }
 }

@@ -17,11 +17,21 @@ describe('PushTokensController guard metadata', () => {
 
     expect(guards).toContain(AuthGuard);
   });
+
+  it('applies AuthGuard to unregister', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      PushTokensController.prototype.unregister,
+    ) as unknown[] | undefined;
+
+    expect(guards).toContain(AuthGuard);
+  });
 });
 
 describe('PushTokensController', () => {
   let controller: PushTokensController;
-  const serviceMock = { registerToken: jest.fn() };
+  const serviceMock = { registerToken: jest.fn(), unregisterToken: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -63,5 +73,24 @@ describe('PushTokensController', () => {
       controller.register({ token: '' }, requestAs('user-1')),
     ).rejects.toThrow(BadRequestException);
     expect(serviceMock.registerToken).not.toHaveBeenCalled();
+  });
+
+  it('unregisters a token for the authenticated user', async () => {
+    await controller.unregister(
+      { token: 'ExponentPushToken[aaa]' },
+      requestAs('user-1'),
+    );
+
+    expect(serviceMock.unregisterToken).toHaveBeenCalledWith(
+      'user-1',
+      'ExponentPushToken[aaa]',
+    );
+  });
+
+  it('rejects an empty token on unregister', async () => {
+    await expect(
+      controller.unregister({ token: '' }, requestAs('user-1')),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.unregisterToken).not.toHaveBeenCalled();
   });
 });

@@ -47,4 +47,26 @@ describe('PushTokensService', () => {
     });
     expect(count).toBe(1);
   });
+
+  it('unregisters a token owned by the given user', async () => {
+    await service.registerToken('user-c', 'ExponentPushToken[mine]');
+
+    await service.unregisterToken('user-c', 'ExponentPushToken[mine]');
+
+    const count = await prisma.pushToken.count({
+      where: { token: 'ExponentPushToken[mine]' },
+    });
+    expect(count).toBe(0);
+  });
+
+  it('does not unregister a token owned by a different user', async () => {
+    await service.registerToken('user-d', 'ExponentPushToken[not-yours]');
+
+    await service.unregisterToken('user-e', 'ExponentPushToken[not-yours]');
+
+    const count = await prisma.pushToken.count({
+      where: { token: 'ExponentPushToken[not-yours]' },
+    });
+    expect(count).toBe(1);
+  });
 });
