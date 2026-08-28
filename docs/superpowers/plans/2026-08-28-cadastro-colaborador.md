@@ -2,23 +2,26 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a "+" dialog to the RH-only `/colaboradores` page that creates a new `Employee` with personal data (CPF, RG, data de nascimento, estado civil, endereço), since today the only way to create an `Employee` row is a seed script.
+**Goal:** Add a "+" dialog to the RH-only `/colaboradores` page that creates a new `Employee` with personal data (CPF, RG, data de nascimento, estado civil, endereço), plus a soft-delete "Excluir" button and a "Lixeira" (trash) section to restore or permanently delete.
 
-**Architecture:** `Employee` gains 10 nullable personal-data columns. A new `POST /employees` endpoint (role `rh`) generates a random `userId` server-side (decoupled from any OIDC login identity — see spec §8) and persists the record, translating a duplicate-CPF unique-constraint violation into a 409. The web side adds a Client Component dialog (`<dialog>` + `useActionState`, same patterns already used elsewhere in this app) reachable from a new "+" button that's always visible on `/colaboradores`, including when the roster is empty (today the empty state replaces the whole page, which would make it impossible to add the very first employee — this plan fixes that).
+**Architecture:** `Employee` gains 10 nullable personal-data columns plus `deletedAt` (soft-delete marker). A new `POST /employees` endpoint (role `rh`) generates a random `userId` server-side (decoupled from any OIDC login identity — see spec §8) and persists the record, translating a duplicate-CPF unique-constraint violation into a 409. Four more `rh`-only endpoints handle the trash lifecycle (`GET /employees/trash`, `DELETE /employees/:userId`, `PATCH /employees/:userId/restore`, `DELETE /employees/:userId/permanent`); three "active roster" queries across the codebase (employees list, presence panel, onboarding team view) are filtered to exclude soft-deleted employees, while name-lookup joins for historical records are deliberately left unfiltered. The web side adds a Client Component dialog for creation, a delete button per row, and a Server Component "Lixeira" section — all always visible on `/colaboradores`, including when the roster is empty (today the empty state replaces the whole page, which would make it impossible to add the very first employee — this plan fixes that).
 
-**Tech Stack:** NestJS + Prisma (SQLite) for the API, Next.js App Router (Server Component + Client Component + Server Action) for web — no new dependencies.
+**Tech Stack:** NestJS + Prisma (SQLite) for the API, Next.js App Router (Server Component + Client Component + Server Actions) for web — no new dependencies.
 
 **Spec:** [`docs/superpowers/specs/2026-08-28-cadastro-colaborador-design.md`](../specs/2026-08-28-cadastro-colaborador-design.md)
 
 ## Global Constraints
 
-- New `Employee` columns, all nullable, no default: `cpf String? @unique`, `rg String?`, `dataNascimento DateTime?`, `estadoCivil String?`, `enderecoRua String?`, `enderecoNumero String?`, `enderecoBairro String?`, `enderecoCidade String?`, `enderecoEstado String?`, `enderecoCep String?`.
+- New `Employee` columns, all nullable, no default: `cpf String? @unique`, `rg String?`, `dataNascimento DateTime?`, `estadoCivil String?`, `enderecoRua String?`, `enderecoNumero String?`, `enderecoBairro String?`, `enderecoCidade String?`, `enderecoEstado String?`, `enderecoCep String?`, `deletedAt DateTime?` (null = ativo).
 - `ESTADOS_CIVIS` (shared-types, fixed list): `["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"]`.
 - `UFS` (shared-types, fixed list, the 27 Brazilian states): `["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"]`.
 - CPF validated as exactly 11 digits, no punctuation (`/^\d{11}$/`); CEP as exactly 8 digits (`/^\d{8}$/`); no CPF check-digit algorithm.
-- `POST /employees` is `@Roles('rh')` only (same as the existing `PATCH /employees/:userId`) — not `gestor`.
+- `POST /employees`, `DELETE /employees/:userId`, `GET /employees/trash`, `PATCH /employees/:userId/restore`, `DELETE /employees/:userId/permanent` are all `@Roles('rh')` only — not `gestor`.
 - `userId` for a newly created employee is generated server-side via `randomUUID()` from `node:crypto` — never taken from the request body.
-- No masking of the new personal fields by role — `GET /employees` returns them identically to gestor and RH (explicit product decision, do not "fix" this later without asking).
+- No masking of the new personal fields by role — `GET /employees` returns them identically to gestor and RH.
+- `EmployeesService.list()`, `TimeEntriesService.listTeamToday()`, and `OnboardingService.listTeamProgress()` filter `deletedAt: null`. Every other `prisma.employee.findMany` in the codebase (documentos, benefícios, solicitações, operacional's 3 call sites) is a name-lookup join for pre-existing records and is left unfiltered — do not add the filter there, it would erase names from historical records instead of just hiding an inactive employee.
+- `permanentlyDelete` must reject (400) an attempt to permanently delete an employee that isn't already soft-deleted.
+- No confirmation dialogs on any delete/restore/permanent-delete action — direct, same as the existing "Remover" button pattern in `escala/page.tsx`.
 - Double-quote style in `apps/web`; single-quote in `apps/api`.
 
 ---
@@ -35,39 +38,48 @@ packages/
 apps/
   api/
     prisma/
-      schema.prisma                                     # modified — 10 new Employee columns
-      migrations/<generated>_add_employee_personal_data/ # generated
+      schema.prisma                                     # modified — 11 new Employee columns
+      migrations/<generated>_add_employee_personal_data_and_soft_delete/ # generated
     src/
       employees/
-        employees.service.ts                            # modified — create()
+        employees.service.ts                            # modified — create(), listTrash(), softDelete(), restore(), permanentlyDelete(); list() filtered
         employees.service.spec.ts                        # modified
-        employees.controller.ts                          # modified — POST /employees
+        employees.controller.ts                          # modified — POST /employees + 4 trash endpoints
         employees.controller.spec.ts                      # modified
+      time-entries/
+        time-entries.service.ts                           # modified — listTeamToday() filtered
+        time-entries.service.spec.ts                       # modified
+      onboarding/
+        onboarding.service.ts                             # modified — listTeamProgress() filtered
+        onboarding.service.spec.ts                         # modified
   web/
     src/
       app/
         (app)/
           colaboradores/
-            page.tsx                                      # modified — always-visible "+" button, restructured empty state
-            actions.ts                                     # modified — createEmployee
+            page.tsx                                      # modified — always-visible "+" button, restructured empty state, renders LixeiraSection
+            actions.ts                                     # modified — createEmployee, deleteEmployee, restoreEmployee, permanentlyDeleteEmployee
             novo-colaborador-dialog.tsx                    # new
-            colaboradores.module.css                       # modified — dialog/grid/button styles
+            colaboradores-row.tsx                          # modified — "Excluir" button
+            lixeira-section.tsx                            # new
+            colaboradores.module.css                       # modified — dialog/grid/button/trash styles
     e2e/
-      fake-api-server.mjs                                 # modified — serve POST /employees
+      fake-api-server.mjs                                 # modified — serve POST/DELETE/PATCH /employees* routes
+      test-session.ts                                      # modified — mockApi supports `trash`
       colaboradores.spec.ts                                # modified — new tests
 ```
 
 ---
 
-### Task 1: `apps/api` — `Employee` personal-data columns
+### Task 1: `apps/api` — `Employee` personal-data + soft-delete columns
 
 **Files:**
 - Modify: `apps/api/prisma/schema.prisma`
-- Generated: `apps/api/prisma/migrations/<timestamp>_add_employee_personal_data/`
+- Generated: `apps/api/prisma/migrations/<timestamp>_add_employee_personal_data_and_soft_delete/`
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: the 10 new nullable columns on `prisma.employee`, used by Task 3.
+- Produces: the 11 new nullable columns on `prisma.employee`, used by Tasks 3 and 4.
 
 - [ ] **Step 1: Update the `Employee` model in `apps/api/prisma/schema.prisma`**
 
@@ -102,19 +114,20 @@ model Employee {
   enderecoCidade    String?
   enderecoEstado    String?   // UF, 2 letras
   enderecoCep       String?   // 8 dígitos, sem hífen
+  deletedAt         DateTime? // null = ativo. Não-nulo = na lixeira.
 }
 ```
 
 - [ ] **Step 2: Generate and apply the migration**
 
-Run: `pnpm --filter @ponto-dcit/api exec prisma migrate dev --name add_employee_personal_data`
-Expected: creates `apps/api/prisma/migrations/<timestamp>_add_employee_personal_data/migration.sql`, applies it to `dev.db`, regenerates the Prisma Client.
+Run: `pnpm --filter @ponto-dcit/api exec prisma migrate dev --name add_employee_personal_data_and_soft_delete`
+Expected: creates `apps/api/prisma/migrations/<timestamp>_add_employee_personal_data_and_soft_delete/migration.sql`, applies it to `dev.db`, regenerates the Prisma Client.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add apps/api/prisma
-git commit -m "feat(api): add personal-data columns to Employee"
+git commit -m "feat(api): add personal-data and soft-delete columns to Employee"
 ```
 
 ---
@@ -128,7 +141,7 @@ git commit -m "feat(api): add personal-data columns to Employee"
 
 **Interfaces:**
 - Consumes: `RoleSchema` from `./role` (already exists, exported as `"colaborador" | "gestor" | "rh"`).
-- Produces: `EmployeeCreateSchema` (Zod schema), `EmployeeCreateInput` (inferred type), `ESTADOS_CIVIS`, `UFS` (readonly string-tuple consts), all exported from `@ponto-dcit/shared-types`. Task 3 imports `EmployeeCreateSchema`/`EmployeeCreateInput`; Task 4 imports `ESTADOS_CIVIS`/`UFS` for the form's `<select>` options.
+- Produces: `EmployeeCreateSchema` (Zod schema), `EmployeeCreateInput` (inferred type), `ESTADOS_CIVIS`, `UFS` (readonly string-tuple consts), all exported from `@ponto-dcit/shared-types`. Task 3 imports `EmployeeCreateSchema`/`EmployeeCreateInput`; Task 5 imports `ESTADOS_CIVIS`/`UFS` for the form's `<select>` options.
 
 - [ ] **Step 1: Write the failing test — `packages/shared-types/src/employee-create.test.ts`**
 
@@ -308,8 +321,8 @@ git commit -m "feat(shared-types): add EmployeeCreateSchema"
 - Modify: `apps/api/src/employees/employees.controller.spec.ts`
 
 **Interfaces:**
-- Consumes: `EmployeeCreateSchema`/`EmployeeCreateInput` from `@ponto-dcit/shared-types` (Task 2); the 10 new columns on `prisma.employee` (Task 1); `AuthGuard`/`RolesGuard`/`Roles` from `../auth/*` (already used elsewhere in this file).
-- Produces: `EmployeesService.create(input: EmployeeCreateInput)` (throws `ConflictException` on duplicate CPF); `POST /employees` (`@Roles('rh')`). Task 4 (web) calls `POST /employees` over HTTP.
+- Consumes: `EmployeeCreateSchema`/`EmployeeCreateInput` from `@ponto-dcit/shared-types` (Task 2); the 11 new columns on `prisma.employee` (Task 1); `AuthGuard`/`RolesGuard`/`Roles` from `../auth/*` (already used elsewhere in this file).
+- Produces: `EmployeesService.create(input: EmployeeCreateInput)` (throws `ConflictException` on duplicate CPF); `POST /employees` (`@Roles('rh')`). Task 5 (web) calls `POST /employees` over HTTP. Task 4 adds more methods/routes to these same files — read the result of this task before starting Task 4.
 
 - [ ] **Step 1: Write the failing tests — append to `apps/api/src/employees/employees.service.spec.ts`**
 
@@ -500,7 +513,7 @@ export class EmployeesService {
 }
 ```
 
-`list()`'s explicit `select` is removed — it would need updating every time a new personal field is added, and returning the full row is already the pattern used by other `findMany` calls in this codebase (e.g. `TimeEntriesService.listTeamToday`'s `employees.findMany`).
+`list()`'s explicit `select` is removed — it would need updating every time a new personal field is added, and returning the full row is already the pattern used by other `findMany` calls in this codebase. Task 4 will add a `where` clause to this same method — don't add one now, that's a separate reviewable change.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -669,7 +682,507 @@ git commit -m "feat(api): add POST /employees to register a new colaborador"
 
 ---
 
-### Task 4: `apps/web` — "+" dialog on `/colaboradores`
+### Task 4: `apps/api` — exclusão lógica (lixeira)
+
+**Files:**
+- Modify: `apps/api/src/employees/employees.service.ts`
+- Modify: `apps/api/src/employees/employees.service.spec.ts`
+- Modify: `apps/api/src/employees/employees.controller.ts`
+- Modify: `apps/api/src/employees/employees.controller.spec.ts`
+- Modify: `apps/api/src/time-entries/time-entries.service.ts`
+- Modify: `apps/api/src/time-entries/time-entries.service.spec.ts`
+- Modify: `apps/api/src/onboarding/onboarding.service.ts`
+- Modify: `apps/api/src/onboarding/onboarding.service.spec.ts`
+
+**Interfaces:**
+- Consumes: the `deletedAt` column on `prisma.employee` (Task 1); the `EmployeesService`/`EmployeesController` shape left by Task 3 (this task adds to the same files, so Task 3 must be complete first).
+- Produces: `EmployeesService.listTrash()`, `.softDelete(userId)`, `.restore(userId)`, `.permanentlyDelete(userId)`; `GET /employees/trash`, `DELETE /employees/:userId`, `PATCH /employees/:userId/restore`, `DELETE /employees/:userId/permanent` (all `@Roles('rh')`). `list()` and two other services' active-roster queries now exclude soft-deleted employees. Task 6 (web) calls all four new routes over HTTP.
+
+- [ ] **Step 1: Write the failing tests — append to `apps/api/src/employees/employees.service.spec.ts`**
+
+Read the current file first (it now has the `create` describe block from Task 3). Add this import to the top:
+
+```typescript
+import { BadRequestException } from '@nestjs/common';
+```
+
+(alongside the existing `import { ConflictException } from '@nestjs/common';` — combine into one import statement: `import { BadRequestException, ConflictException } from '@nestjs/common';`).
+
+Add this `describe` block at the end of the file, inside the outer `describe('EmployeesService', ...)` (immediately before its closing `});`):
+
+```typescript
+  describe('listTrash / softDelete / restore / permanentlyDelete', () => {
+    it('excludes a soft-deleted employee from list() and includes it in listTrash()', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-trash-a',
+          name: 'Trash Ana',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await service.softDelete('emp-trash-a');
+
+      const active = await service.list();
+      expect(active.find((e) => e.userId === 'emp-trash-a')).toBeUndefined();
+
+      const trashed = await service.listTrash();
+      const found = trashed.find((e) => e.userId === 'emp-trash-a');
+      expect(found).toBeDefined();
+      expect(found?.deletedAt).not.toBeNull();
+    });
+
+    it('restores a soft-deleted employee back into list() and out of listTrash()', async () => {
+      await service.restore('emp-trash-a');
+
+      const active = await service.list();
+      expect(active.find((e) => e.userId === 'emp-trash-a')).toBeDefined();
+
+      const trashed = await service.listTrash();
+      expect(trashed.find((e) => e.userId === 'emp-trash-a')).toBeUndefined();
+    });
+
+    it('permanently deletes an employee that is already in the trash', async () => {
+      await service.softDelete('emp-trash-a');
+
+      await service.permanentlyDelete('emp-trash-a');
+
+      const found = await prisma.employee.findUnique({ where: { userId: 'emp-trash-a' } });
+      expect(found).toBeNull();
+    });
+
+    it('throws BadRequestException when permanently deleting an active (non-trashed) employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-trash-b',
+          name: 'Trash Beto',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await expect(service.permanentlyDelete('emp-trash-b')).rejects.toThrow(
+        BadRequestException,
+      );
+
+      await prisma.employee.delete({ where: { userId: 'emp-trash-b' } });
+    });
+
+    it('throws BadRequestException when permanently deleting a userId that does not exist', async () => {
+      await expect(service.permanentlyDelete('emp-does-not-exist')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+```
+
+Note: `emp-trash-a` is permanently deleted by the third test in this block, so it never needs to appear in the file's `afterAll` cleanup list — the test suite leaves it already gone. `emp-trash-b` is deleted inline at the end of its own test.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `pnpm --filter @ponto-dcit/api test -- employees.service.spec.ts`
+Expected: FAIL — `service.softDelete is not a function`.
+
+- [ ] **Step 3: Implement in `apps/api/src/employees/employees.service.ts`**
+
+Read the current file first (from Task 3). Change `list()` from:
+
+```typescript
+  list() {
+    return this.prisma.employee.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+```
+
+to:
+
+```typescript
+  list() {
+    return this.prisma.employee.findMany({
+      where: { deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  listTrash() {
+    return this.prisma.employee.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+    });
+  }
+
+  softDelete(userId: string) {
+    return this.prisma.employee.update({
+      where: { userId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  restore(userId: string) {
+    return this.prisma.employee.update({
+      where: { userId },
+      data: { deletedAt: null },
+    });
+  }
+
+  async permanentlyDelete(userId: string) {
+    const employee = await this.prisma.employee.findUnique({ where: { userId } });
+    if (!employee || employee.deletedAt === null) {
+      throw new BadRequestException(
+        'Só é possível excluir permanentemente um colaborador que já está na lixeira.',
+      );
+    }
+    await this.prisma.employee.delete({ where: { userId } });
+  }
+```
+
+(Insert these new methods right after `list()`, before `updateSchedule`. Add `BadRequestException` to the existing `@nestjs/common` import line at the top of the file.)
+
+- [ ] **Step 4: Run the tests to verify they pass**
+
+Run: `pnpm --filter @ponto-dcit/api test -- employees.service.spec.ts`
+Expected: PASS — all tests green, including Task 3's `create` tests (unaffected).
+
+- [ ] **Step 5: Write the failing tests — append to `apps/api/src/employees/employees.controller.spec.ts`**
+
+Read the current file first (from Task 3). Add these 4 tests inside `describe('EmployeesController guard metadata', ...)`, immediately after the `create` guard test and before that block's closing `});`:
+
+```typescript
+  it('applies AuthGuard and RolesGuard to listTrash, restricted to rh only', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.listTrash,
+    ) as unknown[] | undefined;
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.listTrash,
+    ) as unknown[] | undefined;
+    expect(roles).toEqual(['rh']);
+  });
+
+  it('applies AuthGuard and RolesGuard to softDelete, restricted to rh only', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.softDelete,
+    ) as unknown[] | undefined;
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.softDelete,
+    ) as unknown[] | undefined;
+    expect(roles).toEqual(['rh']);
+  });
+
+  it('applies AuthGuard and RolesGuard to restore, restricted to rh only', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.restore,
+    ) as unknown[] | undefined;
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.restore,
+    ) as unknown[] | undefined;
+    expect(roles).toEqual(['rh']);
+  });
+
+  it('applies AuthGuard and RolesGuard to permanentlyDelete, restricted to rh only', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.permanentlyDelete,
+    ) as unknown[] | undefined;
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.permanentlyDelete,
+    ) as unknown[] | undefined;
+    expect(roles).toEqual(['rh']);
+  });
+```
+
+In the behavioral `describe('EmployeesController', ...)` block, change `serviceMock` from:
+
+```typescript
+  const serviceMock = { list: jest.fn(), updateSchedule: jest.fn(), create: jest.fn() };
+```
+
+to:
+
+```typescript
+  const serviceMock = {
+    list: jest.fn(),
+    updateSchedule: jest.fn(),
+    create: jest.fn(),
+    listTrash: jest.fn(),
+    softDelete: jest.fn(),
+    restore: jest.fn(),
+    permanentlyDelete: jest.fn(),
+  };
+```
+
+Then add these tests inside that same `describe` block, at the end:
+
+```typescript
+  it('lists trashed employees', async () => {
+    serviceMock.listTrash.mockResolvedValue([{ userId: 'user-1', deletedAt: new Date() }]);
+
+    const result = await controller.listTrash();
+
+    expect(result).toHaveLength(1);
+    expect(serviceMock.listTrash).toHaveBeenCalledWith();
+  });
+
+  it('soft-deletes an employee', async () => {
+    serviceMock.softDelete.mockResolvedValue(undefined);
+
+    await controller.softDelete('user-1');
+
+    expect(serviceMock.softDelete).toHaveBeenCalledWith('user-1');
+  });
+
+  it('restores an employee', async () => {
+    serviceMock.restore.mockResolvedValue({ userId: 'user-1', deletedAt: null });
+
+    await controller.restore('user-1');
+
+    expect(serviceMock.restore).toHaveBeenCalledWith('user-1');
+  });
+
+  it('permanently deletes an employee', async () => {
+    serviceMock.permanentlyDelete.mockResolvedValue(undefined);
+
+    await controller.permanentlyDelete('user-1');
+
+    expect(serviceMock.permanentlyDelete).toHaveBeenCalledWith('user-1');
+  });
+```
+
+- [ ] **Step 6: Run the tests to verify they fail**
+
+Run: `pnpm --filter @ponto-dcit/api test -- employees.controller.spec.ts`
+Expected: FAIL — `controller.listTrash is not a function`.
+
+- [ ] **Step 7: Implement in `apps/api/src/employees/employees.controller.ts`**
+
+Read the current file first (from Task 3). Add these imports to the existing `@nestjs/common` import line: `Delete`. Add `EmployeeScheduleUpdateSchema` stays as-is. Add these 4 methods after `create` and before `updateSchedule`:
+
+```typescript
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Get('trash')
+  listTrash() {
+    return this.employees.listTrash();
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Delete(':userId')
+  @HttpCode(204)
+  async softDelete(@Param('userId') userId: string) {
+    await this.employees.softDelete(userId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Patch(':userId/restore')
+  restore(@Param('userId') userId: string) {
+    return this.employees.restore(userId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Delete(':userId/permanent')
+  @HttpCode(204)
+  async permanentlyDelete(@Param('userId') userId: string) {
+    await this.employees.permanentlyDelete(userId);
+  }
+```
+
+The full updated import line at the top of the file should read:
+
+```typescript
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+```
+
+`@Get('trash')` is declared before any `@Get(':userId')`-shaped route would be (there is none in this controller), so there's no ambiguity with Nest's routing. `:userId/restore` and `:userId/permanent` are distinct path shapes from bare `:userId`, so `DELETE /employees/abc` (soft-delete) and `DELETE /employees/abc/permanent` never collide.
+
+- [ ] **Step 8: Run the tests to verify they pass**
+
+Run: `pnpm --filter @ponto-dcit/api test -- employees.controller.spec.ts`
+Expected: PASS — all tests green.
+
+- [ ] **Step 9: Write the failing test — append to `apps/api/src/time-entries/time-entries.service.spec.ts`**
+
+Read the current file first. Inside the existing `describe('listTeamToday status derivation', ...)` block, add this test (it uses the file's own `baseEmployee` helper and `WEEKDAY_NOON_SP` constant already defined in that block):
+
+```typescript
+    it('excludes a soft-deleted employee entirely from the results', async () => {
+      jest.useFakeTimers().setSystemTime(WEEKDAY_NOON_SP);
+      await prisma.employee.create({
+        data: { ...baseEmployee('presence-deleted'), deletedAt: new Date('2026-08-01') },
+      });
+
+      const results = await service.listTeamToday();
+
+      expect(results.find((r) => r.userId === 'presence-deleted')).toBeUndefined();
+    });
+```
+
+Add `'presence-deleted'` to this file's `afterAll` employee-id cleanup list (find the array of ids like `'presence-folga-sat'`, `'presence-atrasado'`, etc. and add `'presence-deleted'` to it).
+
+- [ ] **Step 10: Run the test to verify it fails**
+
+Run: `pnpm --filter @ponto-dcit/api test -- time-entries.service.spec.ts`
+Expected: FAIL — the soft-deleted employee still appears in the results.
+
+- [ ] **Step 11: Implement in `apps/api/src/time-entries/time-entries.service.ts`**
+
+Read the current file first. Inside `listTeamToday()`, change:
+
+```typescript
+    const employees = await this.prisma.employee.findMany({
+      orderBy: { name: 'asc' },
+    });
+```
+
+to:
+
+```typescript
+    const employees = await this.prisma.employee.findMany({
+      where: { deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
+```
+
+- [ ] **Step 12: Run the test to verify it passes**
+
+Run: `pnpm --filter @ponto-dcit/api test -- time-entries.service.spec.ts`
+Expected: PASS — all tests green, including every pre-existing status-derivation test (unaffected — none of them set `deletedAt`, so they default to `null`/active).
+
+- [ ] **Step 13: Write the failing test — append to `apps/api/src/onboarding/onboarding.service.spec.ts`**
+
+Read the current file first. Add this test at the end of the file, inside the outer `describe('OnboardingService', ...)` (before its closing `});`):
+
+```typescript
+  it('excludes a soft-deleted employee from listTeamProgress', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-e',
+        name: 'Elisa Excluida',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+        deletedAt: new Date('2026-08-01'),
+      },
+    });
+
+    const results = await service.listTeamProgress();
+
+    expect(results.find((r) => r.userId === 'user-e')).toBeUndefined();
+  });
+```
+
+Change the `afterAll` from:
+
+```typescript
+  afterAll(async () => {
+    await prisma.onboardingProgress.deleteMany();
+    await prisma.onboardingTask.deleteMany();
+    await prisma.employee.deleteMany({
+      where: { userId: { in: ['user-c', 'user-d'] } },
+    });
+    await prisma.onModuleDestroy();
+  });
+```
+
+to:
+
+```typescript
+  afterAll(async () => {
+    await prisma.onboardingProgress.deleteMany();
+    await prisma.onboardingTask.deleteMany();
+    await prisma.employee.deleteMany({
+      where: { userId: { in: ['user-c', 'user-d', 'user-e'] } },
+    });
+    await prisma.onModuleDestroy();
+  });
+```
+
+- [ ] **Step 14: Run the test to verify it fails**
+
+Run: `pnpm --filter @ponto-dcit/api test -- onboarding.service.spec.ts`
+Expected: FAIL — the soft-deleted employee still appears in the results.
+
+- [ ] **Step 15: Implement in `apps/api/src/onboarding/onboarding.service.ts`**
+
+Read the current file first. Inside `listTeamProgress()`, change:
+
+```typescript
+      this.prisma.employee.findMany(),
+```
+
+to:
+
+```typescript
+      this.prisma.employee.findMany({ where: { deletedAt: null } }),
+```
+
+(This is the second element of the `Promise.all([...])` array — the one with no arguments today.)
+
+- [ ] **Step 16: Run the test to verify it passes**
+
+Run: `pnpm --filter @ponto-dcit/api test -- onboarding.service.spec.ts`
+Expected: PASS — all tests green, including every pre-existing test (unaffected).
+
+- [ ] **Step 17: Run the full API test suite**
+
+Run: `pnpm --filter @ponto-dcit/api run test`
+Expected: PASS — every spec green.
+
+- [ ] **Step 18: Lint (scoped to the files this task touched)**
+
+Run: `pnpm --filter @ponto-dcit/api exec eslint src/employees/employees.service.ts src/employees/employees.service.spec.ts src/employees/employees.controller.ts src/employees/employees.controller.spec.ts src/time-entries/time-entries.service.ts src/time-entries/time-entries.service.spec.ts src/onboarding/onboarding.service.ts src/onboarding/onboarding.service.spec.ts --fix`
+Expected: no errors. Do not run a blanket `--fix` over the whole `src` tree.
+
+- [ ] **Step 19: Commit**
+
+```bash
+git add apps/api/src/employees apps/api/src/time-entries apps/api/src/onboarding
+git commit -m "feat(api): add exclusão lógica (soft delete, restore, trash) for Employee"
+```
+
+---
+
+### Task 5: `apps/web` — "+" dialog on `/colaboradores`
 
 **Files:**
 - Modify: `apps/web/src/app/(app)/colaboradores/page.tsx`
@@ -681,7 +1194,7 @@ git commit -m "feat(api): add POST /employees to register a new colaborador"
 
 **Interfaces:**
 - Consumes: `ESTADOS_CIVIS`, `UFS` from `@ponto-dcit/shared-types` (Task 2); `apiFetch` from `@/lib/api`. Calls `POST /employees` (Task 3) over HTTP.
-- Produces: the "+" button and dialog on `/colaboradores`. Nothing else in this plan consumes it.
+- Produces: the "+" button and dialog on `/colaboradores`. `page.tsx`'s new structure (always-visible heading row, conditional list-vs-empty-message) is read and extended by Task 6, which appends a `<LixeiraSection />` — read this task's result before starting Task 6.
 
 - [ ] **Step 1: Rewrite `apps/web/src/app/(app)/colaboradores/page.tsx`**
 
@@ -787,8 +1300,6 @@ export async function createEmployee(
   return { error: null, success: true };
 }
 ```
-
-Validation of exact formats (CPF 11 digits, UF a real state, etc.) is not duplicated client-side — the payload is only normalized (`"" → null`); the backend's `EmployeeCreateSchema` is the real validation, and a 400 surfaces as a generic `"Não foi possível salvar (código 400)."`. Per-field client-side validation is a reasonable follow-up, not part of this task.
 
 - [ ] **Step 3: Write `apps/web/src/app/(app)/colaboradores/novo-colaborador-dialog.tsx`**
 
@@ -1155,7 +1666,7 @@ Expected: succeeds.
 - [ ] **Step 8: Run the e2e suite**
 
 Run: `pnpm --filter @ponto-dcit/web run test`
-Expected: PASS — every suite green, including the 3 new tests and the 6 pre-existing `colaboradores.spec.ts` tests (unaffected — the roster/RBAC/schedule-editing tests don't touch the new button). If port 3000/3001 are already bound by a leftover process, free them first.
+Expected: PASS — every suite green, including the 3 new tests and the 6 pre-existing `colaboradores.spec.ts` tests (unaffected). If port 3000/3001 are already bound by a leftover process, free them first.
 
 - [ ] **Step 9: Lint**
 
@@ -1171,7 +1682,356 @@ git commit -m "feat(web): add a dialog to register a new colaborador"
 
 ---
 
-### Task 5: Full-repo verification
+### Task 6: `apps/web` — "Excluir" button + "Lixeira" section
+
+**Files:**
+- Modify: `apps/web/src/app/(app)/colaboradores/colaboradores-row.tsx`
+- Modify: `apps/web/src/app/(app)/colaboradores/actions.ts`
+- Create: `apps/web/src/app/(app)/colaboradores/lixeira-section.tsx`
+- Modify: `apps/web/src/app/(app)/colaboradores/page.tsx`
+- Modify: `apps/web/src/app/(app)/colaboradores/colaboradores.module.css`
+- Modify: `apps/web/e2e/fake-api-server.mjs`
+- Modify: `apps/web/e2e/test-session.ts`
+- Modify: `apps/web/e2e/colaboradores.spec.ts`
+
+**Interfaces:**
+- Consumes: `apiFetch`/`apiFetchJson` from `@/lib/api`. Calls `DELETE /employees/:userId`, `GET /employees/trash`, `PATCH /employees/:userId/restore`, `DELETE /employees/:userId/permanent` (Task 4) over HTTP. Reads `page.tsx`'s structure as left by Task 5.
+- Produces: the "Excluir" button per row and the "Lixeira" section. Nothing else in this plan consumes it.
+
+- [ ] **Step 1: Add the delete form to `apps/web/src/app/(app)/colaboradores/colaboradores-row.tsx`**
+
+Read the current file first (from Task 5's era — Task 5 didn't touch this file, so it's still the original version). Replace the whole file with:
+
+```tsx
+"use client";
+
+import { useActionState } from "react";
+
+import { deleteEmployee, updateSchedule } from "./actions";
+import styles from "./colaboradores.module.css";
+
+type Employee = {
+  userId: string;
+  name: string;
+  expectedStartTime: string | null;
+};
+
+export function ColaboradoresRow({ employee }: { employee: Employee }) {
+  const [state, formAction, pending] = useActionState(updateSchedule, { error: null });
+
+  return (
+    <li className={styles.item}>
+      <span className={styles.itemName}>{employee.name}</span>
+      <form action={formAction} className={styles.form}>
+        <input type="hidden" name="userId" value={employee.userId} />
+        <input
+          type="time"
+          name="expectedStartTime"
+          defaultValue={employee.expectedStartTime ?? ""}
+          aria-label={`Horário esperado de entrada de ${employee.name}`}
+          className={styles.timeInput}
+        />
+        <button type="submit" className={styles.saveButton} disabled={pending}>
+          Salvar
+        </button>
+      </form>
+      <form action={deleteEmployee}>
+        <input type="hidden" name="userId" value={employee.userId} />
+        <button type="submit" className={styles.deleteButton}>
+          Excluir
+        </button>
+      </form>
+      {state.error ? <span className={styles.error}>{state.error}</span> : null}
+    </li>
+  );
+}
+```
+
+- [ ] **Step 2: Add `deleteEmployee`, `restoreEmployee`, `permanentlyDeleteEmployee` to `apps/web/src/app/(app)/colaboradores/actions.ts`**
+
+Read the current file first (from Task 5, has `updateSchedule` and `createEmployee`). Append this to the end:
+
+```typescript
+export async function deleteEmployee(formData: FormData) {
+  const userId = formData.get("userId");
+  if (typeof userId !== "string") {
+    throw new Error("Invalid form data");
+  }
+  const res = await apiFetch(`/employees/${userId}`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`/employees/${userId} responded with ${res.status}`);
+  }
+  revalidatePath("/colaboradores");
+  revalidatePath("/");
+}
+
+export async function restoreEmployee(formData: FormData) {
+  const userId = formData.get("userId");
+  if (typeof userId !== "string") {
+    throw new Error("Invalid form data");
+  }
+  const res = await apiFetch(`/employees/${userId}/restore`, { method: "PATCH" });
+  if (!res.ok) {
+    throw new Error(`/employees/${userId}/restore responded with ${res.status}`);
+  }
+  revalidatePath("/colaboradores");
+  revalidatePath("/");
+}
+
+export async function permanentlyDeleteEmployee(formData: FormData) {
+  const userId = formData.get("userId");
+  if (typeof userId !== "string") {
+    throw new Error("Invalid form data");
+  }
+  const res = await apiFetch(`/employees/${userId}/permanent`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`/employees/${userId}/permanent responded with ${res.status}`);
+  }
+  revalidatePath("/colaboradores");
+}
+```
+
+- [ ] **Step 3: Write `apps/web/src/app/(app)/colaboradores/lixeira-section.tsx`**
+
+```tsx
+import { apiFetchJson } from "@/lib/api";
+
+import { permanentlyDeleteEmployee, restoreEmployee } from "./actions";
+import styles from "./colaboradores.module.css";
+
+type TrashedEmployee = {
+  userId: string;
+  name: string;
+  deletedAt: string;
+};
+
+export async function LixeiraSection() {
+  const trashed = await apiFetchJson<TrashedEmployee[]>("/employees/trash");
+
+  return (
+    <details className={styles.trash}>
+      <summary className={styles.trashSummary}>Lixeira ({trashed.length})</summary>
+      {trashed.length === 0 ? (
+        <p className={styles.subheading}>Nenhum colaborador na lixeira.</p>
+      ) : (
+        <ul className={styles.list}>
+          {trashed.map((employee) => (
+            <li key={employee.userId} className={styles.item}>
+              <span className={styles.itemName}>{employee.name}</span>
+              <form action={restoreEmployee}>
+                <input type="hidden" name="userId" value={employee.userId} />
+                <button type="submit" className={styles.saveButton}>
+                  Restaurar
+                </button>
+              </form>
+              <form action={permanentlyDeleteEmployee}>
+                <input type="hidden" name="userId" value={employee.userId} />
+                <button type="submit" className={styles.deleteButton}>
+                  Excluir permanentemente
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
+```
+
+- [ ] **Step 4: Render `<LixeiraSection />` in `apps/web/src/app/(app)/colaboradores/page.tsx`**
+
+Read the current file first (from Task 5). Add this import alongside the existing ones:
+
+```typescript
+import { LixeiraSection } from "./lixeira-section";
+```
+
+Add `<LixeiraSection />` as the last child inside the outermost `<div className={styles.page}>`, right after the `{employees.length === 0 ? (...) : (...)}` block and before that `<div>`'s closing tag:
+
+```tsx
+      <LixeiraSection />
+    </div>
+  );
+}
+```
+
+- [ ] **Step 5: Add trash/delete-button styles to `apps/web/src/app/(app)/colaboradores/colaboradores.module.css`**
+
+Read the current file first (from Task 5). Append these classes to the end of the file:
+
+```css
+.deleteButton {
+  appearance: none;
+  border: 1px solid var(--color-status-danger);
+  background: transparent;
+  color: var(--color-status-danger);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.deleteButton:hover {
+  background: var(--color-status-danger);
+  color: #ffffff;
+}
+
+.trash {
+  border-radius: 8px;
+  background: var(--color-background-element);
+  padding: 12px 16px;
+}
+
+.trashSummary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text);
+}
+```
+
+`--color-status-danger` already exists in `apps/web/src/app/globals.css` (added by the mapa-de-presença feature for the "Atrasado" badge) — this reuses it rather than introducing a new color token.
+
+- [ ] **Step 6: Extend `apps/web/e2e/fake-api-server.mjs`**
+
+Read the current file first (from Task 5). Add these branches near the existing `POST /employees` branch, before the final 404 fallback:
+
+```javascript
+  if (req.method === "GET" && url.pathname === "/employees/trash") {
+    return sendJson(res, 200, []);
+  }
+  if (req.method === "DELETE" && /^\/employees\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
+  }
+  if (req.method === "PATCH" && /^\/employees\/[^/]+\/restore$/.test(url.pathname)) {
+    return sendJson(res, 200, { userId: url.pathname.split("/")[2], deletedAt: null });
+  }
+  if (req.method === "DELETE" && /^\/employees\/[^/]+\/permanent$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
+  }
+```
+
+These don't collide with each other or with the existing `PATCH /^\/employees\/[^/]+$/` (updateSchedule) branch — `[^/]+$` never matches a path with an extra `/restore` or `/permanent` segment after it, since `[^/]` excludes the slash character.
+
+- [ ] **Step 7: Add a `trash` seed key to `apps/web/e2e/test-session.ts`**
+
+Read the current file first. Add `trash?: unknown[];` to `mockApi`'s `data` parameter type (in the same object literal as `employees?: unknown[];`), and add this block inside the function body, alongside the existing `if (data.employees) { ... }` block:
+
+```typescript
+  if (data.trash) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/employees/trash", response: data.trash },
+    });
+  }
+```
+
+- [ ] **Step 8: Write the new tests — append to `apps/web/e2e/colaboradores.spec.ts`**
+
+Read the current file first (from Task 5). Add these tests at the end:
+
+```typescript
+test("clicking Excluir soft-deletes the employee", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [{ userId: "colaborador-1", name: "Ana Colaboradora", expectedStartTime: null }],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "Excluir" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "DELETE" && r.path === "/employees/colaborador-1"
+      );
+    })
+    .toBeTruthy();
+});
+
+test("the lixeira section lists trashed employees and can restore one", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [],
+    trash: [
+      { userId: "colaborador-2", name: "Beto Excluido", deletedAt: "2026-08-20T00:00:00.000Z" },
+    ],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByText("Lixeira (1)").click();
+  await expect(page.getByText("Beto Excluido")).toBeVisible();
+
+  await page.getByRole("button", { name: "Restaurar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "PATCH" && r.path === "/employees/colaborador-2/restore"
+      );
+    })
+    .toBeTruthy();
+});
+
+test("excluir permanentemente calls the permanent-delete endpoint", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [],
+    trash: [
+      { userId: "colaborador-2", name: "Beto Excluido", deletedAt: "2026-08-20T00:00:00.000Z" },
+    ],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByText("Lixeira (1)").click();
+  await page.getByRole("button", { name: "Excluir permanentemente" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "DELETE" && r.path === "/employees/colaborador-2/permanent"
+      );
+    })
+    .toBeTruthy();
+});
+```
+
+- [ ] **Step 9: Run the build to catch type errors**
+
+Run: `pnpm --filter @ponto-dcit/web run build`
+Expected: succeeds.
+
+- [ ] **Step 10: Run the e2e suite**
+
+Run: `pnpm --filter @ponto-dcit/web run test`
+Expected: PASS — every suite green, including the 3 new tests and every pre-existing `colaboradores.spec.ts` test from Task 5 (unaffected — they don't interact with the delete button or the trash section).
+
+- [ ] **Step 11: Lint**
+
+Run: `pnpm --filter @ponto-dcit/web run lint`
+Expected: no errors.
+
+- [ ] **Step 12: Commit**
+
+```bash
+git add apps/web/src/app/'(app)'/colaboradores apps/web/e2e
+git commit -m "feat(web): add Excluir button and Lixeira section for colaboradores"
+```
+
+---
+
+### Task 7: Full-repo verification
 
 **Files:** none (verification only).
 
@@ -1187,7 +2047,11 @@ Expected: PASS (run per-package, not `pnpm turbo run test` — running all packa
 
 - [ ] **Step 3: Manually exercise the golden path in a running app**
 
-With `apps/api`, `infra/mock-idp`, and `apps/web` all running (see `README.md`'s "Running each app in development"): log in as `rh-1`, open `/colaboradores`, click "+ Novo colaborador", fill in the form (including at least one personal field, e.g. CPF), submit, and confirm the dialog closes and the new colaborador appears in the roster list. Then try submitting a second colaborador with the same CPF and confirm the inline "Já existe um colaborador cadastrado com esse CPF." error appears without losing the entered data.
+With `apps/api`, `infra/mock-idp`, and `apps/web` all running (see `README.md`'s "Running each app in development"): log in as `rh-1`, open `/colaboradores`.
+
+Creation: click "+ Novo colaborador", fill in the form (including at least one personal field, e.g. CPF), submit, and confirm the dialog closes and the new colaborador appears in the roster list. Then try submitting a second colaborador with the same CPF and confirm the inline "Já existe um colaborador cadastrado com esse CPF." error appears without losing the entered data.
+
+Exclusão lógica: click "Excluir" on a colaborador and confirm they disappear from the roster and from the home page's presence panel (`/`). Open the "Lixeira" section and confirm they appear there. Click "Restaurar" and confirm they reappear in the roster and the presence panel. Click "Excluir" again, then open the Lixeira and click "Excluir permanentemente" — confirm they're gone from the Lixeira too (and, if you re-check the database or re-run the API's employees list, that the row no longer exists at all).
 
 - [ ] **Step 4: Report status update to the spec**
 
