@@ -13,6 +13,10 @@ const PORT = process.env.PORT || 3000;
 let seeded = {};
 let recordedRequests = [];
 
+function seedKey(method, path) {
+  return `${method} ${path}`;
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let raw = "";
@@ -39,7 +43,11 @@ const server = http.createServer(async (req, res) => {
   const body = await readBody(req).catch(() => undefined);
 
   if (req.method === "POST" && url.pathname === "/__seed") {
-    seeded[body.path] = body.response;
+    const method = body.method ?? "GET";
+    seeded[seedKey(method, body.path)] = {
+      response: body.response,
+      status: body.status ?? 200,
+    };
     return sendJson(res, 204, null);
   }
 
@@ -55,8 +63,9 @@ const server = http.createServer(async (req, res) => {
 
   recordedRequests.push({ method: req.method, path: url.pathname, body });
 
-  if (req.method === "GET" && url.pathname in seeded) {
-    return sendJson(res, 200, seeded[url.pathname]);
+  const seedEntry = seeded[seedKey(req.method, url.pathname)];
+  if (seedEntry) {
+    return sendJson(res, seedEntry.status, seedEntry.response);
   }
   if (req.method === "GET" && url.pathname === "/atestados/team") {
     return sendJson(res, 200, []);
@@ -124,6 +133,9 @@ const server = http.createServer(async (req, res) => {
     )
   ) {
     return sendJson(res, 200, { ...body });
+  }
+  if (req.method === "PATCH" && /^\/employees\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 200, { userId: url.pathname.split("/")[2], ...body });
   }
 
   sendJson(res, 404, { error: `no fake-api handler for ${req.method} ${url.pathname}` });

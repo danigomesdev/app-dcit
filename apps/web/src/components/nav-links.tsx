@@ -7,6 +7,7 @@ import styles from "./app-shell.module.css";
 
 const NAV_SECTIONS = [
   { href: "/", label: "Ponto" },
+  { href: "/colaboradores", label: "Colaboradores" },
   { href: "/escala", label: "Escala" },
   { href: "/aprovacoes", label: "Aprovações" },
   { href: "/documentos", label: "Documentos" },

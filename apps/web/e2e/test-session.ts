@@ -149,3 +149,20 @@ export async function getRecordedRequests(
   const res = await request.get(`${FAKE_API_URL}/__requests`);
   return res.json();
 }
+
+// General-purpose seeding for a specific method+path+status, used where the
+// typed mockApi() helper's GET-only, always-200 seeding isn't expressive
+// enough (e.g. simulating a failed PATCH, or a specific poll response).
+export async function seedResponse(
+  request: APIRequestContext,
+  options: { method: string; path: string; status?: number; response: unknown }
+) {
+  await request.post(`${FAKE_API_URL}/__seed`, {
+    data: {
+      method: options.method,
+      path: options.path,
+      status: options.status ?? 200,
+      response: options.response,
+    },
+  });
+}

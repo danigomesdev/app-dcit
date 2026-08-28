@@ -1,0 +1,78 @@
+.page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.subheading {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-background-element);
+}
+
+.itemName {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeInput {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.saveButton {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-background);
+  background: var(--color-text);
+  cursor: pointer;
+}
+
+.saveButton:hover {
+  opacity: 0.85;
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--color-text);
+}

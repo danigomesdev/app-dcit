@@ -12,6 +12,7 @@ test("sidebar renders both sections and navigates between them", async ({
   await page.goto("/");
 
   await expect(page.getByRole("link", { name: "Ponto" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Colaboradores" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Escala" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Aprovações" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Documentos" })).toBeVisible();
