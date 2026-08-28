@@ -31,31 +31,31 @@ export class TimeEntriesService {
 
   // Same pairing rule as the mobile app's summarizeDay (ponto-context.tsx):
   // sequential punches alternate clock-in/clock-out. Which TimeEntry rows
-  // count as "today" stays UTC-based (server clock), matching the rest of
-  // this method's pre-existing behavior — only the *business* notion of
-  // "today" used for the weekend/férias/atestado/atraso checks below is
-  // São Paulo-aware (see ../common/sao-paulo-time).
+  // count as "today" is São Paulo-aware, matching the *business* notion of
+  // "today" used for the weekend/férias/atestado/atraso checks below (see
+  // ../common/sao-paulo-time). São Paulo is a fixed UTC-3 offset with no
+  // DST since 2019, so São Paulo midnight is always UTC 03:00 the same day.
   async listTeamToday() {
     const employees = await this.prisma.employee.findMany({
       orderBy: { name: 'asc' },
     });
     const userIds = employees.map((employee) => employee.userId);
 
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const startOfDay = new Date(`${todayKey}T00:00:00.000Z`);
-    const endOfDay = new Date(`${todayKey}T23:59:59.999Z`);
+    const todaySP = todaySaoPauloDateOnly();
+    const todaySPMidnightUTC = new Date(`${todaySP}T00:00:00.000Z`);
+    const weekend = isWeekend(todaySP);
+
+    const startOfDay = new Date(`${todaySP}T03:00:00.000Z`); // São Paulo midnight = UTC 03:00 (UTC-3, no DST)
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setUTCDate(endOfDay.getUTCDate() + 1); // next São Paulo midnight (exclusive upper bound)
 
     const entries = await this.prisma.timeEntry.findMany({
       where: {
         userId: { in: userIds },
-        clockedAt: { gte: startOfDay, lte: endOfDay },
+        clockedAt: { gte: startOfDay, lt: endOfDay },
       },
       orderBy: { clockedAt: 'asc' },
     });
-
-    const todaySP = todaySaoPauloDateOnly();
-    const todaySPMidnightUTC = new Date(`${todaySP}T00:00:00.000Z`);
-    const weekend = isWeekend(todaySP);
     const nowSPMinutes = minutesSinceMidnight(nowSaoPauloTimeOnly());
 
     const vacations = await this.prisma.vacationRequest.findMany({

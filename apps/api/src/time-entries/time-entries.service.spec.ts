@@ -47,6 +47,7 @@ describe('TimeEntriesService', () => {
             'presence-atrasado',
             'presence-tolerancia',
             'presence-sem-horario',
+            'presence-sp-query-window',
           ],
         },
       },
@@ -480,6 +481,31 @@ describe('TimeEntriesService', () => {
       expect(
         results.find((r) => r.userId === 'presence-sem-horario')?.status,
       ).toBe('sem_registro');
+    });
+
+    it('includes a punch from earlier the same São Paulo day even after the UTC calendar day has rolled over', async () => {
+      // Real time 2026-08-29T02:30:00.000Z = 2026-08-28 23:30 in São Paulo —
+      // still Friday night locally, even though UTC has already rolled to
+      // Saturday. The query window must be based on São Paulo's calendar
+      // day, not UTC's: before the fix, `todayKey` would compute to
+      // 2026-08-29 while this punch is dated 2026-08-28, so it would fall
+      // outside the window and the employee would wrongly show 0 entries
+      // and (with expectedStartTime set) "atrasado" instead of
+      // "trabalhando" for someone who worked all day.
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-29T02:30:00.000Z'));
+      await prisma.employee.create({
+        data: baseEmployee('presence-sp-query-window', '09:00'),
+      });
+      await service.create({
+        userId: 'presence-sp-query-window',
+        clockedAt: '2026-08-28T12:00:00.000Z', // 09:00 São Paulo, same Friday
+      });
+
+      const results = await service.listTeamToday();
+
+      expect(
+        results.find((r) => r.userId === 'presence-sp-query-window')?.status,
+      ).toBe('trabalhando');
     });
   });
 });
