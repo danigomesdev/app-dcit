@@ -50,13 +50,32 @@
   white-space: nowrap;
 }
 
-.statusOpen {
-  color: var(--color-background);
-  background: var(--color-text);
+.statusTrabalhando {
+  color: #ffffff;
+  background: var(--color-status-success);
 }
 
-.statusClosed,
-.statusNone {
+.statusPausa {
+  color: #ffffff;
+  background: var(--color-status-warning);
+}
+
+.statusAtrasado {
+  color: #ffffff;
+  background: var(--color-status-danger);
+}
+
+.statusNeutro {
   color: var(--color-text-secondary);
   background: var(--color-background-selected);
+}
+
+.statusFerias {
+  color: #ffffff;
+  background: var(--color-status-info);
+}
+
+.statusAtestado {
+  color: #ffffff;
+  background: var(--color-status-special);
 }
