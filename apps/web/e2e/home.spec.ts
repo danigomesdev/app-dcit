@@ -140,7 +140,12 @@ test("keeps showing the last known data when a poll fails", async ({ page, conte
     status: 500,
     response: { message: "Internal server error" },
   });
-  await page.clock.fastForward(60_000);
+
+  const failedPoll = page.waitForResponse(
+    (res) => res.url().includes("/api/team-presence") && res.status() === 500
+  );
+  await page.clock.runFor(60_000);
+  await failedPoll;
 
   // The failed poll must not clear or blank the panel.
   await expect(page.getByText("Ana")).toBeVisible();
