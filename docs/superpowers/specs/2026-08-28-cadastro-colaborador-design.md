@@ -34,10 +34,11 @@ model Employee {
   enderecoCidade    String?
   enderecoEstado    String?  // UF, 2 letras
   enderecoCep       String?  // 8 dígitos, sem hífen
+  deletedAt         DateTime? // null = ativo. Não-nulo = na lixeira.
 }
 ```
 
-Migração Prisma adiciona as 10 colunas (todas nullable, sem default) e o índice único em `cpf`. Colaboradores existentes (já seedados) ficam com todos os campos novos `null`.
+Migração Prisma adiciona as 11 colunas (todas nullable, sem default) e o índice único em `cpf`. Colaboradores existentes (já seedados) ficam com todos os campos novos `null` (ativos).
 
 ## 3. `packages/shared-types`
 
@@ -168,6 +169,81 @@ Adiciona:
 
 (imports `Post`, `HttpCode` de `@nestjs/common` e `EmployeeCreateSchema` de `@ponto-dcit/shared-types`, adicionados aos já existentes). Mesma role (`rh`) do `PATCH` já existente — cadastro é ação de RH, igual edição de horário.
 
+### 4.3 Exclusão lógica (lixeira)
+
+**Decisão confirmada:** excluir um colaborador é sempre uma exclusão lógica (marca `deletedAt`) — ele some das listas de colaboradores ativos até ser restaurado ou apagado de vez pela lixeira.
+
+**Endpoints novos em `EmployeesController`** (todos `@Roles('rh')`):
+
+```typescript
+@Get('trash')
+listTrash() {
+  return this.employees.listTrash();
+}
+
+@Delete(':userId')
+@HttpCode(204)
+async softDelete(@Param('userId') userId: string) {
+  await this.employees.softDelete(userId);
+}
+
+@Patch(':userId/restore')
+restore(@Param('userId') userId: string) {
+  return this.employees.restore(userId);
+}
+
+@Delete(':userId/permanent')
+@HttpCode(204)
+async permanentlyDelete(@Param('userId') userId: string) {
+  await this.employees.permanentlyDelete(userId);
+}
+```
+
+**Métodos novos em `EmployeesService`:**
+
+```typescript
+listTrash() {
+  return this.prisma.employee.findMany({
+    where: { deletedAt: { not: null } },
+    orderBy: { deletedAt: 'desc' },
+  });
+}
+
+softDelete(userId: string) {
+  return this.prisma.employee.update({
+    where: { userId },
+    data: { deletedAt: new Date() },
+  });
+}
+
+restore(userId: string) {
+  return this.prisma.employee.update({
+    where: { userId },
+    data: { deletedAt: null },
+  });
+}
+
+async permanentlyDelete(userId: string) {
+  const employee = await this.prisma.employee.findUnique({ where: { userId } });
+  if (!employee || employee.deletedAt === null) {
+    throw new BadRequestException(
+      'Só é possível excluir permanentemente um colaborador que já está na lixeira.',
+    );
+  }
+  await this.prisma.employee.delete({ where: { userId } });
+}
+```
+
+`list()` (usado por `GET /employees`, a rota consumida pelo roster de `/colaboradores` e pelo seletor de pessoa da escala) ganha um filtro `where: { deletedAt: null }` — só colaboradores ativos.
+
+**Onde mais um colaborador "ativo" aparece — e onde não precisa mudar.** Uma varredura em `apps/api/src` encontrou 8 lugares que fazem `prisma.employee.findMany(...)`. Só 3 são listas de "quem são os colaboradores" (e por isso precisam do filtro); os outros 5 são buscas de nome para registros que já existem (aprovações, saldos de benefícios, sobreaviso, deslocamentos, escala) e já têm um fallback (`?? record.userId`) para quando o `Employee` não é encontrado — filtrar esses faria um colaborador excluído "sumir do nome" em registros históricos que ele criou antes de ser excluído, o que não é o comportamento pedido (a intenção é ele não aparecer mais como colaborador ativo, não apagar o rastro de coisas que ele já fez). Ganham o filtro `deletedAt: null`:
+
+1. `apps/api/src/employees/employees.service.ts` — `list()` (já citado acima).
+2. `apps/api/src/time-entries/time-entries.service.ts` — `listTeamToday()` (painel de presença — um colaborador excluído não pode continuar aparecendo como "Atrasado" para sempre).
+3. `apps/api/src/onboarding/onboarding.service.ts` — `listTeamProgress()` (itera todos os `Employee` diretamente para montar o checklist da equipe).
+
+Não ganham o filtro (permanecem exatamente como estão): `documentos.service.ts` (`withRequesterNames`), `beneficios.service.ts` (`listAllBalances`), `solicitacoes.service.ts` (`withRequesterNames`), `operacional.service.ts` (`listActiveSobreaviso`, `listAllDeslocamentos`, `listShifts`).
+
 ## 5. Web (`apps/web`)
 
 ### 5.1 Botão + diálogo de cadastro
@@ -237,6 +313,16 @@ Adiciona classes reaproveitando padrões já existentes no app:
 - `.dialog`, `.dialog::backdrop`, `.dialogTitle`, `.dialogActions`, `.dialogClose` — copiadas de `onboarding.module.css` (mesmos valores).
 - `.addButton` — mesmo estilo de `.saveButton` já existente neste arquivo.
 - `.fieldGrid`, `.field`, `.fieldLabel`, `.fieldInput`, `.fieldSelect` — grade de 2 colunas para os 13 campos do formulário, inputs/selects reaproveitando o estilo de `.timeInput` já existente neste arquivo (mesmos `padding`/`border`/`border-radius`/`font-size`).
+- `.deleteButton` — contorno e texto em `var(--color-status-danger)` (token já existente, adicionado em `globals.css` pela spec do mapa de presença), preenchido no hover.
+- `.trash`, `.trashSummary` — o `<details>` retrátil da lixeira.
+
+### 5.4 Botão de excluir + seção "Lixeira"
+
+**Botão "Excluir" em cada linha do roster** (`colaboradores-row.tsx`): um segundo `<form>` dentro do `<li>`, ao lado do form de horário já existente, com um único campo oculto (`userId`) e um botão que chama a nova Server Action `deleteEmployee`. Sem confirmação — mesmo padrão direto do botão "Remover" já usado em `apps/web/src/app/(app)/escala/page.tsx` (`<form action={removeShift}>`). A ação chama `DELETE /employees/:userId` e revalida `/colaboradores` e `/` (o colaborador precisa sumir do painel de presença também).
+
+**Nova seção "Lixeira"**, novo arquivo `apps/web/src/app/(app)/colaboradores/lixeira-section.tsx` — Server Component (não precisa de estado de cliente), busca `GET /employees/trash` e renderiza dentro de um `<details><summary>Lixeira (N)</summary>...</details>`, cada linha com dois forms: "Restaurar" (`PATCH /employees/:userId/restore`) e "Excluir permanentemente" (`DELETE /employees/:userId/permanent`), ambos sem confirmação — a lixeira já é a camada de segurança contra exclusão acidental. `page.tsx` renderiza `<LixeiraSection />` no fim da página, depois da lista principal.
+
+`actions.ts` ganha três novas Server Actions (`deleteEmployee`, `restoreEmployee`, `permanentlyDeleteEmployee`), todas no mesmo estilo simples de `addShift`/`removeShift` em `escala/actions.ts` (leem `userId` do `FormData`, `throw` em caso de falha — sem `useActionState`, já que não há erro esperado em uso normal).
 
 ## 6. Testes
 
@@ -248,18 +334,22 @@ Adiciona classes reaproveitando padrões já existentes no app:
   - Clicar em "+ Novo colaborador" abre o diálogo com todos os campos.
   - Preencher os campos obrigatórios e enviar chama a API com o corpo esperado (campos pessoais vazios viram `null`), fecha o diálogo, e o novo colaborador aparece na lista.
   - CPF duplicado (fake API seedada pra devolver 409) mostra a mensagem de erro inline sem fechar o diálogo.
+  - Clicar em "Excluir" numa linha chama `DELETE /employees/:userId`.
+  - A seção "Lixeira" lista quem tem `deletedAt`; "Restaurar" chama `PATCH /employees/:userId/restore`; "Excluir permanentemente" chama `DELETE /employees/:userId/permanent`.
 
 ## 7. Erros e casos de borda
 
 - CPF duplicado → 409 → mensagem inline, diálogo permanece aberto com os dados preenchidos (usuário pode corrigir o CPF sem redigitar tudo).
 - Corpo inválido (ex: UF com 3 letras) → 400 → mensagem genérica de erro (sem detalhamento por campo, ver seção 5.2).
 - `role`/`hireDate`/`name` ausentes → mesmo tratamento de 400.
+- Tentar excluir permanentemente um colaborador que não está na lixeira (`deletedAt === null`) → 400 (`permanentlyDelete` verifica isso explicitamente antes de apagar).
 
 ## 8. Fora de escopo (referência para o plano de implementação)
 
 - Reconciliar um `Employee` cadastrado por este formulário com uma conta de login real (SSO/OIDC) que apareça depois com o mesmo nome/CPF — hoje são identidades completamente desconectadas (`userId` aleatório vs. `sub` do IdP). Se isso vier a ser necessário, é uma spec própria.
 - Edição dos dados pessoais depois de cadastrados (esta spec cobre só criação; `PATCH /employees/:userId` continua só editando `expectedStartTime`) — editar CPF/RG/endereço/etc. de um colaborador já cadastrado fica para um follow-up.
-- Exclusão de colaborador.
 - Validação de dígito verificador de CPF.
 - Upload de documentos (RG/CPF digitalizados) — já existe `AdmissionDocument` para isso, sem relação direta com os campos estruturados desta spec.
 - Máscara de digitação nos campos (CPF `000.000.000-00`, CEP `00000-000`) — os inputs aceitam e validam só dígitos crus.
+- Confirmação (dialog "tem certeza?") antes de excluir ou excluir permanentemente — decisão confirmada: a lixeira já é a camada de segurança, sem fricção extra.
+- Esvaziar a lixeira automaticamente depois de um tempo (ex: 30 dias) — a exclusão permanente é sempre manual nesta entrega.
