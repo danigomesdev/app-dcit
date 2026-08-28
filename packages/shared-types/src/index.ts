@@ -44,3 +44,5 @@ export { EscalaShiftInputSchema } from "./escala";
 export type { EscalaShiftInput } from "./escala";
 export { EmployeeScheduleUpdateSchema } from "./employee-schedule";
 export type { EmployeeScheduleUpdate } from "./employee-schedule";
+export { EmployeeCreateSchema, ESTADOS_CIVIS, UFS } from "./employee-create";
+export type { EmployeeCreateInput } from "./employee-create";
