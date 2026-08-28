@@ -39,6 +39,7 @@ describe('TimeEntriesService', () => {
             'presence-atestado-today',
             'presence-atestado-lastday',
             'presence-atestado-nextday',
+            'presence-atestado-sp-boundary',
             'presence-4-entries',
             'presence-odd-1',
             'presence-odd-3',
@@ -62,6 +63,7 @@ describe('TimeEntriesService', () => {
             'presence-atestado-today',
             'presence-atestado-lastday',
             'presence-atestado-nextday',
+            'presence-atestado-sp-boundary',
           ],
         },
       },
@@ -293,6 +295,38 @@ describe('TimeEntriesService', () => {
         '2026-08-27T00:00:00.000Z',
       );
       expect(found?.periodEnd?.toISOString()).toBe('2026-08-29T00:00:00.000Z');
+    });
+
+    it('truncates periodStart in São Paulo time, not UTC, when submitted late in the SP evening', async () => {
+      // Real time 2026-08-27T02:00:00Z = 2026-08-26 23:00 in São Paulo — still
+      // Wednesday Aug 26 locally, even though the UTC date has already rolled
+      // to Aug 27. A createdAt at this exact moment must not be UTC-truncated
+      // to Aug 27 for periodStart, or the atestado wrongly appears to start
+      // "tomorrow" relative to São Paulo's "today".
+      const SP_LATE_EVENING = new Date('2026-08-27T02:00:00.000Z');
+      jest.useFakeTimers().setSystemTime(SP_LATE_EVENING);
+      await prisma.employee.create({
+        data: baseEmployee('presence-atestado-sp-boundary'),
+      });
+      await prisma.atestado.create({
+        data: {
+          userId: 'presence-atestado-sp-boundary',
+          userName: 'presence-atestado-sp-boundary',
+          dias: 1,
+          status: 'aprovado',
+          createdAt: SP_LATE_EVENING,
+        },
+      });
+
+      const results = await service.listTeamToday();
+
+      const found = results.find(
+        (r) => r.userId === 'presence-atestado-sp-boundary',
+      );
+      expect(found?.status).toBe('atestado');
+      expect(found?.periodStart?.toISOString()).toBe(
+        '2026-08-26T00:00:00.000Z',
+      );
     });
 
     it('is still "atestado" on the last day of the period (início + dias - 1)', async () => {

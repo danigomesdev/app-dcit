@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { TimeEntryInput } from '@ponto-dcit/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  dateOnlyInSaoPaulo,
   isWeekend,
   minutesSinceMidnight,
   nowSaoPauloTimeOnly,
@@ -85,7 +86,7 @@ export class TimeEntriesService {
     >();
     for (const atestado of atestados) {
       const periodStart = new Date(
-        `${atestado.createdAt.toISOString().slice(0, 10)}T00:00:00.000Z`,
+        `${dateOnlyInSaoPaulo(atestado.createdAt)}T00:00:00.000Z`,
       );
       const periodEnd = new Date(periodStart);
       periodEnd.setUTCDate(periodEnd.getUTCDate() + (atestado.dias ?? 0));
