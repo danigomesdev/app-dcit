@@ -1,0 +1,265 @@
+# Cadastro de Colaborador — Ponto DCIT
+
+**Status:** Aprovado para implementação
+**Spec funcional de referência:** [`docs/spec-funcional.md`](../../spec-funcional.md) (v2) — não cobre cadastro de colaborador diretamente; esta spec preenche uma lacuna operacional identificada durante o uso do painel de presença (não havia como criar um `Employee` pela aplicação, só via seed).
+**Spec relacionada:** [`docs/superpowers/specs/2026-08-28-mapa-de-presenca-design.md`](2026-08-28-mapa-de-presenca-design.md) — introduziu a tela `/colaboradores` (RH) que esta spec estende.
+
+## 1. Objetivo e escopo
+
+Hoje não existe nenhum caminho, dentro da aplicação, para criar um `Employee` — a única forma é o script de seed (`apps/api/prisma/seed.ts`), que insere 3 contas fixas de desenvolvimento. `Employee.userId` é hoje o mesmo `sub` usado no login (OIDC), mas sem nenhuma restrição de banco que force essa igualdade.
+
+Esta spec adiciona:
+- Um ícone "+" em `/colaboradores` que abre um diálogo de cadastro completo (nome, cargo, data de admissão, e dados pessoais: CPF, RG, data de nascimento, estado civil, endereço).
+- Um novo endpoint `POST /employees` (RH) que gera um `userId` aleatório no servidor e cria o registro — **decisão confirmada com o usuário:** o cadastro não fica vinculado a nenhuma conta de login existente; é um registro de RH independente. Reconciliar esse registro com um login real de SSO no futuro (se a pessoa cadastrada vier a ter acesso ao sistema) fica fora do escopo — ver seção 8.
+- Novos campos pessoais no modelo `Employee`, todos opcionais (nome/cargo/admissão continuam obrigatórios, como já são hoje).
+
+**Decisão confirmada:** os novos dados pessoais (CPF, RG, nascimento, estado civil, endereço) **não são mascarados** para gestor — `GET /employees` retorna tudo igual para gestor e RH. Isso é diferente do padrão de mascaramento usado em `atestados` (CID/médico/CRM só para RH); aqui foi uma escolha explícita do usuário, registrada para não ser "corrigida" por engano numa iteração futura.
+
+## 2. Modelo de dados (`apps/api/prisma/schema.prisma`)
+
+```prisma
+model Employee {
+  userId            String   @id
+  name              String
+  role              String
+  hireDate          DateTime
+  expectedStartTime String?  // "HH:mm", 24h, América/São_Paulo. null = never "atrasado".
+  cpf               String?  @unique // 11 dígitos, sem pontuação
+  rg                String?
+  dataNascimento    DateTime?
+  estadoCivil       String?  // "solteiro" | "casado" | "divorciado" | "viuvo" | "uniao_estavel"
+  enderecoRua       String?
+  enderecoNumero    String?
+  enderecoBairro    String?
+  enderecoCidade    String?
+  enderecoEstado    String?  // UF, 2 letras
+  enderecoCep       String?  // 8 dígitos, sem hífen
+}
+```
+
+Migração Prisma adiciona as 10 colunas (todas nullable, sem default) e o índice único em `cpf`. Colaboradores existentes (já seedados) ficam com todos os campos novos `null`.
+
+## 3. `packages/shared-types`
+
+Novo arquivo `employee-create.ts`:
+
+```typescript
+import { z } from "zod";
+
+import { RoleSchema } from "./role";
+
+export const ESTADOS_CIVIS = [
+  "solteiro",
+  "casado",
+  "divorciado",
+  "viuvo",
+  "uniao_estavel",
+] as const;
+
+// As 27 UFs do Brasil — lista fixa, mesmo raciocínio de ESTADOS_CIVIS (evitar
+// dado sujo; "ZZ" não deve ser um estado válido).
+export const UFS = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
+  "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC",
+  "SP", "SE", "TO",
+] as const;
+
+export const EmployeeCreateSchema = z.object({
+  name: z.string().min(1),
+  role: RoleSchema,
+  hireDate: z.string().date(),
+  cpf: z.string().regex(/^\d{11}$/).nullable(),
+  rg: z.string().min(1).nullable(),
+  dataNascimento: z.string().date().nullable(),
+  estadoCivil: z.enum(ESTADOS_CIVIS).nullable(),
+  enderecoRua: z.string().min(1).nullable(),
+  enderecoNumero: z.string().min(1).nullable(),
+  enderecoBairro: z.string().min(1).nullable(),
+  enderecoCidade: z.string().min(1).nullable(),
+  enderecoEstado: z.enum(UFS).nullable(),
+  enderecoCep: z.string().regex(/^\d{8}$/).nullable(),
+});
+export type EmployeeCreateInput = z.infer<typeof EmployeeCreateSchema>;
+```
+
+CPF e CEP são validados só por formato (11 e 8 dígitos, sem pontuação) — sem algoritmo de dígito verificador de CPF, consistente com o nível de validação já usado no resto do app (ex: `HH:mm` de `EmployeeScheduleUpdateSchema`). `hireDate`/`dataNascimento` seguem o mesmo `z.string().date()` já usado em `VacationRequestInputSchema`/`EscalaShiftInputSchema` (data sem hora, `"YYYY-MM-DD"`).
+
+Exportado de `index.ts`: `EmployeeCreateSchema`, `EmployeeCreateInput`, `ESTADOS_CIVIS`, `UFS`.
+
+## 4. Backend (`apps/api`)
+
+### 4.1 `apps/api/src/employees/employees.service.ts`
+
+```typescript
+import { randomUUID } from 'node:crypto';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { EmployeeCreateInput, EmployeeScheduleUpdate } from '@ponto-dcit/shared-types';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class EmployeesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  list() {
+    return this.prisma.employee.findMany({
+      orderBy: { name: 'asc' },
+    }); // sem select explícito: já retorna todos os campos, incluindo os novos
+  }
+
+  updateSchedule(userId: string, input: EmployeeScheduleUpdate) {
+    return this.prisma.employee.update({
+      where: { userId },
+      data: { expectedStartTime: input.expectedStartTime },
+    });
+  }
+
+  async create(input: EmployeeCreateInput) {
+    try {
+      return await this.prisma.employee.create({
+        data: {
+          userId: randomUUID(),
+          name: input.name,
+          role: input.role,
+          hireDate: new Date(input.hireDate),
+          cpf: input.cpf,
+          rg: input.rg,
+          dataNascimento: input.dataNascimento ? new Date(input.dataNascimento) : null,
+          estadoCivil: input.estadoCivil,
+          enderecoRua: input.enderecoRua,
+          enderecoNumero: input.enderecoNumero,
+          enderecoBairro: input.enderecoBairro,
+          enderecoCidade: input.enderecoCidade,
+          enderecoEstado: input.enderecoEstado,
+          enderecoCep: input.enderecoCep,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('Já existe um colaborador cadastrado com esse CPF.');
+      }
+      throw error;
+    }
+  }
+}
+```
+
+`list()` perde o `select` explícito — a lista de campos selecionados manualmente (`userId, name, expectedStartTime`) ficaria desatualizada a cada novo campo pessoal adicionado; retornar o registro completo é mais simples e já é o padrão usado em outros `findMany` do app (ex: `TimeEntriesService.listTeamToday`'s `employees.findMany` sem select).
+
+`create()` segue exatamente o padrão try/catch de `OperacionalService.createShift` (já existente em `apps/api/src/operacional/operacional.service.ts:139-159`) para traduzir a violação de unicidade do Prisma (`P2002`) em `ConflictException` (409) com mensagem amigável.
+
+### 4.2 `apps/api/src/employees/employees.controller.ts`
+
+Adiciona:
+
+```typescript
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Post()
+  @HttpCode(201)
+  async create(@Body() body: unknown) {
+    const result = EmployeeCreateSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    return this.employees.create(result.data);
+  }
+```
+
+(imports `Post`, `HttpCode` de `@nestjs/common` e `EmployeeCreateSchema` de `@ponto-dcit/shared-types`, adicionados aos já existentes). Mesma role (`rh`) do `PATCH` já existente — cadastro é ação de RH, igual edição de horário.
+
+## 5. Web (`apps/web`)
+
+### 5.1 Botão + diálogo de cadastro
+
+Novo Client Component `apps/web/src/app/(app)/colaboradores/novo-colaborador-dialog.tsx`, seguindo o mesmo padrão de `<dialog>` + `useRef` + `showModal()`/`close()` já usado em `onboarding-row.tsx`, combinado com `useActionState` já usado em `colaboradores-row.tsx`:
+
+- Um botão "+ Novo colaborador" que abre o diálogo.
+- Formulário dentro do diálogo com todos os campos da seção 3: nome (texto), cargo (`<select>`: Colaborador/Gestor/RH), data de admissão (`type="date"`), CPF (texto, 11 dígitos), RG (texto), data de nascimento (`type="date"`), estado civil (`<select>` com as 5 opções de `ESTADOS_CIVIS`, rotuladas em português: "Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)", "União estável"), e endereço em 6 campos: rua, número, bairro, cidade, estado (`<select>` com as 27 opções de `UFS`), CEP.
+- Campos pessoais (tudo exceto nome/cargo/admissão) são opcionais no formulário — enviados como `null` se vazios, mesmo padrão de `expectedStartTime` em `colaboradores-row.tsx`.
+- Em sucesso: fecha o diálogo (`dialogRef.current?.close()`) e a lista é atualizada via `revalidatePath` (o Server Action já cuida disso — o `useActionState` reage ao novo estado, e um `useEffect` fecha o diálogo quando `state.success` fica `true`).
+- Em erro: mensagem inline dentro do diálogo (mesmo padrão de `state.error` já usado).
+
+`apps/web/src/app/(app)/colaboradores/page.tsx` importa e renderiza `<NovoColaboradorDialog />` ao lado do `<h1>`.
+
+### 5.2 `apps/web/src/app/(app)/colaboradores/actions.ts`
+
+Adiciona:
+
+```typescript
+export type CreateEmployeeState = { error: string | null; success: boolean };
+
+export async function createEmployee(
+  _prevState: CreateEmployeeState,
+  formData: FormData
+): Promise<CreateEmployeeState> {
+  const raw = Object.fromEntries(formData.entries());
+  const toNullable = (key: string) => (raw[key] === "" ? null : raw[key]);
+
+  const payload = {
+    name: raw.name,
+    role: raw.role,
+    hireDate: raw.hireDate,
+    cpf: toNullable("cpf"),
+    rg: toNullable("rg"),
+    dataNascimento: toNullable("dataNascimento"),
+    estadoCivil: toNullable("estadoCivil"),
+    enderecoRua: toNullable("enderecoRua"),
+    enderecoNumero: toNullable("enderecoNumero"),
+    enderecoBairro: toNullable("enderecoBairro"),
+    enderecoCidade: toNullable("enderecoCidade"),
+    enderecoEstado: toNullable("enderecoEstado"),
+    enderecoCep: toNullable("enderecoCep"),
+  };
+
+  const res = await apiFetch("/employees", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    if (res.status === 409) {
+      return { error: "Já existe um colaborador cadastrado com esse CPF.", success: false };
+    }
+    return { error: `Não foi possível salvar (código ${res.status}).`, success: false };
+  }
+
+  revalidatePath("/colaboradores");
+  return { error: null, success: true };
+}
+```
+
+Diferente de `updateSchedule`, a validação de formato (CPF 11 dígitos, UF 2 letras, etc.) **não** é duplicada no cliente — o payload é só normalizado (`"" → null`) e a validação real acontece no `EmployeeCreateSchema.safeParse` do backend; um 400 vira `"Não foi possível salvar (código 400)."`. Isso é uma simplificação deliberada (13 campos com validação client-side duplicada seria muito código repetido do schema do backend); se o feedback de validação por campo for importante depois, é um follow-up natural, não desta entrega.
+
+### 5.3 `apps/web/src/app/(app)/colaboradores/colaboradores.module.css`
+
+Adiciona classes reaproveitando padrões já existentes no app:
+- `.dialog`, `.dialog::backdrop`, `.dialogTitle`, `.dialogActions`, `.dialogClose` — copiadas de `onboarding.module.css` (mesmos valores).
+- `.addButton` — mesmo estilo de `.saveButton` já existente neste arquivo.
+- `.fieldGrid`, `.field`, `.fieldLabel`, `.fieldInput`, `.fieldSelect` — grade de 2 colunas para os 13 campos do formulário, inputs/selects reaproveitando o estilo de `.timeInput` já existente neste arquivo (mesmos `padding`/`border`/`border-radius`/`font-size`).
+
+## 6. Testes
+
+- **`shared-types`**: `employee-create.test.ts` — aceita payload completo válido; aceita todos os campos pessoais como `null`; rejeita CPF com formato errado (com pontuação, menos de 11 dígitos); rejeita UF inválida (3 letras, minúscula); rejeita `estadoCivil` fora da lista fixa; rejeita `role` inválido; rejeita `name`/`hireDate` ausentes.
+- **API**:
+  - `EmployeesService.create`: persiste com um `userId` gerado (não fornecido no input); persiste com todos os campos pessoais `null`; lança `ConflictException` ao tentar criar um segundo registro com o mesmo CPF (teste real contra Prisma, criando dois registros).
+  - `EmployeesController`: guard metadata do `create` (`AuthGuard` + `RolesGuard`, `@Roles(['rh'])`, não `['gestor','rh']`); 400 em corpo inválido antes de chamar o service; delega corpo válido para o service.
+- **Web**: estende `apps/web/e2e/colaboradores.spec.ts` (e `fake-api-server.mjs`, adicionando `POST /employees` — sucesso 201 e um caminho de seed para simular 409):
+  - Clicar em "+ Novo colaborador" abre o diálogo com todos os campos.
+  - Preencher os campos obrigatórios e enviar chama a API com o corpo esperado (campos pessoais vazios viram `null`), fecha o diálogo, e o novo colaborador aparece na lista.
+  - CPF duplicado (fake API seedada pra devolver 409) mostra a mensagem de erro inline sem fechar o diálogo.
+
+## 7. Erros e casos de borda
+
+- CPF duplicado → 409 → mensagem inline, diálogo permanece aberto com os dados preenchidos (usuário pode corrigir o CPF sem redigitar tudo).
+- Corpo inválido (ex: UF com 3 letras) → 400 → mensagem genérica de erro (sem detalhamento por campo, ver seção 5.2).
+- `role`/`hireDate`/`name` ausentes → mesmo tratamento de 400.
+
+## 8. Fora de escopo (referência para o plano de implementação)
+
+- Reconciliar um `Employee` cadastrado por este formulário com uma conta de login real (SSO/OIDC) que apareça depois com o mesmo nome/CPF — hoje são identidades completamente desconectadas (`userId` aleatório vs. `sub` do IdP). Se isso vier a ser necessário, é uma spec própria.
+- Edição dos dados pessoais depois de cadastrados (esta spec cobre só criação; `PATCH /employees/:userId` continua só editando `expectedStartTime`) — editar CPF/RG/endereço/etc. de um colaborador já cadastrado fica para um follow-up.
+- Exclusão de colaborador.
+- Validação de dígito verificador de CPF.
+- Upload de documentos (RG/CPF digitalizados) — já existe `AdmissionDocument` para isso, sem relação direta com os campos estruturados desta spec.
+- Máscara de digitação nos campos (CPF `000.000.000-00`, CEP `00000-000`) — os inputs aceitam e validam só dígitos crus.
