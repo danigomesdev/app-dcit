@@ -1,6 +1,6 @@
 process.env.DATABASE_URL = 'file:./test.db';
 
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmployeesService } from './employees.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -190,6 +190,73 @@ describe('EmployeesService', () => {
           enderecoCep: null,
         }),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('listTrash / softDelete / restore / permanentlyDelete', () => {
+    it('excludes a soft-deleted employee from list() and includes it in listTrash()', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-trash-a',
+          name: 'Trash Ana',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await service.softDelete('emp-trash-a');
+
+      const active = await service.list();
+      expect(active.find((e) => e.userId === 'emp-trash-a')).toBeUndefined();
+
+      const trashed = await service.listTrash();
+      const found = trashed.find((e) => e.userId === 'emp-trash-a');
+      expect(found).toBeDefined();
+      expect(found?.deletedAt).not.toBeNull();
+    });
+
+    it('restores a soft-deleted employee back into list() and out of listTrash()', async () => {
+      await service.restore('emp-trash-a');
+
+      const active = await service.list();
+      expect(active.find((e) => e.userId === 'emp-trash-a')).toBeDefined();
+
+      const trashed = await service.listTrash();
+      expect(trashed.find((e) => e.userId === 'emp-trash-a')).toBeUndefined();
+    });
+
+    it('permanently deletes an employee that is already in the trash', async () => {
+      await service.softDelete('emp-trash-a');
+
+      await service.permanentlyDelete('emp-trash-a');
+
+      const found = await prisma.employee.findUnique({
+        where: { userId: 'emp-trash-a' },
+      });
+      expect(found).toBeNull();
+    });
+
+    it('throws BadRequestException when permanently deleting an active (non-trashed) employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-trash-b',
+          name: 'Trash Beto',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await expect(service.permanentlyDelete('emp-trash-b')).rejects.toThrow(
+        BadRequestException,
+      );
+
+      await prisma.employee.delete({ where: { userId: 'emp-trash-b' } });
+    });
+
+    it('throws BadRequestException when permanently deleting a userId that does not exist', async () => {
+      await expect(
+        service.permanentlyDelete('emp-does-not-exist'),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

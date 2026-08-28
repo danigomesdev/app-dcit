@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -39,6 +40,36 @@ export class EmployeesController {
       throw new BadRequestException(result.error.flatten());
     }
     return this.employees.create(result.data);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Get('trash')
+  listTrash() {
+    return this.employees.listTrash();
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Delete(':userId')
+  @HttpCode(204)
+  async softDelete(@Param('userId') userId: string) {
+    await this.employees.softDelete(userId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Patch(':userId/restore')
+  restore(@Param('userId') userId: string) {
+    return this.employees.restore(userId);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Delete(':userId/permanent')
+  @HttpCode(204)
+  async permanentlyDelete(@Param('userId') userId: string) {
+    await this.employees.permanentlyDelete(userId);
   }
 
   @UseGuards(AuthGuard, RolesGuard)

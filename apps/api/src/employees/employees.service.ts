@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   EmployeeCreateInput,
@@ -13,8 +17,42 @@ export class EmployeesService {
 
   list() {
     return this.prisma.employee.findMany({
+      where: { deletedAt: null },
       orderBy: { name: 'asc' },
     });
+  }
+
+  listTrash() {
+    return this.prisma.employee.findMany({
+      where: { deletedAt: { not: null } },
+      orderBy: { deletedAt: 'desc' },
+    });
+  }
+
+  softDelete(userId: string) {
+    return this.prisma.employee.update({
+      where: { userId },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  restore(userId: string) {
+    return this.prisma.employee.update({
+      where: { userId },
+      data: { deletedAt: null },
+    });
+  }
+
+  async permanentlyDelete(userId: string) {
+    const employee = await this.prisma.employee.findUnique({
+      where: { userId },
+    });
+    if (!employee || employee.deletedAt === null) {
+      throw new BadRequestException(
+        'Só é possível excluir permanentemente um colaborador que já está na lixeira.',
+      );
+    }
+    await this.prisma.employee.delete({ where: { userId } });
   }
 
   updateSchedule(userId: string, input: EmployeeScheduleUpdate) {

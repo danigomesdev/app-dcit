@@ -16,7 +16,7 @@ export class OnboardingService {
   async listTeamProgress() {
     const [tasks, employees, progress] = await Promise.all([
       this.prisma.onboardingTask.findMany({ orderBy: { order: 'asc' } }),
-      this.prisma.employee.findMany(),
+      this.prisma.employee.findMany({ where: { deletedAt: null } }),
       this.prisma.onboardingProgress.findMany(),
     ]);
     const completedByUser = new Map<string, string[]>();
