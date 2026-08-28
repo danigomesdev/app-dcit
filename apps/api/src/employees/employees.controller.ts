@@ -3,11 +3,16 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Patch,
+  Post,
   UseGuards,
 } from '@nestjs/common';
-import { EmployeeScheduleUpdateSchema } from '@ponto-dcit/shared-types';
+import {
+  EmployeeCreateSchema,
+  EmployeeScheduleUpdateSchema,
+} from '@ponto-dcit/shared-types';
 import { EmployeesService } from './employees.service';
 import { AuthGuard } from '../auth/auth-guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -22,6 +27,18 @@ export class EmployeesController {
   @Get()
   list() {
     return this.employees.list();
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Post()
+  @HttpCode(201)
+  async create(@Body() body: unknown) {
+    const result = EmployeeCreateSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    return this.employees.create(result.data);
   }
 
   @UseGuards(AuthGuard, RolesGuard)
