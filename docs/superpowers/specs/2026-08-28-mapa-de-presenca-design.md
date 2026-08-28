@@ -1,6 +1,6 @@
 # Mapa de Presença (Painel do Gestor) — Ponto DCIT
 
-**Status:** Aprovado para implementação
+**Status:** Implementado
 **Spec funcional de referência:** [`docs/spec-funcional.md`](../../spec-funcional.md) (v2), seção 4.2 ("Mapa de presença ao vivo: quem está trabalhando, em pausa, de folga ou atrasado")
 **Arquitetura de referência:** [`docs/superpowers/specs/2026-08-19-arquitetura-ponto-dcit-design.md`](2026-08-19-arquitetura-ponto-dcit-design.md)
 
