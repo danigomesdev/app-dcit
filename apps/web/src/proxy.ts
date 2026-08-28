@@ -13,19 +13,9 @@ function isStaticAsset(pathname: string): boolean {
   return /\.[^/]+$/.test(pathname);
 }
 
-// API routes should be accessible without middleware auth checks — the route
-// handlers themselves can enforce auth if needed via apiFetch.
-function isApiRoute(pathname: string): boolean {
-  return pathname.startsWith("/api/");
-}
-
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (isStaticAsset(pathname)) {
-    return NextResponse.next();
-  }
-
-  if (isApiRoute(pathname)) {
     return NextResponse.next();
   }
 
