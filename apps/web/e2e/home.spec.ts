@@ -119,7 +119,7 @@ test("polls for updates and re-renders with the new data after 60s", async ({
     path: "/time-entries/team",
     response: [{ userId: "u-1", name: "Ana", entries: [], workedMinutes: 0, status: "trabalhando" }],
   });
-  await page.clock.fastForward(60_000);
+  await page.clock.runFor(60_000);
 
   await expect(page.getByText("Trabalhando", { exact: true })).toBeVisible();
 });
