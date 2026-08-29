@@ -8,7 +8,11 @@ import { RolesGuard } from '../auth/roles.guard';
 import { ROLES_KEY } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
-const GUARDED_HANDLERS = ['getTasks', 'toggleTask', 'listTeamProgress'] as const;
+const GUARDED_HANDLERS = [
+  'getTasks',
+  'toggleTask',
+  'listTeamProgress',
+] as const;
 
 describe('OnboardingController guard metadata', () => {
   it.each(GUARDED_HANDLERS)('applies AuthGuard to %s', (handlerName) => {

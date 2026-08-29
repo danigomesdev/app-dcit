@@ -71,6 +71,10 @@ export class AtestadosController {
     if (!result.success) {
       throw new BadRequestException(result.error.flatten());
     }
-    return this.atestados.updateStatus(id, result.data.status, result.data.reviewNote);
+    return this.atestados.updateStatus(
+      id,
+      result.data.status,
+      result.data.reviewNote,
+    );
   }
 }
