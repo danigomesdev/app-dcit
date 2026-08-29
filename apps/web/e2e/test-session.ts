@@ -59,6 +59,7 @@ export async function mockApi(
     deslocamentos?: unknown[];
     admissionDocuments?: unknown[];
     certifications?: unknown[];
+    jornadaAlerts?: unknown[];
   } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
@@ -145,6 +146,11 @@ export async function mockApi(
   if (data.certifications) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/documentos/certificacoes/equipe", response: data.certifications },
+    });
+  }
+  if (data.jornadaAlerts) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/alertas", response: data.jornadaAlerts },
     });
   }
 }

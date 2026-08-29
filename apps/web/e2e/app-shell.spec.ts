@@ -20,6 +20,7 @@ test("sidebar renders both sections and navigates between them", async ({
   await expect(page.getByRole("link", { name: "Benefícios" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Onboarding" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Operacional" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Alertas" })).toBeVisible();
 
   await page.getByRole("link", { name: "Aprovações" }).click();
   await expect(page).toHaveURL(/\/aprovacoes$/);

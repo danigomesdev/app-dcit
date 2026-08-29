@@ -89,6 +89,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/employees") {
     return sendJson(res, 200, []);
   }
+  if (req.method === "GET" && url.pathname === "/alertas") {
+    return sendJson(res, 200, []);
+  }
   if (
     req.method === "GET" &&
     ["/mural/posts", "/mural/birthdays"].includes(url.pathname)

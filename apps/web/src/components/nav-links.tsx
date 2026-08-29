@@ -15,6 +15,7 @@ const NAV_SECTIONS = [
   { href: "/beneficios", label: "Benefícios" },
   { href: "/onboarding", label: "Onboarding" },
   { href: "/operacional", label: "Operacional" },
+  { href: "/alertas", label: "Alertas" },
 ] as const;
 
 export function NavLinks() {
