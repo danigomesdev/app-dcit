@@ -30,6 +30,7 @@ export function ConvencoesRow({ convencao }: { convencao: Convencao }) {
       <span className={styles.itemDetail}>
         {formatJornada(convencao.expectedDailyMinutes)} · {convencao.overtimePercent}% hora extra
         {convencao.categoriaSindical ? ` · ${convencao.categoriaSindical}` : ""}
+        {convencao.cnpj ? ` · ${convencao.cnpj}` : ""}
       </span>
       <EditarConvencaoDialog convencao={convencao} />
       <button

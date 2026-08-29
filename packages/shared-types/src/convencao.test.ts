@@ -47,6 +47,11 @@ describe("ConvencaoInputSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects an expectedDailyMinutes greater than 1440 (a full day)", () => {
+    const result = ConvencaoInputSchema.safeParse({ ...VALID_PAYLOAD, expectedDailyMinutes: 1441 });
+    expect(result.success).toBe(false);
+  });
+
   it("rejects a negative overtimePercent", () => {
     const result = ConvencaoInputSchema.safeParse({ ...VALID_PAYLOAD, overtimePercent: -10 });
     expect(result.success).toBe(false);

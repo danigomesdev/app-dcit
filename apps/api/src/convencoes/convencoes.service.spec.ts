@@ -83,4 +83,14 @@ describe('ConvencoesService', () => {
     const all = await service.list();
     expect(all.find((c) => c.id === created.id)).toBeUndefined();
   });
+
+  it('does not throw when deleting an id that does not exist', async () => {
+    await expect(service.delete('does-not-exist')).resolves.not.toThrow();
+  });
+
+  it('throws NotFoundException when updating an id that does not exist', async () => {
+    await expect(service.update('does-not-exist', VALID_INPUT)).rejects.toThrow(
+      'Convenção coletiva não encontrada.',
+    );
+  });
 });

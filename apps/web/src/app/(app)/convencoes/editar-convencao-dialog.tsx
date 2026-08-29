@@ -59,7 +59,10 @@ export function EditarConvencaoDialog({ convencao }: { convencao: Convencao }) {
             <button
               type="button"
               className={styles.dialogClose}
-              onClick={() => dialogRef.current?.close()}
+              onClick={() => {
+                dialogRef.current?.close();
+                formRef.current?.reset();
+              }}
             >
               Cancelar
             </button>

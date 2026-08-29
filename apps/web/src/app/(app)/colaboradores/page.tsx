@@ -37,7 +37,7 @@ export default async function ColaboradoresPage() {
 
   const [employees, convencoes] = await Promise.all([
     apiFetchJson<Employee[]>("/employees"),
-    apiFetchJson<{ id: string; nome: string }[]>("/convencoes"),
+    apiFetchJson<{ id: string; nome: string }[]>("/convencoes").catch(() => []),
   ]);
 
   return (

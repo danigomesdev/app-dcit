@@ -162,6 +162,53 @@ test("opens the dialog and creates a new colaborador with the API", async ({
     });
 });
 
+test("selecting a convenção and filling a salário includes both in the create payload", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [],
+    convencoes: [{ id: "conv-1", nome: "Convenção Metalúrgicos" }],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "+ Novo colaborador" }).click();
+
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByLabel("Nome").fill("Helena Convenio");
+  await page.getByLabel("Data de admissão").fill("2026-04-01");
+  await page.getByLabel("Convenção coletiva").selectOption("conv-1");
+  await page.getByLabel("Salário mensal").fill("5000.50");
+  await page.getByRole("button", { name: "Cadastrar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/employees")?.body;
+    })
+    .toEqual({
+      name: "Helena Convenio",
+      role: "colaborador",
+      cargo: null,
+      nivel: null,
+      convencaoId: "conv-1",
+      salarioMensal: "5000.50",
+      hireDate: "2026-04-01",
+      cpf: null,
+      rg: null,
+      dataNascimento: null,
+      estadoCivil: null,
+      enderecoRua: null,
+      enderecoNumero: null,
+      enderecoBairro: null,
+      enderecoCidade: null,
+      enderecoEstado: null,
+      enderecoCep: null,
+    });
+});
+
 test("a duplicate CPF shows an inline error without closing the dialog", async ({
   page,
   context,
