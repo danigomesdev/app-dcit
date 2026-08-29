@@ -144,6 +144,8 @@ test("opens the dialog and creates a new colaborador with the API", async ({
     .toEqual({
       name: "Fabio Novo",
       role: "colaborador",
+      cargo: null,
+      nivel: null,
       hireDate: "2026-03-01",
       cpf: "98765432100",
       rg: null,
@@ -393,6 +395,8 @@ test("opens the edit dialog prefilled and saves personal data", async ({
     .toEqual({
       name: "Ana Editada",
       role: "colaborador",
+      cargo: null,
+      nivel: null,
       hireDate: "2024-01-01",
       cpf: "12345678901",
       rg: null,

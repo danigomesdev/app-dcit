@@ -51,6 +51,8 @@ model Employee {
   userId            String    @id
   name              String
   role              String
+  cargo             String?   // função técnica, ex: "desenvolvedor" — ver CARGOS em shared-types
+  nivel             String?   // "junior" | "pleno" | "senior" | "especialista"
   hireDate          DateTime
   expectedStartTime String?   // "HH:mm", 24h, América/São_Paulo. null = never "atrasado".
   cpf               String?   @unique // 11 dígitos, sem pontuação

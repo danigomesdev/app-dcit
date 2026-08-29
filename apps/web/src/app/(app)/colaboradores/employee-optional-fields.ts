@@ -8,6 +8,8 @@
 // "A 'use server' file can only export async functions, found object."
 // See node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-server.md.
 export const OPTIONAL_FIELDS = [
+  "cargo",
+  "nivel",
   "cpf",
   "rg",
   "dataNascimento",

@@ -11,6 +11,8 @@ type Employee = {
   userId: string;
   name: string;
   role: "colaborador" | "gestor" | "rh";
+  cargo: string | null;
+  nivel: string | null;
   hireDate: string;
   expectedStartTime: string | null;
   cpf: string | null;

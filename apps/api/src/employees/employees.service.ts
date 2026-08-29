@@ -29,6 +29,8 @@ export class EmployeesService {
         data: {
           name: input.name,
           role: input.role,
+          cargo: input.cargo,
+          nivel: input.nivel,
           hireDate: new Date(input.hireDate),
           cpf: input.cpf,
           rg: input.rg,
@@ -120,6 +122,8 @@ export class EmployeesService {
           userId: randomUUID(),
           name: input.name,
           role: input.role,
+          cargo: input.cargo,
+          nivel: input.nivel,
           hireDate: new Date(input.hireDate),
           cpf: input.cpf,
           rg: input.rg,

@@ -3,6 +3,8 @@ import { EmployeeCreateSchema } from "./employee-create";
 const VALID_PAYLOAD = {
   name: "Ana Colaboradora",
   role: "colaborador" as const,
+  cargo: "desenvolvedor" as const,
+  nivel: "pleno" as const,
   hireDate: "2026-01-15",
   cpf: "12345678901",
   rg: "1234567",
@@ -26,6 +28,8 @@ describe("EmployeeCreateSchema", () => {
     const result = EmployeeCreateSchema.safeParse({
       name: "Ana Colaboradora",
       role: "colaborador",
+      cargo: null,
+      nivel: null,
       hireDate: "2026-01-15",
       cpf: null,
       rg: null,
@@ -66,6 +70,16 @@ describe("EmployeeCreateSchema", () => {
 
   it("rejects an enderecoEstado that isn't a real UF", () => {
     const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, enderecoEstado: "ZZ" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a cargo outside the fixed list", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, cargo: "estagiario" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a nivel outside junior/pleno/senior/especialista", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, nivel: "trainee" });
     expect(result.success).toBe(false);
   });
 

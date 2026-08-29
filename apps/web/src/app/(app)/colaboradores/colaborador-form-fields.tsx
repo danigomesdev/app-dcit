@@ -25,9 +25,54 @@ const ESTADO_CIVIL_LABELS: Record<(typeof ESTADOS_CIVIS)[number], string> = {
   uniao_estavel: "União estável",
 };
 
+// Deve ficar em sincronia com CARGOS em packages/shared-types/src/employee-create.ts
+// (não importado diretamente — mesmo raciocínio de ESTADOS_CIVIS/UFS acima).
+const CARGOS = [
+  "rh",
+  "analista_monitoramento",
+  "analista_cloud_ops",
+  "arquiteto_nuvem",
+  "devops",
+  "desenvolvedor",
+  "analista_suporte",
+  "engenheiro_dados",
+  "dba",
+  "analista_seguranca_informacao",
+  "analista_qa",
+  "analista_infraestrutura",
+  "coordenador_ti",
+] as const;
+
+const CARGO_LABELS: Record<(typeof CARGOS)[number], string> = {
+  rh: "RH",
+  analista_monitoramento: "Analista de Monitoramento",
+  analista_cloud_ops: "Analista Cloud & Ops",
+  arquiteto_nuvem: "Arquiteto de Nuvem",
+  devops: "DevOps",
+  desenvolvedor: "Desenvolvedor",
+  analista_suporte: "Analista de Suporte",
+  engenheiro_dados: "Engenheiro de Dados",
+  dba: "DBA (Administrador de Banco de Dados)",
+  analista_seguranca_informacao: "Analista de Segurança da Informação",
+  analista_qa: "Analista de QA / Testes",
+  analista_infraestrutura: "Analista de Infraestrutura",
+  coordenador_ti: "Coordenador de TI",
+};
+
+const NIVEIS = ["junior", "pleno", "senior", "especialista"] as const;
+
+const NIVEL_LABELS: Record<(typeof NIVEIS)[number], string> = {
+  junior: "Júnior",
+  pleno: "Pleno",
+  senior: "Sênior",
+  especialista: "Especialista",
+};
+
 export type ColaboradorFormDefaults = {
   name: string;
   role: "colaborador" | "gestor" | "rh";
+  cargo: string | null;
+  nivel: string | null;
   hireDate: string;
   cpf: string | null;
   rg: string | null;
@@ -101,11 +146,33 @@ export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormD
         />
       </label>
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>Cargo</span>
+        <span className={styles.fieldLabel}>Nível de acesso</span>
         <select name="role" required defaultValue={defaults.role} className={styles.fieldSelect}>
           <option value="colaborador">Colaborador</option>
           <option value="gestor">Gestor</option>
           <option value="rh">RH</option>
+        </select>
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Função</span>
+        <select name="cargo" defaultValue={defaults.cargo ?? ""} className={styles.fieldSelect}>
+          <option value="">—</option>
+          {CARGOS.map((value) => (
+            <option key={value} value={value}>
+              {CARGO_LABELS[value]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Nível</span>
+        <select name="nivel" defaultValue={defaults.nivel ?? ""} className={styles.fieldSelect}>
+          <option value="">—</option>
+          {NIVEIS.map((value) => (
+            <option key={value} value={value}>
+              {NIVEL_LABELS[value]}
+            </option>
+          ))}
         </select>
       </label>
       <label className={styles.field}>
@@ -164,6 +231,19 @@ export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormD
         </select>
       </label>
       <label className={styles.field}>
+        <span className={styles.fieldLabel}>CEP</span>
+        <input
+          type="text"
+          name="enderecoCep"
+          placeholder="8 dígitos"
+          pattern="\d{8}"
+          title="CEP deve ter exatamente 8 dígitos, sem hífen"
+          defaultValue={defaults.enderecoCep ?? ""}
+          onBlur={(e) => handleCepBlur(e.target.value)}
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
         <span className={styles.fieldLabel}>Rua</span>
         <input
           ref={ruaRef}
@@ -217,19 +297,6 @@ export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormD
             </option>
           ))}
         </select>
-      </label>
-      <label className={styles.field}>
-        <span className={styles.fieldLabel}>CEP</span>
-        <input
-          type="text"
-          name="enderecoCep"
-          placeholder="8 dígitos"
-          pattern="\d{8}"
-          title="CEP deve ter exatamente 8 dígitos, sem hífen"
-          defaultValue={defaults.enderecoCep ?? ""}
-          onBlur={(e) => handleCepBlur(e.target.value)}
-          className={styles.fieldInput}
-        />
       </label>
     </div>
   );

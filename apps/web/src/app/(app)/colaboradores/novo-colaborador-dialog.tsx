@@ -9,6 +9,8 @@ import styles from "./colaboradores.module.css";
 const EMPTY_DEFAULTS: ColaboradorFormDefaults = {
   name: "",
   role: "colaborador",
+  cargo: null,
+  nivel: null,
   hireDate: "",
   cpf: null,
   rg: null,

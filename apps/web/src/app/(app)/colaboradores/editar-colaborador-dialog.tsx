@@ -10,6 +10,8 @@ type Employee = {
   userId: string;
   name: string;
   role: "colaborador" | "gestor" | "rh";
+  cargo: string | null;
+  nivel: string | null;
   hireDate: string;
   cpf: string | null;
   rg: string | null;
@@ -52,6 +54,8 @@ export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
   const defaults: ColaboradorFormDefaults = {
     name: employee.name,
     role: employee.role ?? "colaborador",
+    cargo: employee.cargo ?? null,
+    nivel: employee.nivel ?? null,
     hireDate: employee.hireDate ? employee.hireDate.slice(0, 10) : "",
     cpf: employee.cpf ?? null,
     rg: employee.rg ?? null,
