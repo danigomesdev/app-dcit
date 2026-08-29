@@ -145,14 +145,7 @@ export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormD
           className={styles.fieldInput}
         />
       </label>
-      <label className={styles.field}>
-        <span className={styles.fieldLabel}>Nível de acesso</span>
-        <select name="role" required defaultValue={defaults.role} className={styles.fieldSelect}>
-          <option value="colaborador">Colaborador</option>
-          <option value="gestor">Gestor</option>
-          <option value="rh">RH</option>
-        </select>
-      </label>
+      <input type="hidden" name="role" value={defaults.role} />
       <label className={styles.field}>
         <span className={styles.fieldLabel}>Função</span>
         <select name="cargo" defaultValue={defaults.cargo ?? ""} className={styles.fieldSelect}>
