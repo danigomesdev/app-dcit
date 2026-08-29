@@ -49,12 +49,28 @@ export class EmployeesService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        throw new ConflictException(
-          'Já existe um colaborador cadastrado com esse CPF.',
-        );
+        throw new ConflictException(await this.cpfConflictMessage(input.cpf));
       }
       throw error;
     }
+  }
+
+  /**
+   * cpf is globally @unique and soft-deleting an employee does not clear it,
+   * so a P2002 on cpf may point at an employee sitting in the lixeira rather
+   * than an active one. Look that up so the error message tells RH where the
+   * CPF actually is instead of implying it's stuck on the active roster.
+   */
+  private async cpfConflictMessage(cpf: string | null): Promise<string> {
+    if (cpf) {
+      const conflicting = await this.prisma.employee.findUnique({
+        where: { cpf },
+      });
+      if (conflicting?.deletedAt) {
+        return 'Já existe um colaborador com esse CPF na lixeira — restaure-o ou exclua-o permanentemente antes de reutilizar o CPF.';
+      }
+    }
+    return 'Já existe um colaborador cadastrado com esse CPF.';
   }
 
   listTrash() {
@@ -124,9 +140,7 @@ export class EmployeesService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        throw new ConflictException(
-          'Já existe um colaborador cadastrado com esse CPF.',
-        );
+        throw new ConflictException(await this.cpfConflictMessage(input.cpf));
       }
       throw error;
     }
