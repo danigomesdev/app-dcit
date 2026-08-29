@@ -62,7 +62,10 @@ export function NovoColaboradorDialog() {
             <button
               type="button"
               className={styles.dialogClose}
-              onClick={() => dialogRef.current?.close()}
+              onClick={() => {
+                dialogRef.current?.close();
+                formRef.current?.reset();
+              }}
             >
               Cancelar
             </button>

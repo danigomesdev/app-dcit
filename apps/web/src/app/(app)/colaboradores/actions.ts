@@ -79,6 +79,7 @@ export async function createEmployee(
   }
 
   revalidatePath("/colaboradores");
+  revalidatePath("/");
   // successToken changes on every successful submit (even repeats), so the
   // dialog's useEffect — which depends on it, not on `success` — reliably
   // fires again to close+reset the form each time (useActionState reuses
@@ -157,6 +158,7 @@ export async function updateEmployeePersonalData(
   }
 
   revalidatePath("/colaboradores");
+  revalidatePath("/");
   return { error: null, success: true, successToken: Date.now() };
 }
 

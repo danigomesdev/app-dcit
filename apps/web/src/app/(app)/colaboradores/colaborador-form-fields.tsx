@@ -1,9 +1,21 @@
 "use client";
 
 import { useRef } from "react";
-import { ESTADOS_CIVIS, UFS } from "@ponto-dcit/shared-types";
 
 import styles from "./colaboradores.module.css";
+
+// Kept as local constants (not imported from @ponto-dcit/shared-types) to
+// avoid pulling that package's full CommonJS barrel (Zod schemas included)
+// into the client bundle for just these two `as const` string arrays. The
+// authoritative validation still lives server-side in the Zod schema —
+// these values must stay in sync with packages/shared-types/src/employee-create.ts.
+const ESTADOS_CIVIS = ["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"] as const;
+
+const UFS = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS",
+  "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC",
+  "SP", "SE", "TO",
+] as const;
 
 const ESTADO_CIVIL_LABELS: Record<(typeof ESTADOS_CIVIS)[number], string> = {
   solteiro: "Solteiro(a)",
@@ -42,10 +54,20 @@ export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormD
   const bairroRef = useRef<HTMLInputElement>(null);
   const cidadeRef = useRef<HTMLInputElement>(null);
   const estadoRef = useRef<HTMLSelectElement>(null);
+  const initialCepDigitsRef = useRef((defaults.enderecoCep ?? "").replace(/\D/g, ""));
 
   async function handleCepBlur(rawCep: string) {
     const digits = rawCep.replace(/\D/g, "");
     if (digits.length !== 8) {
+      return;
+    }
+    // Skip the autofill when the CEP hasn't actually changed from the value
+    // the form was mounted with — otherwise reusing this component in the
+    // edit dialog would silently overwrite manually-corrected address
+    // fields every time RH tabs through an unchanged CEP. In the create
+    // dialog `initialCepDigitsRef.current` is empty, so any typed CEP still
+    // triggers the fetch as before.
+    if (digits === initialCepDigitsRef.current) {
       return;
     }
     try {
@@ -202,6 +224,8 @@ export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormD
           type="text"
           name="enderecoCep"
           placeholder="8 dígitos"
+          pattern="\d{8}"
+          title="CEP deve ter exatamente 8 dígitos, sem hífen"
           defaultValue={defaults.enderecoCep ?? ""}
           onBlur={(e) => handleCepBlur(e.target.value)}
           className={styles.fieldInput}

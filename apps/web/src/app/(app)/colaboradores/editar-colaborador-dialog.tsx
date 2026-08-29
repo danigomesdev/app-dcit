@@ -25,6 +25,7 @@ type Employee = {
 
 export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(updateEmployeePersonalData, {
     error: null,
     success: false,
@@ -34,6 +35,12 @@ export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
   useEffect(() => {
     if (state.success) {
       dialogRef.current?.close();
+      // Reset to the form's mounted defaultValues so a later reopen doesn't
+      // show this save's submitted values as if they were still pending —
+      // the parent re-renders with fresh `employee` data before the dialog
+      // is shown again, but the uncontrolled inputs otherwise keep whatever
+      // was last typed.
+      formRef.current?.reset();
     }
     // successToken (not state.success) is the intentional dependency: see
     // novo-colaborador-dialog.tsx for why plain `success: true` would never
@@ -69,7 +76,7 @@ export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
 
       <dialog ref={dialogRef} className={styles.dialog}>
         <p className={styles.dialogTitle}>Editar {employee.name}</p>
-        <form action={formAction}>
+        <form ref={formRef} action={formAction}>
           <input type="hidden" name="userId" value={employee.userId} />
           <ColaboradorFormFields defaults={defaults} />
           {state.error ? <span className={styles.error}>{state.error}</span> : null}
@@ -77,7 +84,10 @@ export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
             <button
               type="button"
               className={styles.dialogClose}
-              onClick={() => dialogRef.current?.close()}
+              onClick={() => {
+                dialogRef.current?.close();
+                formRef.current?.reset();
+              }}
             >
               Cancelar
             </button>
