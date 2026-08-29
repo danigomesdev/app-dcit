@@ -89,6 +89,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/employees") {
     return sendJson(res, 200, []);
   }
+  if (req.method === "GET" && url.pathname === "/convencoes") {
+    return sendJson(res, 200, []);
+  }
   if (req.method === "GET" && url.pathname === "/alertas") {
     return sendJson(res, 200, []);
   }
@@ -127,6 +130,15 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 201, { id: "generated-id", ...body });
   }
   if (req.method === "DELETE" && /^\/operacional\/escala\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
+  }
+  if (req.method === "POST" && url.pathname === "/convencoes") {
+    return sendJson(res, 201, { id: "generated-id", ...body });
+  }
+  if (req.method === "PATCH" && /^\/convencoes\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 200, { id: url.pathname.split("/")[2], ...body });
+  }
+  if (req.method === "DELETE" && /^\/convencoes\/[^/]+$/.test(url.pathname)) {
     return sendJson(res, 204, null);
   }
   if (
