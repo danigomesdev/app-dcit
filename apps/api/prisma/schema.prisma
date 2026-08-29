@@ -53,6 +53,8 @@ model Employee {
   role              String
   cargo             String?   // função técnica, ex: "desenvolvedor" — ver CARGOS em shared-types
   nivel             String?   // "junior" | "pleno" | "senior" | "especialista"
+  convencaoId       String?   // id de ConvencaoColetiva, sem FK — resolvido na camada de serviço
+  salarioMensal     Float?    // R$, mesma visibilidade de cpf/rg (RH e gestor)
   hireDate          DateTime
   expectedStartTime String?   // "HH:mm", 24h, América/São_Paulo. null = never "atrasado".
   cpf               String?   @unique // 11 dígitos, sem pontuação
@@ -75,6 +77,16 @@ model JornadaAlert {
   date         DateTime // dia (São Paulo, meia-noite UTC) a que a violação se refere
   minutesShort Int      // quantos minutos faltaram pro mínimo exigido
   createdAt    DateTime @default(now())
+}
+
+model ConvencaoColetiva {
+  id                   String   @id @default(uuid())
+  nome                 String
+  cnpj                 String?
+  categoriaSindical    String?
+  expectedDailyMinutes Int      // jornada esperada por dia, em minutos (ex: 480 = 8h)
+  overtimePercent      Float    // percentual de acréscimo da hora extra, ex: 50 = 50%
+  createdAt            DateTime @default(now())
 }
 
 model VacationHistoryEntry {
