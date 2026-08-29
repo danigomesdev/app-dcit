@@ -49,6 +49,7 @@ export async function mockApi(
     team?: unknown[];
     shifts?: unknown[];
     employees?: unknown[];
+    trash?: unknown[];
     muralPosts?: unknown[];
     birthdays?: unknown[];
     balances?: unknown[];
@@ -94,6 +95,11 @@ export async function mockApi(
   if (data.employees) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/employees", response: data.employees },
+    });
+  }
+  if (data.trash) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/employees/trash", response: data.trash },
     });
   }
   if (data.muralPosts) {

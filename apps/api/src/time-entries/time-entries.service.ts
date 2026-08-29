@@ -37,6 +37,7 @@ export class TimeEntriesService {
   // DST since 2019, so São Paulo midnight is always UTC 03:00 the same day.
   async listTeamToday() {
     const employees = await this.prisma.employee.findMany({
+      where: { deletedAt: null },
       orderBy: { name: 'asc' },
     });
     const userIds = employees.map((employee) => employee.userId);

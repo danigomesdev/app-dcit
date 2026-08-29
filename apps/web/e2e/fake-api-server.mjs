@@ -134,8 +134,26 @@ const server = http.createServer(async (req, res) => {
   ) {
     return sendJson(res, 200, { ...body });
   }
+  if (req.method === "PATCH" && /^\/employees\/[^/]+\/personal-data$/.test(url.pathname)) {
+    return sendJson(res, 200, { userId: url.pathname.split("/")[2], ...body });
+  }
   if (req.method === "PATCH" && /^\/employees\/[^/]+$/.test(url.pathname)) {
     return sendJson(res, 200, { userId: url.pathname.split("/")[2], ...body });
+  }
+  if (req.method === "POST" && url.pathname === "/employees") {
+    return sendJson(res, 201, { userId: "generated-employee-id", ...body });
+  }
+  if (req.method === "GET" && url.pathname === "/employees/trash") {
+    return sendJson(res, 200, []);
+  }
+  if (req.method === "DELETE" && /^\/employees\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
+  }
+  if (req.method === "PATCH" && /^\/employees\/[^/]+\/restore$/.test(url.pathname)) {
+    return sendJson(res, 200, { userId: url.pathname.split("/")[2], deletedAt: null });
+  }
+  if (req.method === "DELETE" && /^\/employees\/[^/]+\/permanent$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
   }
 
   sendJson(res, 404, { error: `no fake-api handler for ${req.method} ${url.pathname}` });

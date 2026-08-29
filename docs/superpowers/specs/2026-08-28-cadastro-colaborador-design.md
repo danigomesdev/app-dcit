@@ -1,6 +1,6 @@
 # Cadastro de Colaborador — Ponto DCIT
 
-**Status:** Aprovado para implementação
+**Status:** Implementado
 **Spec funcional de referência:** [`docs/spec-funcional.md`](../../spec-funcional.md) (v2) — não cobre cadastro de colaborador diretamente; esta spec preenche uma lacuna operacional identificada durante o uso do painel de presença (não havia como criar um `Employee` pela aplicação, só via seed).
 **Spec relacionada:** [`docs/superpowers/specs/2026-08-28-mapa-de-presenca-design.md`](2026-08-28-mapa-de-presenca-design.md) — introduziu a tela `/colaboradores` (RH) que esta spec estende.
 
@@ -10,7 +10,7 @@ Hoje não existe nenhum caminho, dentro da aplicação, para criar um `Employee`
 
 Esta spec adiciona:
 - Um ícone "+" em `/colaboradores` que abre um diálogo de cadastro completo (nome, cargo, data de admissão, e dados pessoais: CPF, RG, data de nascimento, estado civil, endereço).
-- Um novo endpoint `POST /employees` (RH) que gera um `userId` aleatório no servidor e cria o registro — **decisão confirmada com o usuário:** o cadastro não fica vinculado a nenhuma conta de login existente; é um registro de RH independente. Reconciliar esse registro com um login real de SSO no futuro (se a pessoa cadastrada vier a ter acesso ao sistema) fica fora do escopo — ver seção 8.
+- Um novo endpoint `POST /employees` (RH) que gera um `userId` aleatório no servidor e cria o registro — **decisão confirmada com o usuário:** o cadastro não fica vinculado a nenhuma conta de login existente; é um registro de RH independente. Reconciliar esse registro com um login real de SSO no futuro (se a pessoa cadastrada vier a ter acesso ao sistema) fica fora do escopo — ver seção 12.
 - Novos campos pessoais no modelo `Employee`, todos opcionais (nome/cargo/admissão continuam obrigatórios, como já são hoje).
 
 **Decisão confirmada:** os novos dados pessoais (CPF, RG, nascimento, estado civil, endereço) **não são mascarados** para gestor — `GET /employees` retorna tudo igual para gestor e RH. Isso é diferente do padrão de mascaramento usado em `atestados` (CID/médico/CRM só para RH); aqui foi uma escolha explícita do usuário, registrada para não ser "corrigida" por engano numa iteração futura.
@@ -334,22 +334,85 @@ Adiciona classes reaproveitando padrões já existentes no app:
   - Clicar em "+ Novo colaborador" abre o diálogo com todos os campos.
   - Preencher os campos obrigatórios e enviar chama a API com o corpo esperado (campos pessoais vazios viram `null`), fecha o diálogo, e o novo colaborador aparece na lista.
   - CPF duplicado (fake API seedada pra devolver 409) mostra a mensagem de erro inline sem fechar o diálogo.
-  - Clicar em "Excluir" numa linha chama `DELETE /employees/:userId`.
-  - A seção "Lixeira" lista quem tem `deletedAt`; "Restaurar" chama `PATCH /employees/:userId/restore`; "Excluir permanentemente" chama `DELETE /employees/:userId/permanent`.
+  - Clicar em "Excluir" numa linha abre o diálogo de confirmação; confirmar chama `DELETE /employees/:userId`; cancelar não chama nada.
+  - A seção "Lixeira" lista quem tem `deletedAt`; "Restaurar" chama `PATCH /employees/:userId/restore` direto, sem confirmação; "Excluir permanentemente" abre diálogo de confirmação e só chama `DELETE /employees/:userId/permanent` ao confirmar.
+  - `EmployeesService.updatePersonalData`: atualiza todos os campos pessoais de um colaborador existente; mantém o mesmo CPF sem lançar `ConflictException` (atualização idempotente); lança `ConflictException` se o novo CPF já pertence a outro colaborador.
+  - `EmployeesController`: guard metadata do `updatePersonalData` (`@Roles(['rh'])`).
+  - Clicar em "Editar" abre o diálogo pré-preenchido com os dados atuais; alterar um campo e salvar chama `PATCH /employees/:userId/personal-data` com o corpo completo (13 campos).
+  - Preencher um CEP válido (mock da ViaCEP via `page.route`) preenche rua/bairro/cidade/estado automaticamente; CEP não encontrado (`{erro: true}` mockado) não altera os campos.
 
 ## 7. Erros e casos de borda
 
-- CPF duplicado → 409 → mensagem inline, diálogo permanece aberto com os dados preenchidos (usuário pode corrigir o CPF sem redigitar tudo).
+- CPF duplicado (na criação ou na edição) → 409 → mensagem inline, diálogo permanece aberto com os dados preenchidos (usuário pode corrigir o CPF sem redigitar tudo).
 - Corpo inválido (ex: UF com 3 letras) → 400 → mensagem genérica de erro (sem detalhamento por campo, ver seção 5.2).
 - `role`/`hireDate`/`name` ausentes → mesmo tratamento de 400.
 - Tentar excluir permanentemente um colaborador que não está na lixeira (`deletedAt === null`) → 400 (`permanentlyDelete` verifica isso explicitamente antes de apagar).
+- Busca de CEP falha (rede, CEP inexistente) → campos de endereço ficam como estavam, sem mensagem de erro bloqueante (falha silenciosa, mesmo espírito do polling do painel de presença).
 
-## 8. Fora de escopo (referência para o plano de implementação)
+## 8. Edição de dados pessoais depois de cadastrado
+
+**Decisão confirmada:** todos os campos pessoais são editáveis depois da criação, incluindo cargo e data de admissão — o mesmo conjunto de campos do cadastro.
+
+**Backend:** novo endpoint `PATCH /employees/:userId/personal-data` (`@Roles('rh')`), reaproveitando o mesmo `EmployeeCreateSchema` da criação (mesmo formato, mesmos campos) — não é preciso um schema novo. Novo método `EmployeesService.updatePersonalData(userId, input: EmployeeCreateInput)`:
+
+```typescript
+async updatePersonalData(userId: string, input: EmployeeCreateInput) {
+  try {
+    return await this.prisma.employee.update({
+      where: { userId },
+      data: {
+        name: input.name,
+        role: input.role,
+        hireDate: new Date(input.hireDate),
+        cpf: input.cpf,
+        rg: input.rg,
+        dataNascimento: input.dataNascimento ? new Date(input.dataNascimento) : null,
+        estadoCivil: input.estadoCivil,
+        enderecoRua: input.enderecoRua,
+        enderecoNumero: input.enderecoNumero,
+        enderecoBairro: input.enderecoBairro,
+        enderecoCidade: input.enderecoCidade,
+        enderecoEstado: input.enderecoEstado,
+        enderecoCep: input.enderecoCep,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new ConflictException('Já existe um colaborador cadastrado com esse CPF.');
+    }
+    throw error;
+  }
+}
+```
+
+Não precisa de tratamento especial para "o próprio CPF não deve contar como duplicado consigo mesmo" — um `UPDATE` que mantém o mesmo valor de `cpf` não viola o índice único (nenhuma outra linha passa a ter esse valor); só colide de verdade se o novo valor já pertencer a *outro* registro, que é exatamente o caso que deve dar 409.
+
+**Web:** botão "Editar" em cada linha do roster (`colaboradores-row.tsx`) abre um terceiro diálogo, pré-preenchido com os dados atuais do colaborador. Para não duplicar os ~150 linhas de JSX dos 13 campos, o conjunto de campos do formulário é extraído para um componente compartilhado `colaborador-form-fields.tsx`, usado tanto pelo diálogo de criação quanto pelo de edição (a busca automática de CEP e o validador de CPF, seções 9 e 10, vivem dentro desse componente compartilhado — funcionam nos dois diálogos automaticamente). `GET /employees` já retorna o registro completo (Tarefa 3), então o `Employee` type usado por `page.tsx`/`colaboradores-row.tsx` passa a incluir todos os campos pessoais, não só `userId`/`name`/`expectedStartTime`.
+
+Nova Server Action `updateEmployeePersonalData`, no mesmo formato de `createEmployee` (normaliza `"" → null`, mapeia erro 409/400), mas com `PATCH` em vez de `POST` e incluindo `userId` no payload da URL (`/employees/${userId}/personal-data`).
+
+## 9. Busca automática de endereço por CEP
+
+Ao digitar um CEP válido (8 dígitos) e sair do campo (`onBlur`), o formulário busca o endereço automaticamente na API pública ViaCEP (`https://viacep.com.br/ws/{cep}/json/`, gratuita, sem autenticação, com CORS liberado para chamadas diretas do navegador) e preenche rua/bairro/cidade/estado. O campo de número não é preenchido (a ViaCEP não retorna número de imóvel) — fica para o usuário digitar. Se a busca falhar (CEP não encontrado, erro de rede), os campos ficam como estavam, sem bloquear o preenchimento manual.
+
+Implementado em `colaborador-form-fields.tsx` (compartilhado entre criação e edição, seção 9), via `useRef` nos campos de rua/bairro/cidade e no `<select>` de estado (mesmo padrão de manipulação DOM direta já usado no app para diálogos), sem introduzir um formulário controlado.
+
+## 10. Validador de CPF
+
+O campo de CPF ganha o atributo HTML nativo `pattern="\d{11}"` (mais `title` explicando o formato) — o navegador mostra feedback nativo (contorno vermelho + balão de validação) se o valor não tiver exatamente 11 dígitos, sem bloquear o campo vazio (CPF continua opcional). Não substitui a validação real do backend (`EmployeeCreateSchema`), que continua sendo a fonte de verdade — isto é só feedback antecipado para o usuário, mesmo espírito de "campo com formato claro" já usado no `type="time"` de horário esperado.
+
+## 11. Confirmação antes de excluir
+
+**Decisão confirmada (revisando a decisão anterior):** tanto "Excluir" (mover pra lixeira) quanto "Excluir permanentemente" passam a exigir confirmação antes de executar — um `<dialog>` (mesmo padrão visual já usado no app), não um `window.confirm()` nativo do navegador.
+
+- `colaboradores-row.tsx`: o botão "Excluir" abre um diálogo de confirmação ("Tem certeza que deseja excluir {nome}? Ele irá para a lixeira.") com "Cancelar" e um formulário de confirmação que efetivamente chama `deleteEmployee`.
+- A lixeira deixa de ser um Server Component puro: cada linha vira um novo Client Component `lixeira-row.tsx` (extraído de `lixeira-section.tsx`, que continua Server Component só buscando os dados e mapeando `<LixeiraRow />`). Só "Excluir permanentemente" ganha diálogo de confirmação ali ("Tem certeza que deseja excluir PERMANENTEMENTE {nome}? Essa ação não pode ser desfeita.") — "Restaurar" continua uma ação direta, sem confirmação (é reversível e de baixo risco).
+
+## 12. Fora de escopo (referência para o plano de implementação)
 
 - Reconciliar um `Employee` cadastrado por este formulário com uma conta de login real (SSO/OIDC) que apareça depois com o mesmo nome/CPF — hoje são identidades completamente desconectadas (`userId` aleatório vs. `sub` do IdP). Se isso vier a ser necessário, é uma spec própria.
-- Edição dos dados pessoais depois de cadastrados (esta spec cobre só criação; `PATCH /employees/:userId` continua só editando `expectedStartTime`) — editar CPF/RG/endereço/etc. de um colaborador já cadastrado fica para um follow-up.
-- Validação de dígito verificador de CPF.
+- Validação de dígito verificador de CPF (seção 11 cobre só formato de 11 dígitos, não o algoritmo real de validação).
 - Upload de documentos (RG/CPF digitalizados) — já existe `AdmissionDocument` para isso, sem relação direta com os campos estruturados desta spec.
-- Máscara de digitação nos campos (CPF `000.000.000-00`, CEP `00000-000`) — os inputs aceitam e validam só dígitos crus.
-- Confirmação (dialog "tem certeza?") antes de excluir ou excluir permanentemente — decisão confirmada: a lixeira já é a camada de segurança, sem fricção extra.
+- Máscara de digitação visual nos campos (CPF `000.000.000-00`, CEP `00000-000` conforme o usuário digita) — os campos continuam aceitando/validando dígitos crus; a seção 11 é validação de formato, não formatação visual.
 - Esvaziar a lixeira automaticamente depois de um tempo (ex: 30 dias) — a exclusão permanente é sempre manual nesta entrega.
+- Confirmação ao restaurar um colaborador da lixeira — só as duas ações de exclusão (seção 12) pedem confirmação.

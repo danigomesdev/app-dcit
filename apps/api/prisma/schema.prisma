@@ -48,11 +48,22 @@ model VacationRequest {
 // HR facts needed to compute the CLT aquisitivo/concessivo vacation cycle
 // for a real employee instead of a hardcoded constant. One row per user.
 model Employee {
-  userId            String   @id
+  userId            String    @id
   name              String
   role              String
   hireDate          DateTime
-  expectedStartTime String?  // "HH:mm", 24h, América/São_Paulo. null = never "atrasado".
+  expectedStartTime String?   // "HH:mm", 24h, América/São_Paulo. null = never "atrasado".
+  cpf               String?   @unique // 11 dígitos, sem pontuação
+  rg                String?
+  dataNascimento    DateTime?
+  estadoCivil       String?   // "solteiro" | "casado" | "divorciado" | "viuvo" | "uniao_estavel"
+  enderecoRua       String?
+  enderecoNumero    String?
+  enderecoBairro    String?
+  enderecoCidade    String?
+  enderecoEstado    String?   // UF, 2 letras
+  enderecoCep       String?   // 8 dígitos, sem hífen
+  deletedAt         DateTime? // null = ativo. Não-nulo = na lixeira.
 }
 
 model VacationHistoryEntry {

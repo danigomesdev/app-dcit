@@ -22,7 +22,7 @@ describe('OnboardingService', () => {
     await prisma.onboardingProgress.deleteMany();
     await prisma.onboardingTask.deleteMany();
     await prisma.employee.deleteMany({
-      where: { userId: { in: ['user-c', 'user-d'] } },
+      where: { userId: { in: ['user-c', 'user-d', 'onboarding-trash-e'] } },
     });
     await prisma.onModuleDestroy();
   });
@@ -110,5 +110,27 @@ describe('OnboardingService', () => {
     expect(carla?.completedTaskIds).toEqual([task.id]);
     expect(davi?.completedTaskIds).toEqual([]);
     expect(carla?.tasks.map((t) => t.id)).toContain(task.id);
+  });
+
+  it('excludes a soft-deleted employee from listTeamProgress', async () => {
+    // Uses a fixture id distinct from the plain 'user-e' pattern used by
+    // other spec files (solicitacoes, documentos): those run as separate
+    // Jest worker processes against this same shared test.db, and a
+    // same-named Employee insert here raced with theirs intermittently.
+    await prisma.employee.create({
+      data: {
+        userId: 'onboarding-trash-e',
+        name: 'Elisa Excluida',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+        deletedAt: new Date('2026-08-01'),
+      },
+    });
+
+    const results = await service.listTeamProgress();
+
+    expect(
+      results.find((r) => r.userId === 'onboarding-trash-e'),
+    ).toBeUndefined();
   });
 });

@@ -1,0 +1,90 @@
+import { EmployeeCreateSchema } from "./employee-create";
+
+const VALID_PAYLOAD = {
+  name: "Ana Colaboradora",
+  role: "colaborador" as const,
+  hireDate: "2026-01-15",
+  cpf: "12345678901",
+  rg: "1234567",
+  dataNascimento: "1990-05-20",
+  estadoCivil: "casado" as const,
+  enderecoRua: "Rua das Flores",
+  enderecoNumero: "100",
+  enderecoBairro: "Centro",
+  enderecoCidade: "São Paulo",
+  enderecoEstado: "SP" as const,
+  enderecoCep: "01310100",
+};
+
+describe("EmployeeCreateSchema", () => {
+  it("accepts a fully populated valid payload", () => {
+    const result = EmployeeCreateSchema.safeParse(VALID_PAYLOAD);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts every personal field as null", () => {
+    const result = EmployeeCreateSchema.safeParse({
+      name: "Ana Colaboradora",
+      role: "colaborador",
+      hireDate: "2026-01-15",
+      cpf: null,
+      rg: null,
+      dataNascimento: null,
+      estadoCivil: null,
+      enderecoRua: null,
+      enderecoNumero: null,
+      enderecoBairro: null,
+      enderecoCidade: null,
+      enderecoEstado: null,
+      enderecoCep: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a CPF with punctuation", () => {
+    const result = EmployeeCreateSchema.safeParse({
+      ...VALID_PAYLOAD,
+      cpf: "123.456.789-01",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a CPF shorter than 11 digits", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, cpf: "123456789" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a CEP with a hyphen", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, enderecoCep: "01310-100" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an estadoCivil outside the fixed list", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, estadoCivil: "namorando" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an enderecoEstado that isn't a real UF", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, enderecoEstado: "ZZ" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a role outside colaborador/gestor/rh", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, role: "admin" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing name", () => {
+    const { name: _name, ...rest } = VALID_PAYLOAD;
+    const result = EmployeeCreateSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a full ISO datetime instead of a plain date for hireDate", () => {
+    const result = EmployeeCreateSchema.safeParse({
+      ...VALID_PAYLOAD,
+      hireDate: "2026-01-15T00:00:00.000Z",
+    });
+    expect(result.success).toBe(false);
+  });
+});

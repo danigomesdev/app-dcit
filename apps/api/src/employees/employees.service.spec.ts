@@ -1,5 +1,6 @@
 process.env.DATABASE_URL = 'file:./test.db';
 
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EmployeesService } from './employees.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,6 +22,9 @@ describe('EmployeesService', () => {
   afterAll(async () => {
     await prisma.employee.deleteMany({
       where: { userId: { in: ['emp-b', 'emp-a', 'emp-schedule'] } },
+    });
+    await prisma.employee.deleteMany({
+      where: { cpf: { in: ['11111111111', '22222222222'] } },
     });
     await prisma.onModuleDestroy();
   });
@@ -94,5 +98,402 @@ describe('EmployeesService', () => {
     expect(results.find((e) => e.userId === 'emp-a')?.expectedStartTime).toBe(
       '08:00',
     );
+  });
+
+  describe('create', () => {
+    it('persists a new employee with a generated userId and all personal fields populated', async () => {
+      const created = await service.create({
+        name: 'Carlos Novo',
+        role: 'colaborador',
+        hireDate: '2026-01-15',
+        cpf: '11111111111',
+        rg: '1234567',
+        dataNascimento: '1990-05-20',
+        estadoCivil: 'casado',
+        enderecoRua: 'Rua das Flores',
+        enderecoNumero: '100',
+        enderecoBairro: 'Centro',
+        enderecoCidade: 'São Paulo',
+        enderecoEstado: 'SP',
+        enderecoCep: '01310100',
+      });
+
+      expect(created.userId).toHaveLength(36); // uuid
+      expect(created.name).toBe('Carlos Novo');
+      expect(created.cpf).toBe('11111111111');
+      expect(created.dataNascimento?.toISOString()).toBe(
+        '1990-05-20T00:00:00.000Z',
+      );
+      expect(created.estadoCivil).toBe('casado');
+      expect(created.enderecoEstado).toBe('SP');
+
+      const found = await prisma.employee.findUnique({
+        where: { userId: created.userId },
+      });
+      expect(found?.cpf).toBe('11111111111');
+    });
+
+    it('persists a new employee with every personal field null', async () => {
+      const created = await service.create({
+        name: 'Debora Sem Dados',
+        role: 'colaborador',
+        hireDate: '2026-02-01',
+        cpf: null,
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+      });
+
+      expect(created.cpf).toBeNull();
+      expect(created.dataNascimento).toBeNull();
+
+      await prisma.employee.delete({ where: { userId: created.userId } });
+    });
+
+    it('throws ConflictException when a second employee reuses an existing CPF', async () => {
+      await service.create({
+        name: 'Primeiro',
+        role: 'colaborador',
+        hireDate: '2026-01-01',
+        cpf: '22222222222',
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+      });
+
+      await expect(
+        service.create({
+          name: 'Segundo',
+          role: 'colaborador',
+          hireDate: '2026-01-02',
+          cpf: '22222222222',
+          rg: null,
+          dataNascimento: null,
+          estadoCivil: null,
+          enderecoRua: null,
+          enderecoNumero: null,
+          enderecoBairro: null,
+          enderecoCidade: null,
+          enderecoEstado: null,
+          enderecoCep: null,
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('throws ConflictException with the generic message when the conflicting CPF belongs to an active employee', async () => {
+      await service.create({
+        name: 'Ativo Original',
+        role: 'colaborador',
+        hireDate: '2026-01-01',
+        cpf: '77777777777',
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+      });
+
+      await expect(
+        service.create({
+          name: 'Segundo Ativo',
+          role: 'colaborador',
+          hireDate: '2026-01-02',
+          cpf: '77777777777',
+          rg: null,
+          dataNascimento: null,
+          estadoCivil: null,
+          enderecoRua: null,
+          enderecoNumero: null,
+          enderecoBairro: null,
+          enderecoCidade: null,
+          enderecoEstado: null,
+          enderecoCep: null,
+        }),
+      ).rejects.toThrow('Já existe um colaborador cadastrado com esse CPF.');
+
+      await prisma.employee.deleteMany({ where: { cpf: '77777777777' } });
+    });
+
+    it('throws ConflictException pointing to the lixeira when the conflicting CPF belongs to a soft-deleted employee', async () => {
+      const trashed = await service.create({
+        name: 'Vai Para Lixeira',
+        role: 'colaborador',
+        hireDate: '2026-01-01',
+        cpf: '88888888888',
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+      });
+      await service.softDelete(trashed.userId);
+
+      await expect(
+        service.create({
+          name: 'Reaproveitando CPF',
+          role: 'colaborador',
+          hireDate: '2026-01-02',
+          cpf: '88888888888',
+          rg: null,
+          dataNascimento: null,
+          estadoCivil: null,
+          enderecoRua: null,
+          enderecoNumero: null,
+          enderecoBairro: null,
+          enderecoCidade: null,
+          enderecoEstado: null,
+          enderecoCep: null,
+        }),
+      ).rejects.toThrow(
+        'Já existe um colaborador com esse CPF na lixeira — restaure-o ou exclua-o permanentemente antes de reutilizar o CPF.',
+      );
+
+      await prisma.employee.deleteMany({ where: { cpf: '88888888888' } });
+    });
+  });
+
+  describe('listTrash / softDelete / restore / permanentlyDelete', () => {
+    it('excludes a soft-deleted employee from list() and includes it in listTrash()', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-trash-a',
+          name: 'Trash Ana',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await service.softDelete('emp-trash-a');
+
+      const active = await service.list();
+      expect(active.find((e) => e.userId === 'emp-trash-a')).toBeUndefined();
+
+      const trashed = await service.listTrash();
+      const found = trashed.find((e) => e.userId === 'emp-trash-a');
+      expect(found).toBeDefined();
+      expect(found?.deletedAt).not.toBeNull();
+    });
+
+    it('restores a soft-deleted employee back into list() and out of listTrash()', async () => {
+      await service.restore('emp-trash-a');
+
+      const active = await service.list();
+      expect(active.find((e) => e.userId === 'emp-trash-a')).toBeDefined();
+
+      const trashed = await service.listTrash();
+      expect(trashed.find((e) => e.userId === 'emp-trash-a')).toBeUndefined();
+    });
+
+    it('permanently deletes an employee that is already in the trash', async () => {
+      await service.softDelete('emp-trash-a');
+
+      await service.permanentlyDelete('emp-trash-a');
+
+      const found = await prisma.employee.findUnique({
+        where: { userId: 'emp-trash-a' },
+      });
+      expect(found).toBeNull();
+    });
+
+    it('throws BadRequestException when permanently deleting an active (non-trashed) employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-trash-b',
+          name: 'Trash Beto',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await expect(service.permanentlyDelete('emp-trash-b')).rejects.toThrow(
+        BadRequestException,
+      );
+
+      await prisma.employee.delete({ where: { userId: 'emp-trash-b' } });
+    });
+
+    it('throws BadRequestException when permanently deleting a userId that does not exist', async () => {
+      await expect(
+        service.permanentlyDelete('emp-does-not-exist'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('updatePersonalData', () => {
+    it('updates all personal fields, including role and hireDate', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-a',
+          name: 'Antes Da Edicao',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      const updated = await service.updatePersonalData('emp-edit-a', {
+        name: 'Depois Da Edicao',
+        role: 'gestor',
+        hireDate: '2025-06-01',
+        cpf: '33333333333',
+        rg: '7654321',
+        dataNascimento: '1985-03-10',
+        estadoCivil: 'divorciado',
+        enderecoRua: 'Rua Nova',
+        enderecoNumero: '200',
+        enderecoBairro: 'Jardins',
+        enderecoCidade: 'Rio de Janeiro',
+        enderecoEstado: 'RJ',
+        enderecoCep: '22000000',
+      });
+
+      expect(updated.name).toBe('Depois Da Edicao');
+      expect(updated.role).toBe('gestor');
+      expect(updated.hireDate.toISOString()).toBe('2025-06-01T00:00:00.000Z');
+      expect(updated.cpf).toBe('33333333333');
+      expect(updated.enderecoEstado).toBe('RJ');
+
+      await prisma.employee.delete({ where: { userId: 'emp-edit-a' } });
+    });
+
+    it('does not conflict when the CPF submitted is unchanged from the same employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-b',
+          name: 'Mesmo CPF',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          cpf: '44444444444',
+        },
+      });
+
+      const updated = await service.updatePersonalData('emp-edit-b', {
+        name: 'Mesmo CPF Editado',
+        role: 'colaborador',
+        hireDate: '2024-01-01',
+        cpf: '44444444444',
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+      });
+
+      expect(updated.name).toBe('Mesmo CPF Editado');
+      expect(updated.cpf).toBe('44444444444');
+
+      await prisma.employee.delete({ where: { userId: 'emp-edit-b' } });
+    });
+
+    it('throws ConflictException when the new CPF belongs to a different employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-c1',
+          name: 'Primeiro Editor',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          cpf: '55555555555',
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-c2',
+          name: 'Segundo Editor',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          cpf: '66666666666',
+        },
+      });
+
+      await expect(
+        service.updatePersonalData('emp-edit-c2', {
+          name: 'Segundo Editor',
+          role: 'colaborador',
+          hireDate: '2024-01-01',
+          cpf: '55555555555',
+          rg: null,
+          dataNascimento: null,
+          estadoCivil: null,
+          enderecoRua: null,
+          enderecoNumero: null,
+          enderecoBairro: null,
+          enderecoCidade: null,
+          enderecoEstado: null,
+          enderecoCep: null,
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      await prisma.employee.deleteMany({
+        where: { userId: { in: ['emp-edit-c1', 'emp-edit-c2'] } },
+      });
+    });
+
+    it('throws ConflictException pointing to the lixeira when the new CPF belongs to a soft-deleted employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-trash-source',
+          name: 'Foi Para Lixeira',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          cpf: '99999999999',
+          deletedAt: new Date(),
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-d',
+          name: 'Editor Tentando Reuso',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await expect(
+        service.updatePersonalData('emp-edit-d', {
+          name: 'Editor Tentando Reuso',
+          role: 'colaborador',
+          hireDate: '2024-01-01',
+          cpf: '99999999999',
+          rg: null,
+          dataNascimento: null,
+          estadoCivil: null,
+          enderecoRua: null,
+          enderecoNumero: null,
+          enderecoBairro: null,
+          enderecoCidade: null,
+          enderecoEstado: null,
+          enderecoCep: null,
+        }),
+      ).rejects.toThrow(
+        'Já existe um colaborador com esse CPF na lixeira — restaure-o ou exclua-o permanentemente antes de reutilizar o CPF.',
+      );
+
+      await prisma.employee.deleteMany({
+        where: { userId: { in: ['emp-edit-trash-source', 'emp-edit-d'] } },
+      });
+    });
   });
 });

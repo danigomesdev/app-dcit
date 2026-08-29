@@ -48,6 +48,7 @@ describe('TimeEntriesService', () => {
             'presence-tolerancia',
             'presence-sem-horario',
             'presence-sp-query-window',
+            'presence-deleted',
           ],
         },
       },
@@ -506,6 +507,22 @@ describe('TimeEntriesService', () => {
       expect(
         results.find((r) => r.userId === 'presence-sp-query-window')?.status,
       ).toBe('trabalhando');
+    });
+
+    it('excludes a soft-deleted employee entirely from the results', async () => {
+      jest.useFakeTimers().setSystemTime(WEEKDAY_NOON_SP);
+      await prisma.employee.create({
+        data: {
+          ...baseEmployee('presence-deleted'),
+          deletedAt: new Date('2026-08-01'),
+        },
+      });
+
+      const results = await service.listTeamToday();
+
+      expect(
+        results.find((r) => r.userId === 'presence-deleted'),
+      ).toBeUndefined();
     });
   });
 });
