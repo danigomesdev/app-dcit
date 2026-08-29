@@ -1,6 +1,6 @@
 # Cadastro de Colaborador — Ponto DCIT
 
-**Status:** Aprovado para implementação
+**Status:** Implementado
 **Spec funcional de referência:** [`docs/spec-funcional.md`](../../spec-funcional.md) (v2) — não cobre cadastro de colaborador diretamente; esta spec preenche uma lacuna operacional identificada durante o uso do painel de presença (não havia como criar um `Employee` pela aplicação, só via seed).
 **Spec relacionada:** [`docs/superpowers/specs/2026-08-28-mapa-de-presenca-design.md`](2026-08-28-mapa-de-presenca-design.md) — introduziu a tela `/colaboradores` (RH) que esta spec estende.
 
