@@ -35,12 +35,13 @@ export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
   useEffect(() => {
     if (state.success) {
       dialogRef.current?.close();
-      // Reset to the form's mounted defaultValues so a later reopen doesn't
-      // show this save's submitted values as if they were still pending —
-      // the parent re-renders with fresh `employee` data before the dialog
-      // is shown again, but the uncontrolled inputs otherwise keep whatever
-      // was last typed.
-      formRef.current?.reset();
+      // Deliberately not resetting the form here: this dialog keeps a stable
+      // React key across the save (no remount), so `defaultValue` never
+      // re-applies from a fresh `employee` prop — a reset would revert every
+      // field to its pre-edit, mount-time value instead of the just-saved
+      // one. Leaving the uncontrolled inputs alone means they keep exactly
+      // what the user typed, which is what was just persisted, so a later
+      // reopen shows the correct (current) data.
     }
     // successToken (not state.success) is the intentional dependency: see
     // novo-colaborador-dialog.tsx for why plain `success: true` would never
