@@ -10,6 +10,8 @@
 export const OPTIONAL_FIELDS = [
   "cargo",
   "nivel",
+  "convencaoId",
+  "salarioMensal",
   "cpf",
   "rg",
   "dataNascimento",

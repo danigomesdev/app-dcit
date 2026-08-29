@@ -11,6 +11,8 @@ const EMPTY_DEFAULTS: ColaboradorFormDefaults = {
   role: "colaborador",
   cargo: null,
   nivel: null,
+  convencaoId: null,
+  salarioMensal: null,
   hireDate: "",
   cpf: null,
   rg: null,
@@ -24,7 +26,7 @@ const EMPTY_DEFAULTS: ColaboradorFormDefaults = {
   enderecoCep: null,
 };
 
-export function NovoColaboradorDialog() {
+export function NovoColaboradorDialog({ convencoes }: { convencoes: { id: string; nome: string }[] }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(createEmployee, {
@@ -58,7 +60,7 @@ export function NovoColaboradorDialog() {
       <dialog ref={dialogRef} className={styles.dialog}>
         <p className={styles.dialogTitle}>Novo colaborador</p>
         <form ref={formRef} action={formAction}>
-          <ColaboradorFormFields defaults={EMPTY_DEFAULTS} />
+          <ColaboradorFormFields defaults={EMPTY_DEFAULTS} convencoes={convencoes} />
           {state.error ? <span className={styles.error}>{state.error}</span> : null}
           <div className={styles.dialogActions}>
             <button

@@ -12,6 +12,8 @@ type Employee = {
   role: "colaborador" | "gestor" | "rh";
   cargo: string | null;
   nivel: string | null;
+  convencaoId: string | null;
+  salarioMensal: number | null;
   hireDate: string;
   cpf: string | null;
   rg: string | null;
@@ -25,7 +27,13 @@ type Employee = {
   enderecoCep: string | null;
 };
 
-export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
+export function EditarColaboradorDialog({
+  employee,
+  convencoes,
+}: {
+  employee: Employee;
+  convencoes: { id: string; nome: string }[];
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(updateEmployeePersonalData, {
@@ -56,6 +64,8 @@ export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
     role: employee.role ?? "colaborador",
     cargo: employee.cargo ?? null,
     nivel: employee.nivel ?? null,
+    convencaoId: employee.convencaoId ?? null,
+    salarioMensal: employee.salarioMensal ?? null,
     hireDate: employee.hireDate ? employee.hireDate.slice(0, 10) : "",
     cpf: employee.cpf ?? null,
     rg: employee.rg ?? null,
@@ -83,7 +93,7 @@ export function EditarColaboradorDialog({ employee }: { employee: Employee }) {
         <p className={styles.dialogTitle}>Editar {employee.name}</p>
         <form ref={formRef} action={formAction}>
           <input type="hidden" name="userId" value={employee.userId} />
-          <ColaboradorFormFields defaults={defaults} />
+          <ColaboradorFormFields defaults={defaults} convencoes={convencoes} />
           {state.error ? <span className={styles.error}>{state.error}</span> : null}
           <div className={styles.dialogActions}>
             <button

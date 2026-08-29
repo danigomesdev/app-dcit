@@ -13,6 +13,8 @@ type Employee = {
   role: "colaborador" | "gestor" | "rh";
   cargo: string | null;
   nivel: string | null;
+  convencaoId: string | null;
+  salarioMensal: number | null;
   hireDate: string;
   expectedStartTime: string | null;
   cpf: string | null;
@@ -33,13 +35,16 @@ export default async function ColaboradoresPage() {
     return <EmptyState title="Sem permissão" description="Esta página é restrita a RH e gestores." />;
   }
 
-  const employees = await apiFetchJson<Employee[]>("/employees");
+  const [employees, convencoes] = await Promise.all([
+    apiFetchJson<Employee[]>("/employees"),
+    apiFetchJson<{ id: string; nome: string }[]>("/convencoes"),
+  ]);
 
   return (
     <div className={styles.page}>
       <div className={styles.headingRow}>
         <h1 className={styles.heading}>Colaboradores</h1>
-        <NovoColaboradorDialog />
+        <NovoColaboradorDialog convencoes={convencoes} />
       </div>
       <p className={styles.subheading}>
         Defina o horário esperado de entrada de cada colaborador — usado para marcá-lo como
@@ -50,7 +55,7 @@ export default async function ColaboradoresPage() {
       ) : (
         <ul className={styles.list}>
           {employees.map((employee) => (
-            <ColaboradoresRow key={employee.userId} employee={employee} />
+            <ColaboradoresRow key={employee.userId} employee={employee} convencoes={convencoes} />
           ))}
         </ul>
       )}

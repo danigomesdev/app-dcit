@@ -12,6 +12,8 @@ type Employee = {
   role: "colaborador" | "gestor" | "rh";
   cargo: string | null;
   nivel: string | null;
+  convencaoId: string | null;
+  salarioMensal: number | null;
   hireDate: string;
   expectedStartTime: string | null;
   cpf: string | null;
@@ -26,7 +28,13 @@ type Employee = {
   enderecoCep: string | null;
 };
 
-export function ColaboradoresRow({ employee }: { employee: Employee }) {
+export function ColaboradoresRow({
+  employee,
+  convencoes,
+}: {
+  employee: Employee;
+  convencoes: { id: string; nome: string }[];
+}) {
   const [state, formAction, pending] = useActionState(updateSchedule, { error: null });
   const confirmDeleteRef = useRef<HTMLDialogElement>(null);
 
@@ -46,7 +54,7 @@ export function ColaboradoresRow({ employee }: { employee: Employee }) {
           Salvar
         </button>
       </form>
-      <EditarColaboradorDialog employee={employee} />
+      <EditarColaboradorDialog employee={employee} convencoes={convencoes} />
       <button
         type="button"
         className={styles.deleteButton}

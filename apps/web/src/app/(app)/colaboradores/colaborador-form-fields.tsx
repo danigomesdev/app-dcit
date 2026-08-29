@@ -73,6 +73,8 @@ export type ColaboradorFormDefaults = {
   role: "colaborador" | "gestor" | "rh";
   cargo: string | null;
   nivel: string | null;
+  convencaoId: string | null;
+  salarioMensal: number | null;
   hireDate: string;
   cpf: string | null;
   rg: string | null;
@@ -94,7 +96,13 @@ type ViaCepResponse = {
   uf?: string;
 };
 
-export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormDefaults }) {
+export function ColaboradorFormFields({
+  defaults,
+  convencoes,
+}: {
+  defaults: ColaboradorFormDefaults;
+  convencoes: { id: string; nome: string }[];
+}) {
   const ruaRef = useRef<HTMLInputElement>(null);
   const bairroRef = useRef<HTMLInputElement>(null);
   const cidadeRef = useRef<HTMLInputElement>(null);
@@ -167,6 +175,33 @@ export function ColaboradorFormFields({ defaults }: { defaults: ColaboradorFormD
             </option>
           ))}
         </select>
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Convenção coletiva</span>
+        <select
+          name="convencaoId"
+          defaultValue={defaults.convencaoId ?? ""}
+          className={styles.fieldSelect}
+        >
+          <option value="">—</option>
+          {convencoes.map((convencao) => (
+            <option key={convencao.id} value={convencao.id}>
+              {convencao.nome}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Salário mensal</span>
+        <input
+          type="number"
+          name="salarioMensal"
+          min="0"
+          step="0.01"
+          placeholder="R$"
+          defaultValue={defaults.salarioMensal ?? ""}
+          className={styles.fieldInput}
+        />
       </label>
       <label className={styles.field}>
         <span className={styles.fieldLabel}>Data de admissão</span>
