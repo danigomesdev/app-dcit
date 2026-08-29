@@ -25,7 +25,7 @@ describe('EmployeesController guard metadata', () => {
     expect(roles).toEqual(['gestor', 'rh']);
   });
 
-  it('applies AuthGuard and RolesGuard to updateSchedule, restricted to rh only', () => {
+  it('applies AuthGuard and RolesGuard to updateSchedule, restricted to gestor/rh', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -39,10 +39,10 @@ describe('EmployeesController guard metadata', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       EmployeesController.prototype.updateSchedule,
     ) as unknown[] | undefined;
-    expect(roles).toEqual(['rh']);
+    expect(roles).toEqual(['gestor', 'rh']);
   });
 
-  it('applies AuthGuard and RolesGuard to create, restricted to rh only', () => {
+  it('applies AuthGuard and RolesGuard to create, restricted to gestor/rh', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -56,10 +56,10 @@ describe('EmployeesController guard metadata', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       EmployeesController.prototype.create,
     ) as unknown[] | undefined;
-    expect(roles).toEqual(['rh']);
+    expect(roles).toEqual(['gestor', 'rh']);
   });
 
-  it('applies AuthGuard and RolesGuard to listTrash, restricted to rh only', () => {
+  it('applies AuthGuard and RolesGuard to listTrash, restricted to gestor/rh', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -73,10 +73,10 @@ describe('EmployeesController guard metadata', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       EmployeesController.prototype.listTrash,
     ) as unknown[] | undefined;
-    expect(roles).toEqual(['rh']);
+    expect(roles).toEqual(['gestor', 'rh']);
   });
 
-  it('applies AuthGuard and RolesGuard to softDelete, restricted to rh only', () => {
+  it('applies AuthGuard and RolesGuard to softDelete, restricted to gestor/rh', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -90,10 +90,10 @@ describe('EmployeesController guard metadata', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       EmployeesController.prototype.softDelete,
     ) as unknown[] | undefined;
-    expect(roles).toEqual(['rh']);
+    expect(roles).toEqual(['gestor', 'rh']);
   });
 
-  it('applies AuthGuard and RolesGuard to restore, restricted to rh only', () => {
+  it('applies AuthGuard and RolesGuard to restore, restricted to gestor/rh', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -107,10 +107,10 @@ describe('EmployeesController guard metadata', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       EmployeesController.prototype.restore,
     ) as unknown[] | undefined;
-    expect(roles).toEqual(['rh']);
+    expect(roles).toEqual(['gestor', 'rh']);
   });
 
-  it('applies AuthGuard and RolesGuard to permanentlyDelete, restricted to rh only', () => {
+  it('applies AuthGuard and RolesGuard to permanentlyDelete, restricted to gestor/rh', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -124,10 +124,10 @@ describe('EmployeesController guard metadata', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       EmployeesController.prototype.permanentlyDelete,
     ) as unknown[] | undefined;
-    expect(roles).toEqual(['rh']);
+    expect(roles).toEqual(['gestor', 'rh']);
   });
 
-  it('applies AuthGuard and RolesGuard to updatePersonalData, restricted to rh only', () => {
+  it('applies AuthGuard and RolesGuard to updatePersonalData, restricted to gestor/rh', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
       // eslint-disable-next-line @typescript-eslint/unbound-method
@@ -141,7 +141,7 @@ describe('EmployeesController guard metadata', () => {
       // eslint-disable-next-line @typescript-eslint/unbound-method
       EmployeesController.prototype.updatePersonalData,
     ) as unknown[] | undefined;
-    expect(roles).toEqual(['rh']);
+    expect(roles).toEqual(['gestor', 'rh']);
   });
 });
 

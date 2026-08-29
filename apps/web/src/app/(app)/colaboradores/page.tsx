@@ -27,8 +27,8 @@ type Employee = {
 
 export default async function ColaboradoresPage() {
   const session = await getSession();
-  if (!session || session.role !== "rh") {
-    return <EmptyState title="Sem permissão" description="Esta página é restrita ao RH." />;
+  if (!session || (session.role !== "rh" && session.role !== "gestor")) {
+    return <EmptyState title="Sem permissão" description="Esta página é restrita a RH e gestores." />;
   }
 
   const employees = await apiFetchJson<Employee[]>("/employees");

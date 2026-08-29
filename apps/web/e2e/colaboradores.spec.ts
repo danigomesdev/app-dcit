@@ -9,11 +9,15 @@ test("colaborador sees a permission message instead of the roster", async ({ pag
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
 });
 
-test("gestor sees a permission message instead of the roster", async ({ page, context }) => {
+test("gestor sees the roster like rh does", async ({ page, context, request }) => {
   await addSessionCookie(context, { sub: "gestor-1", role: "gestor", name: "Bruno Gestor" });
+  await mockApi(request, {
+    employees: [{ userId: "colaborador-1", name: "Ana Colaboradora", expectedStartTime: "09:00" }],
+  });
+
   await page.goto("/colaboradores");
 
-  await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
+  await expect(page.getByText("Ana Colaboradora", { exact: true })).toBeVisible();
 });
 
 test("rh sees the roster with the current expected start time prefilled", async ({

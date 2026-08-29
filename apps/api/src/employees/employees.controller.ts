@@ -31,7 +31,7 @@ export class EmployeesController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('rh')
+  @Roles('gestor', 'rh')
   @Post()
   @HttpCode(201)
   async create(@Body() body: unknown) {
@@ -43,7 +43,7 @@ export class EmployeesController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('rh')
+  @Roles('gestor', 'rh')
   @Patch(':userId/personal-data')
   async updatePersonalData(
     @Param('userId') userId: string,
@@ -57,14 +57,14 @@ export class EmployeesController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('rh')
+  @Roles('gestor', 'rh')
   @Get('trash')
   listTrash() {
     return this.employees.listTrash();
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('rh')
+  @Roles('gestor', 'rh')
   @Delete(':userId')
   @HttpCode(204)
   async softDelete(@Param('userId') userId: string) {
@@ -72,14 +72,14 @@ export class EmployeesController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('rh')
+  @Roles('gestor', 'rh')
   @Patch(':userId/restore')
   restore(@Param('userId') userId: string) {
     return this.employees.restore(userId);
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('rh')
+  @Roles('gestor', 'rh')
   @Delete(':userId/permanent')
   @HttpCode(204)
   async permanentlyDelete(@Param('userId') userId: string) {
@@ -87,7 +87,7 @@ export class EmployeesController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles('rh')
+  @Roles('gestor', 'rh')
   @Patch(':userId')
   async updateSchedule(@Param('userId') userId: string, @Body() body: unknown) {
     const result = EmployeeScheduleUpdateSchema.safeParse(body);
