@@ -34,4 +34,29 @@ describe("notificacoes screen", () => {
     });
     expect(screen.getByText("Pontos aguardando sincronização")).toBeTruthy();
   });
+
+  it("shows a notice when there's a jornada alert", async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/alertas/minhas")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            {
+              id: "alert-1",
+              type: "interjornada",
+              date: "2026-09-02T00:00:00.000Z",
+              minutesShort: 240,
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    renderRouter("src/app", { initialUrl: "/notificacoes" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Intervalo entre turnos não cumprido")).toBeTruthy();
+    });
+  });
 });

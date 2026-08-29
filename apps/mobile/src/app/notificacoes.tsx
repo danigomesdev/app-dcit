@@ -10,6 +10,7 @@ import { ThemedView } from "@/components/themed-view";
 import { usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
+import { fetchJornadaAlerts, type JornadaAlertRecord } from "@/lib/alertas-api";
 import { currentVacationCycle, daysUntil, formatDate } from "@/lib/ferias";
 import { getSessionToken } from "@/lib/session";
 import {
@@ -35,16 +36,18 @@ export default function NotificacoesScreen() {
   const [pendingVacation, setPendingVacation] = useState(0);
   const [pendingAdjustments, setPendingAdjustments] = useState(0);
   const [pendingCompensation, setPendingCompensation] = useState(0);
+  const [jornadaAlerts, setJornadaAlerts] = useState<JornadaAlertRecord[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       getSessionToken().then(async (token) => {
         if (!token) return;
-        const [ferias, adjustments, compensations] = await Promise.all([
+        const [ferias, adjustments, compensations, alerts] = await Promise.all([
           fetchFerias(token),
           fetchAdjustmentRequests(token),
           fetchCompensationRequests(token),
+          fetchJornadaAlerts(token),
         ]);
         if (cancelled) return;
         if (ferias) {
@@ -53,6 +56,7 @@ export default function NotificacoesScreen() {
         }
         if (adjustments) setPendingAdjustments(adjustments.length);
         if (compensations) setPendingCompensation(compensations.length);
+        if (alerts) setJornadaAlerts(alerts);
       });
       return () => {
         cancelled = true;
@@ -86,6 +90,19 @@ export default function NotificacoesScreen() {
       });
     }
 
+    for (const alert of jornadaAlerts) {
+      list.push({
+        id: `jornada-${alert.id}`,
+        icon: "alert-circle-outline",
+        tone: "accent",
+        title:
+          alert.type === "interjornada"
+            ? "Intervalo entre turnos não cumprido"
+            : "Intervalo de almoço não cumprido",
+        description: `${formatDate(new Date(alert.date))} — faltaram ${alert.minutesShort} min para o mínimo exigido.`,
+      });
+    }
+
     const totalPending = pendingVacation + pendingAdjustments + pendingCompensation;
     if (totalPending > 0) {
       list.push({
@@ -98,7 +115,7 @@ export default function NotificacoesScreen() {
     }
 
     return list;
-  }, [entries, hireDate, pendingVacation, pendingAdjustments, pendingCompensation]);
+  }, [entries, hireDate, pendingVacation, pendingAdjustments, pendingCompensation, jornadaAlerts]);
 
   return (
     <ThemedView style={styles.container}>
