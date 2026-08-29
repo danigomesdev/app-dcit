@@ -21,7 +21,11 @@ describe('EmployeesService', () => {
 
   afterAll(async () => {
     await prisma.employee.deleteMany({
-      where: { userId: { in: ['emp-b', 'emp-a', 'emp-schedule'] } },
+      where: {
+        userId: {
+          in: ['emp-b', 'emp-a', 'emp-schedule', 'emp-edit-convencao'],
+        },
+      },
     });
     await prisma.employee.deleteMany({
       where: { cpf: { in: ['11111111111', '22222222222'] } },
@@ -152,6 +156,33 @@ describe('EmployeesService', () => {
 
       expect(created.cpf).toBeNull();
       expect(created.dataNascimento).toBeNull();
+
+      await prisma.employee.delete({ where: { userId: created.userId } });
+    });
+
+    it('persists convencaoId and salarioMensal', async () => {
+      const created = await service.create({
+        name: 'Fabio Convenio',
+        role: 'colaborador',
+        cargo: null,
+        nivel: null,
+        hireDate: '2026-03-01',
+        cpf: null,
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+        convencaoId: 'convencao-abc',
+        salarioMensal: 5000.5,
+      });
+
+      expect(created.convencaoId).toBe('convencao-abc');
+      expect(created.salarioMensal).toBe(5000.5);
 
       await prisma.employee.delete({ where: { userId: created.userId } });
     });
@@ -373,6 +404,42 @@ describe('EmployeesService', () => {
       expect(updated.enderecoEstado).toBe('RJ');
 
       await prisma.employee.delete({ where: { userId: 'emp-edit-a' } });
+    });
+
+    it('updates convencaoId and salarioMensal', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-convencao',
+          name: 'Antes Do Convenio',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      const updated = await service.updatePersonalData('emp-edit-convencao', {
+        name: 'Depois Do Convenio',
+        role: 'colaborador',
+        cargo: null,
+        nivel: null,
+        hireDate: '2024-01-01',
+        cpf: null,
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+        convencaoId: 'convencao-xyz',
+        salarioMensal: 6200,
+      });
+
+      expect(updated.convencaoId).toBe('convencao-xyz');
+      expect(updated.salarioMensal).toBe(6200);
+
+      await prisma.employee.delete({ where: { userId: 'emp-edit-convencao' } });
     });
 
     it('does not conflict when the CPF submitted is unchanged from the same employee', async () => {

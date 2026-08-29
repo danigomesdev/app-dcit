@@ -218,6 +218,8 @@ describe('EmployeesController', () => {
     role: 'colaborador',
     cargo: null,
     nivel: null,
+    convencaoId: null,
+    salarioMensal: null,
     hireDate: '2026-01-15',
     cpf: null,
     rg: null,
