@@ -75,7 +75,9 @@ describe('OperacionalService', () => {
     );
 
     await service.toggleSobreaviso('user-sobreaviso-a');
-    await prisma.employee.deleteMany({ where: { userId: 'user-sobreaviso-a' } });
+    await prisma.employee.deleteMany({
+      where: { userId: 'user-sobreaviso-a' },
+    });
   });
 
   it('creates and lists deslocamentos scoped to the user, newest first', async () => {

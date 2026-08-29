@@ -24,7 +24,9 @@ describe('PushTokensService', () => {
     // same test.db, and a blanket delete here could race with its mid-test
     // pushToken rows in the same way (see that file's own afterAll comment).
     await prisma.pushToken.deleteMany({
-      where: { userId: { in: ['user-a', 'user-b', 'user-c', 'user-d', 'user-e'] } },
+      where: {
+        userId: { in: ['user-a', 'user-b', 'user-c', 'user-d', 'user-e'] },
+      },
     });
     await prisma.onModuleDestroy();
   });
