@@ -3,12 +3,25 @@
 import { useActionState, useRef } from "react";
 
 import { deleteEmployee, updateSchedule } from "./actions";
+import { EditarColaboradorDialog } from "./editar-colaborador-dialog";
 import styles from "./colaboradores.module.css";
 
 type Employee = {
   userId: string;
   name: string;
+  role: "colaborador" | "gestor" | "rh";
+  hireDate: string;
   expectedStartTime: string | null;
+  cpf: string | null;
+  rg: string | null;
+  dataNascimento: string | null;
+  estadoCivil: string | null;
+  enderecoRua: string | null;
+  enderecoNumero: string | null;
+  enderecoBairro: string | null;
+  enderecoCidade: string | null;
+  enderecoEstado: string | null;
+  enderecoCep: string | null;
 };
 
 export function ColaboradoresRow({ employee }: { employee: Employee }) {
@@ -31,6 +44,7 @@ export function ColaboradoresRow({ employee }: { employee: Employee }) {
           Salvar
         </button>
       </form>
+      <EditarColaboradorDialog employee={employee} />
       <button
         type="button"
         className={styles.deleteButton}

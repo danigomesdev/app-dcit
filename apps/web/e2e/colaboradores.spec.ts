@@ -341,3 +341,64 @@ test("excluir permanentemente requires confirmation before calling the API", asy
     })
     .toBeTruthy();
 });
+
+test("opens the edit dialog prefilled and saves personal data", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [
+      {
+        userId: "colaborador-1",
+        name: "Ana Colaboradora",
+        role: "colaborador",
+        hireDate: "2024-01-01T00:00:00.000Z",
+        expectedStartTime: null,
+        cpf: "12345678901",
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+      },
+    ],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "Editar" }).click();
+
+  await expect(page.getByRole("dialog").getByLabel("Nome")).toHaveValue("Ana Colaboradora");
+  await expect(page.getByRole("dialog").getByLabel("CPF")).toHaveValue("12345678901");
+
+  await page.getByRole("dialog").getByLabel("Nome").fill("Ana Editada");
+  await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "PATCH" && r.path === "/employees/colaborador-1/personal-data"
+      )?.body;
+    })
+    .toEqual({
+      name: "Ana Editada",
+      role: "colaborador",
+      hireDate: "2024-01-01",
+      cpf: "12345678901",
+      rg: null,
+      dataNascimento: null,
+      estadoCivil: null,
+      enderecoRua: null,
+      enderecoNumero: null,
+      enderecoBairro: null,
+      enderecoCidade: null,
+      enderecoEstado: null,
+      enderecoCep: null,
+    });
+});
