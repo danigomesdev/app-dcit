@@ -259,4 +259,117 @@ describe('EmployeesService', () => {
       ).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('updatePersonalData', () => {
+    it('updates all personal fields, including role and hireDate', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-a',
+          name: 'Antes Da Edicao',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      const updated = await service.updatePersonalData('emp-edit-a', {
+        name: 'Depois Da Edicao',
+        role: 'gestor',
+        hireDate: '2025-06-01',
+        cpf: '33333333333',
+        rg: '7654321',
+        dataNascimento: '1985-03-10',
+        estadoCivil: 'divorciado',
+        enderecoRua: 'Rua Nova',
+        enderecoNumero: '200',
+        enderecoBairro: 'Jardins',
+        enderecoCidade: 'Rio de Janeiro',
+        enderecoEstado: 'RJ',
+        enderecoCep: '22000000',
+      });
+
+      expect(updated.name).toBe('Depois Da Edicao');
+      expect(updated.role).toBe('gestor');
+      expect(updated.hireDate.toISOString()).toBe('2025-06-01T00:00:00.000Z');
+      expect(updated.cpf).toBe('33333333333');
+      expect(updated.enderecoEstado).toBe('RJ');
+
+      await prisma.employee.delete({ where: { userId: 'emp-edit-a' } });
+    });
+
+    it('does not conflict when the CPF submitted is unchanged from the same employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-b',
+          name: 'Mesmo CPF',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          cpf: '44444444444',
+        },
+      });
+
+      const updated = await service.updatePersonalData('emp-edit-b', {
+        name: 'Mesmo CPF Editado',
+        role: 'colaborador',
+        hireDate: '2024-01-01',
+        cpf: '44444444444',
+        rg: null,
+        dataNascimento: null,
+        estadoCivil: null,
+        enderecoRua: null,
+        enderecoNumero: null,
+        enderecoBairro: null,
+        enderecoCidade: null,
+        enderecoEstado: null,
+        enderecoCep: null,
+      });
+
+      expect(updated.name).toBe('Mesmo CPF Editado');
+      expect(updated.cpf).toBe('44444444444');
+
+      await prisma.employee.delete({ where: { userId: 'emp-edit-b' } });
+    });
+
+    it('throws ConflictException when the new CPF belongs to a different employee', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-c1',
+          name: 'Primeiro Editor',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          cpf: '55555555555',
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'emp-edit-c2',
+          name: 'Segundo Editor',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          cpf: '66666666666',
+        },
+      });
+
+      await expect(
+        service.updatePersonalData('emp-edit-c2', {
+          name: 'Segundo Editor',
+          role: 'colaborador',
+          hireDate: '2024-01-01',
+          cpf: '55555555555',
+          rg: null,
+          dataNascimento: null,
+          estadoCivil: null,
+          enderecoRua: null,
+          enderecoNumero: null,
+          enderecoBairro: null,
+          enderecoCidade: null,
+          enderecoEstado: null,
+          enderecoCep: null,
+        }),
+      ).rejects.toThrow(ConflictException);
+
+      await prisma.employee.deleteMany({
+        where: { userId: { in: ['emp-edit-c1', 'emp-edit-c2'] } },
+      });
+    });
+  });
 });

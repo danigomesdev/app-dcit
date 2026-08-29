@@ -44,6 +44,20 @@ export class EmployeesController {
 
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('rh')
+  @Patch(':userId/personal-data')
+  async updatePersonalData(
+    @Param('userId') userId: string,
+    @Body() body: unknown,
+  ) {
+    const result = EmployeeCreateSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    return this.employees.updatePersonalData(userId, result.data);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
   @Get('trash')
   listTrash() {
     return this.employees.listTrash();

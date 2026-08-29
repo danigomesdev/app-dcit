@@ -22,6 +22,41 @@ export class EmployeesService {
     });
   }
 
+  async updatePersonalData(userId: string, input: EmployeeCreateInput) {
+    try {
+      return await this.prisma.employee.update({
+        where: { userId },
+        data: {
+          name: input.name,
+          role: input.role,
+          hireDate: new Date(input.hireDate),
+          cpf: input.cpf,
+          rg: input.rg,
+          dataNascimento: input.dataNascimento
+            ? new Date(input.dataNascimento)
+            : null,
+          estadoCivil: input.estadoCivil,
+          enderecoRua: input.enderecoRua,
+          enderecoNumero: input.enderecoNumero,
+          enderecoBairro: input.enderecoBairro,
+          enderecoCidade: input.enderecoCidade,
+          enderecoEstado: input.enderecoEstado,
+          enderecoCep: input.enderecoCep,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'Já existe um colaborador cadastrado com esse CPF.',
+        );
+      }
+      throw error;
+    }
+  }
+
   listTrash() {
     return this.prisma.employee.findMany({
       where: { deletedAt: { not: null } },

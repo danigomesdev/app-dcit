@@ -126,6 +126,23 @@ describe('EmployeesController guard metadata', () => {
     ) as unknown[] | undefined;
     expect(roles).toEqual(['rh']);
   });
+
+  it('applies AuthGuard and RolesGuard to updatePersonalData, restricted to rh only', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.updatePersonalData,
+    ) as unknown[] | undefined;
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      EmployeesController.prototype.updatePersonalData,
+    ) as unknown[] | undefined;
+    expect(roles).toEqual(['rh']);
+  });
 });
 
 describe('EmployeesController', () => {
@@ -138,6 +155,7 @@ describe('EmployeesController', () => {
     softDelete: jest.fn(),
     restore: jest.fn(),
     permanentlyDelete: jest.fn(),
+    updatePersonalData: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -270,5 +288,29 @@ describe('EmployeesController', () => {
     await controller.permanentlyDelete('user-1');
 
     expect(serviceMock.permanentlyDelete).toHaveBeenCalledWith('user-1');
+  });
+
+  it('updates personal data with a valid payload', async () => {
+    serviceMock.updatePersonalData.mockResolvedValue({
+      userId: 'user-1',
+      ...VALID_CREATE_BODY,
+    });
+
+    await controller.updatePersonalData('user-1', VALID_CREATE_BODY);
+
+    expect(serviceMock.updatePersonalData).toHaveBeenCalledWith(
+      'user-1',
+      VALID_CREATE_BODY,
+    );
+  });
+
+  it('rejects an invalid payload before calling the service for updatePersonalData', async () => {
+    await expect(
+      controller.updatePersonalData('user-1', {
+        ...VALID_CREATE_BODY,
+        role: 'admin',
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(serviceMock.updatePersonalData).not.toHaveBeenCalled();
   });
 });
