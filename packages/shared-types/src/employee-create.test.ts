@@ -5,6 +5,8 @@ const VALID_PAYLOAD = {
   role: "colaborador" as const,
   cargo: "desenvolvedor" as const,
   nivel: "pleno" as const,
+  convencaoId: "convencao-1" as const,
+  salarioMensal: 5000,
   hireDate: "2026-01-15",
   cpf: "12345678901",
   rg: "1234567",
@@ -30,6 +32,8 @@ describe("EmployeeCreateSchema", () => {
       role: "colaborador",
       cargo: null,
       nivel: null,
+      convencaoId: null,
+      salarioMensal: null,
       hireDate: "2026-01-15",
       cpf: null,
       rg: null,
@@ -43,6 +47,19 @@ describe("EmployeeCreateSchema", () => {
       enderecoCep: null,
     });
     expect(result.success).toBe(true);
+  });
+
+  it("coerces salarioMensal from a string (form submission)", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, salarioMensal: "5000.50" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.salarioMensal).toBe(5000.5);
+    }
+  });
+
+  it("rejects a negative salarioMensal", () => {
+    const result = EmployeeCreateSchema.safeParse({ ...VALID_PAYLOAD, salarioMensal: -100 });
+    expect(result.success).toBe(false);
   });
 
   it("rejects a CPF with punctuation", () => {

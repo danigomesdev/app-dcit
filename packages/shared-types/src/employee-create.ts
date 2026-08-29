@@ -43,6 +43,14 @@ export const EmployeeCreateSchema = z.object({
   role: RoleSchema,
   cargo: z.enum(CARGOS).nullable(),
   nivel: z.enum(NIVEIS).nullable(),
+  convencaoId: z.string().nullable(),
+  // z.coerce.number() (não z.number()): o formulário de colaborador
+  // reaproveita o mesmo array OPTIONAL_FIELDS que já monta o payload como
+  // string a partir de FormData (apps/web/src/app/(app)/colaboradores/actions.ts)
+  // — sem coerção, um salário "5000.50" (string) falharia a validação de
+  // z.number(). nullable() intercepta null antes de tentar coagir, então o
+  // caso "campo vazio" continua funcionando normalmente.
+  salarioMensal: z.coerce.number().nonnegative().nullable(),
   hireDate: z.string().date(),
   cpf: z.string().regex(/^\d{11}$/).nullable(),
   rg: z.string().min(1).nullable(),

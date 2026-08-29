@@ -46,3 +46,5 @@ export { EmployeeScheduleUpdateSchema } from "./employee-schedule";
 export type { EmployeeScheduleUpdate } from "./employee-schedule";
 export { EmployeeCreateSchema, ESTADOS_CIVIS, UFS } from "./employee-create";
 export type { EmployeeCreateInput } from "./employee-create";
+export { ConvencaoInputSchema } from "./convencao";
+export type { ConvencaoInput } from "./convencao";
