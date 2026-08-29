@@ -61,6 +61,7 @@ export async function mockApi(
     certifications?: unknown[];
     jornadaAlerts?: unknown[];
     convencoes?: unknown[];
+    bancoDeHorasEquipe?: unknown[];
   } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
@@ -157,6 +158,11 @@ export async function mockApi(
   if (data.convencoes) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/convencoes", response: data.convencoes },
+    });
+  }
+  if (data.bancoDeHorasEquipe) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/banco-de-horas/equipe", response: data.bancoDeHorasEquipe },
     });
   }
 }

@@ -92,6 +92,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/convencoes") {
     return sendJson(res, 200, []);
   }
+  if (req.method === "GET" && url.pathname === "/banco-de-horas/equipe") {
+    return sendJson(res, 200, []);
+  }
   if (req.method === "GET" && url.pathname === "/alertas") {
     return sendJson(res, 200, []);
   }
