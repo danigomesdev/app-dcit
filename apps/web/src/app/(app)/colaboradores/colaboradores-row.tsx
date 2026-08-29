@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 
-import { updateSchedule } from "./actions";
+import { deleteEmployee, updateSchedule } from "./actions";
 import styles from "./colaboradores.module.css";
 
 type Employee = {
@@ -13,6 +13,7 @@ type Employee = {
 
 export function ColaboradoresRow({ employee }: { employee: Employee }) {
   const [state, formAction, pending] = useActionState(updateSchedule, { error: null });
+  const confirmDeleteRef = useRef<HTMLDialogElement>(null);
 
   return (
     <li className={styles.item}>
@@ -30,7 +31,36 @@ export function ColaboradoresRow({ employee }: { employee: Employee }) {
           Salvar
         </button>
       </form>
+      <button
+        type="button"
+        className={styles.deleteButton}
+        onClick={() => confirmDeleteRef.current?.showModal()}
+      >
+        Excluir
+      </button>
       {state.error ? <span className={styles.error}>{state.error}</span> : null}
+
+      <dialog ref={confirmDeleteRef} className={styles.dialog}>
+        <p className={styles.dialogTitle}>Excluir {employee.name}?</p>
+        <p className={styles.subheading}>
+          Ele irá para a lixeira e poderá ser restaurado depois.
+        </p>
+        <form action={deleteEmployee}>
+          <input type="hidden" name="userId" value={employee.userId} />
+          <div className={styles.dialogActions}>
+            <button
+              type="button"
+              className={styles.dialogClose}
+              onClick={() => confirmDeleteRef.current?.close()}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className={styles.deleteButton}>
+              Excluir
+            </button>
+          </div>
+        </form>
+      </dialog>
     </li>
   );
 }

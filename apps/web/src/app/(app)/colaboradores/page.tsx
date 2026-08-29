@@ -3,6 +3,7 @@ import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
 import { ColaboradoresRow } from "./colaboradores-row";
+import { LixeiraSection } from "./lixeira-section";
 import { NovoColaboradorDialog } from "./novo-colaborador-dialog";
 import styles from "./colaboradores.module.css";
 
@@ -51,6 +52,7 @@ export default async function ColaboradoresPage() {
           ))}
         </ul>
       )}
+      <LixeiraSection />
     </div>
   );
 }

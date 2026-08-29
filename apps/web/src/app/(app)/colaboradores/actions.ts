@@ -84,3 +84,41 @@ export async function createEmployee(
   revalidatePath("/colaboradores");
   return { error: null, success: true };
 }
+
+export async function deleteEmployee(formData: FormData) {
+  const userId = formData.get("userId");
+  if (typeof userId !== "string") {
+    throw new Error("Invalid form data");
+  }
+  const res = await apiFetch(`/employees/${userId}`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`/employees/${userId} responded with ${res.status}`);
+  }
+  revalidatePath("/colaboradores");
+  revalidatePath("/");
+}
+
+export async function restoreEmployee(formData: FormData) {
+  const userId = formData.get("userId");
+  if (typeof userId !== "string") {
+    throw new Error("Invalid form data");
+  }
+  const res = await apiFetch(`/employees/${userId}/restore`, { method: "PATCH" });
+  if (!res.ok) {
+    throw new Error(`/employees/${userId}/restore responded with ${res.status}`);
+  }
+  revalidatePath("/colaboradores");
+  revalidatePath("/");
+}
+
+export async function permanentlyDeleteEmployee(formData: FormData) {
+  const userId = formData.get("userId");
+  if (typeof userId !== "string") {
+    throw new Error("Invalid form data");
+  }
+  const res = await apiFetch(`/employees/${userId}/permanent`, { method: "DELETE" });
+  if (!res.ok) {
+    throw new Error(`/employees/${userId}/permanent responded with ${res.status}`);
+  }
+  revalidatePath("/colaboradores");
+}

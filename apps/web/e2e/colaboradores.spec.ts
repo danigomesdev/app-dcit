@@ -28,7 +28,7 @@ test("rh sees the roster with the current expected start time prefilled", async 
 
   await page.goto("/colaboradores");
 
-  await expect(page.getByText("Ana Colaboradora")).toBeVisible();
+  await expect(page.getByText("Ana Colaboradora", { exact: true })).toBeVisible();
   await expect(
     page.getByLabel("Horário esperado de entrada de Ana Colaboradora")
   ).toHaveValue("09:00");
@@ -232,4 +232,112 @@ test("a CEP not found by ViaCEP leaves the address fields unchanged", async ({
   await page.getByLabel("CEP").blur();
 
   await expect(page.getByLabel("Rua")).toHaveValue("Endereço Manual");
+});
+
+test("clicking Excluir opens a confirmation dialog, and confirming soft-deletes the employee", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [{ userId: "colaborador-1", name: "Ana Colaboradora", expectedStartTime: null }],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "Excluir", exact: true }).click();
+
+  await expect(page.getByText("Excluir Ana Colaboradora?")).toBeVisible();
+
+  await page.getByRole("dialog").getByRole("button", { name: "Excluir" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "DELETE" && r.path === "/employees/colaborador-1"
+      );
+    })
+    .toBeTruthy();
+});
+
+test("canceling the delete confirmation does not call the API", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [{ userId: "colaborador-1", name: "Ana Colaboradora", expectedStartTime: null }],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "Excluir", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Cancelar" }).click();
+
+  const recorded = await getRecordedRequests(request);
+  expect(recorded.find((r) => r.method === "DELETE")).toBeUndefined();
+});
+
+test("the lixeira section lists trashed employees and can restore one without confirmation", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [],
+    trash: [
+      { userId: "colaborador-2", name: "Beto Excluido", deletedAt: "2026-08-20T00:00:00.000Z" },
+    ],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByText("Lixeira (1)").click();
+  await expect(page.getByText("Beto Excluido", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Restaurar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "PATCH" && r.path === "/employees/colaborador-2/restore"
+      );
+    })
+    .toBeTruthy();
+});
+
+test("excluir permanentemente requires confirmation before calling the API", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [],
+    trash: [
+      { userId: "colaborador-2", name: "Beto Excluido", deletedAt: "2026-08-20T00:00:00.000Z" },
+    ],
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByText("Lixeira (1)").click();
+  await page.getByRole("button", { name: "Excluir permanentemente", exact: true }).click();
+
+  await expect(page.getByText("Excluir Beto Excluido permanentemente?")).toBeVisible();
+
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Excluir permanentemente" })
+    .click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "DELETE" && r.path === "/employees/colaborador-2/permanent"
+      );
+    })
+    .toBeTruthy();
 });
