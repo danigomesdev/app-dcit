@@ -13,7 +13,7 @@ test("sidebar renders both sections and navigates between them", async ({
 
   await expect(page.getByRole("link", { name: "Ponto" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Colaboradores" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Escala" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Plantão" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Aprovações" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Documentos" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Mural" })).toBeVisible();
@@ -44,12 +44,12 @@ test("highlights the active nav link and only the active one", async ({
   await page.goto("/");
 
   await expect(page.getByRole("link", { name: "Ponto" })).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("link", { name: "Escala" })).not.toHaveAttribute("aria-current");
+  await expect(page.getByRole("link", { name: "Plantão" })).not.toHaveAttribute("aria-current");
 
-  await page.getByRole("link", { name: "Escala" }).click();
+  await page.getByRole("link", { name: "Plantão" }).click();
   await expect(page).toHaveURL(/\/escala$/);
 
-  await expect(page.getByRole("link", { name: "Escala" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Plantão" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("link", { name: "Ponto" })).not.toHaveAttribute("aria-current");
 });
 

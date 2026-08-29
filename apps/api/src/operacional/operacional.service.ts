@@ -5,6 +5,7 @@ import type {
   EscalaShiftInput,
 } from '@ponto-dcit/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { ExpoPushService } from '../push/expo-push.service';
 
 // Monday (UTC) of the current week through the following Sunday, unless
 // explicit start/end query params are given. Kept UTC-only throughout (no
@@ -41,7 +42,10 @@ function mondayOfCurrentWeekUTC(): Date {
 
 @Injectable()
 export class OperacionalService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: ExpoPushService,
+  ) {}
 
   async getSobreavisoStatus(userId: string) {
     const open = await this.prisma.sobreavisoRecord.findFirst({
@@ -138,13 +142,22 @@ export class OperacionalService {
 
   async createShift(input: EscalaShiftInput) {
     try {
-      return await this.prisma.plantaoShift.create({
+      const created = await this.prisma.plantaoShift.create({
         data: {
           date: new Date(input.date),
           label: input.label,
           userId: input.userId,
         },
       });
+      const formattedDate = new Date(`${input.date}T00:00:00.000Z`).toLocaleDateString(
+        'pt-BR',
+        { timeZone: 'UTC' },
+      );
+      void this.push.sendToUser(input.userId, {
+        title: 'Plantão',
+        body: `Você foi escalado para o plantão "${input.label}" em ${formattedDate}.`,
+      });
+      return created;
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&

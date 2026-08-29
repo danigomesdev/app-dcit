@@ -63,6 +63,10 @@
   justify-content: space-between;
   gap: 16px;
   font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-status-info);
+  background: color-mix(in srgb, var(--color-status-info) 12%, transparent);
 }
 
 .removeButton {

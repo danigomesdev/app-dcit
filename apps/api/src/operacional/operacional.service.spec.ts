@@ -4,14 +4,20 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
 import { OperacionalService, resolveWeekRange } from './operacional.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ExpoPushService } from '../push/expo-push.service';
 
 describe('OperacionalService', () => {
   let service: OperacionalService;
   let prisma: PrismaService;
+  const pushMock = { sendToUser: jest.fn() };
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [OperacionalService, PrismaService],
+      providers: [
+        OperacionalService,
+        PrismaService,
+        { provide: ExpoPushService, useValue: pushMock },
+      ],
     }).compile();
 
     service = module.get(OperacionalService);
@@ -202,6 +208,21 @@ describe('OperacionalService', () => {
         where: { id: { in: [inRange.id, outOfRange.id] } },
       });
       await prisma.employee.deleteMany({ where: { userId: 'user-shift-a' } });
+    });
+
+    it('notifies the scheduled employee by push', async () => {
+      const created = await service.createShift({
+        date: '2026-09-06',
+        label: 'Tarde',
+        userId: 'user-shift-notify',
+      });
+
+      expect(pushMock.sendToUser).toHaveBeenCalledWith(
+        'user-shift-notify',
+        expect.objectContaining({ title: 'Plantão' }),
+      );
+
+      await prisma.plantaoShift.delete({ where: { id: created.id } });
     });
 
     it('falls back to the bare userId when no Employee row exists', async () => {
