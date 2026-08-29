@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import { apiFetch } from "@/lib/api";
 
+import { OPTIONAL_FIELDS } from "./employee-optional-fields";
+
 export type UpdateScheduleState = { error: string | null };
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -37,20 +39,7 @@ export async function updateSchedule(
   return { error: null };
 }
 
-export type CreateEmployeeState = { error: string | null; success: boolean };
-
-const OPTIONAL_FIELDS = [
-  "cpf",
-  "rg",
-  "dataNascimento",
-  "estadoCivil",
-  "enderecoRua",
-  "enderecoNumero",
-  "enderecoBairro",
-  "enderecoCidade",
-  "enderecoEstado",
-  "enderecoCep",
-] as const;
+export type CreateEmployeeState = { error: string | null; success: boolean; successToken: number };
 
 export async function createEmployee(
   _prevState: CreateEmployeeState,
@@ -60,7 +49,7 @@ export async function createEmployee(
   const role = formData.get("role");
   const hireDate = formData.get("hireDate");
   if (typeof name !== "string" || typeof role !== "string" || typeof hireDate !== "string") {
-    return { error: "Dados do formulário inválidos.", success: false };
+    return { error: "Dados do formulário inválidos.", success: false, successToken: _prevState.successToken };
   }
 
   const payload: Record<string, string | null> = { name, role, hireDate };
@@ -76,13 +65,26 @@ export async function createEmployee(
   });
   if (!res.ok) {
     if (res.status === 409) {
-      return { error: "Já existe um colaborador cadastrado com esse CPF.", success: false };
+      return {
+        error: "Já existe um colaborador cadastrado com esse CPF.",
+        success: false,
+        successToken: _prevState.successToken,
+      };
     }
-    return { error: `Não foi possível salvar (código ${res.status}).`, success: false };
+    return {
+      error: `Não foi possível salvar (código ${res.status}).`,
+      success: false,
+      successToken: _prevState.successToken,
+    };
   }
 
   revalidatePath("/colaboradores");
-  return { error: null, success: true };
+  // successToken changes on every successful submit (even repeats), so the
+  // dialog's useEffect — which depends on it, not on `success` — reliably
+  // fires again to close+reset the form each time (useActionState reuses
+  // the last returned value, so plain `success: true` twice in a row would
+  // be Object.is-equal and never re-trigger the effect after the 2nd save).
+  return { error: null, success: true, successToken: Date.now() };
 }
 
 export async function deleteEmployee(formData: FormData) {

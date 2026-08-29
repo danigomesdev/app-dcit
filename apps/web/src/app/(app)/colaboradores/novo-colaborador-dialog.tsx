@@ -28,6 +28,7 @@ export function NovoColaboradorDialog() {
   const [state, formAction, pending] = useActionState(createEmployee, {
     error: null,
     success: false,
+    successToken: 0,
   });
 
   useEffect(() => {
@@ -35,7 +36,12 @@ export function NovoColaboradorDialog() {
       dialogRef.current?.close();
       formRef.current?.reset();
     }
-  }, [state.success]);
+    // successToken (not state.success) is the intentional dependency:
+    // state.success alone stays `true` (Object.is-equal) from the 2nd
+    // successful submit onward and would never re-trigger this effect,
+    // leaving the dialog open on repeat creates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.successToken]);
 
   return (
     <>
