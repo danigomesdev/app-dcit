@@ -79,6 +79,19 @@ export class BancoDeHorasService {
       const dateKey = cursor.toISOString().slice(0, 10);
       const expectedMinutes = isWeekend(dateKey) ? 0 : expectedDailyMinutes;
 
+      // Pairs punches as [in, out, in, out, ...] within this São-Paulo
+      // calendar day, mirroring TimeEntriesService.listTeamToday's pairing
+      // semantics (the old mobile mock had the same limitation). Two
+      // pre-existing, intentionally-not-fixed-here edge cases fall out of
+      // this:
+      // (a) an odd number of punches on a day — still clocked in, or a
+      //     missed punch — leaves the trailing punch unpaired, so it
+      //     contributes 0 minutes to workedMinutes; and
+      // (b) a shift that crosses midnight is split across two calendar days
+      //     by the São-Paulo-midnight bucketing above (entriesByDay keys on
+      //     dateOnlyInSaoPaulo), so each day's workedMinutes only reflects
+      //     the punches that landed in that day, not the full overnight
+      //     shift.
       const dayEntries = entriesByDay.get(dateKey) ?? [];
       let workedMinutes = 0;
       for (let i = 0; i + 1 < dayEntries.length; i += 2) {

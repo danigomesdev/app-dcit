@@ -87,5 +87,38 @@ describe("banco de horas screen", () => {
     await waitFor(() => {
       expect(screen.getByText("+2h 00min")).toBeTruthy();
     });
+    // The daily row for 2026-08-20 (8h expected, 8h worked, from the mocked
+    // period fetch) should actually be on screen, not just the balance card.
+    expect(screen.getByText("20/08")).toBeTruthy();
+    expect(screen.getByText("8.0h")).toBeTruthy();
+  });
+
+  it('shows "—" for the Extras card when overtimeValueBRL is null', async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/banco-de-horas/minhas")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            days: [],
+            balanceMinutes: 0,
+            dsrMinutes: 0,
+            hourlyRateBRL: null,
+            overtimeValueBRL: null,
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+
+    renderRouter("src/app", { initialUrl: "/banco-de-horas" });
+
+    // Wait for the fetch to actually resolve — a confirmed zero balance
+    // renders as "+0h 00min", not "—", which only the still-null
+    // overtimeValueBRL should produce (Saldo/DSR both start null too, so
+    // asserting on "—" before this would spuriously match them as well).
+    await waitFor(() => {
+      expect(screen.getAllByText("+0h 00min").length).toBeGreaterThan(0);
+    });
+    expect(screen.getByText("—")).toBeTruthy();
   });
 });

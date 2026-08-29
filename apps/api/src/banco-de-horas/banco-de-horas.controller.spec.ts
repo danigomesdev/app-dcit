@@ -103,4 +103,67 @@ describe('BancoDeHorasController', () => {
 
     expect(result).toEqual([{ userId: 'u1', userName: 'Ana' }]);
   });
+
+  describe('period validation', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('rejects start after end on getMinhas without calling the service', async () => {
+      await expect(
+        controller.getMinhas(
+          { start: '2026-02-01', end: '2026-01-01' },
+          requestAs('user-1'),
+        ),
+      ).rejects.toThrow();
+      expect(serviceMock.getSummary).not.toHaveBeenCalled();
+    });
+
+    it('rejects start after end on getEquipe without calling the service', async () => {
+      await expect(
+        controller.getEquipe({ start: '2026-02-01', end: '2026-01-01' }),
+      ).rejects.toThrow();
+      expect(serviceMock.getTeamSummary).not.toHaveBeenCalled();
+    });
+
+    it('clamps an end date in the future to today (São Paulo) instead of throwing', async () => {
+      // 13:00 UTC is 10:00 in São Paulo (UTC-3), so "today" stays the same
+      // calendar day in both zones for this instant.
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-19T13:00:00.000Z'));
+      serviceMock.getSummary.mockResolvedValue({ days: [], balanceMinutes: 0 });
+
+      await controller.getMinhas(
+        { start: '2026-08-01', end: '2026-12-31' },
+        requestAs('user-1'),
+      );
+
+      expect(serviceMock.getSummary).toHaveBeenCalledWith(
+        'user-1',
+        '2026-08-01',
+        '2026-08-19',
+      );
+    });
+
+    it('clamps an end date in the future to today (São Paulo) on getEquipe as well', async () => {
+      jest.useFakeTimers().setSystemTime(new Date('2026-08-19T13:00:00.000Z'));
+      serviceMock.getTeamSummary.mockResolvedValue([]);
+
+      await controller.getEquipe({ start: '2026-08-01', end: '2026-12-31' });
+
+      expect(serviceMock.getTeamSummary).toHaveBeenCalledWith(
+        '2026-08-01',
+        '2026-08-19',
+      );
+    });
+
+    it('rejects a period spanning more than 366 days', async () => {
+      await expect(
+        controller.getMinhas(
+          { start: '2020-01-01', end: '2021-06-01' },
+          requestAs('user-1'),
+        ),
+      ).rejects.toThrow();
+      expect(serviceMock.getSummary).not.toHaveBeenCalled();
+    });
+  });
 });

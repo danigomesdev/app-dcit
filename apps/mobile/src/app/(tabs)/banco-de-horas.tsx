@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
@@ -72,37 +72,6 @@ export default function BancoDeHorasScreen() {
   const [overallSummary, setOverallSummary] = useState<BancoDeHorasSummary | null>(null);
   const [periodSummary, setPeriodSummary] = useState<BancoDeHorasSummary | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      getSessionToken().then(async (token) => {
-        if (!token) return;
-        const today = new Date();
-        // fetchCompensationRequests is deliberately not folded into the
-        // Promise.all below: it races against handleSubmitCompensation's
-        // own POST-driven state update, and awaiting it alongside two
-        // slower fetchBancoDeHoras calls (each with its own JSON-shape
-        // validation) let it resolve after a just-submitted request had
-        // already landed in state, silently overwriting it with the
-        // (still-empty, pre-submission) server list. Fetching it on its
-        // own promise chain keeps that race from being introduced here.
-        fetchCompensationRequests(token).then((compReqs) => {
-          if (!cancelled && compReqs) setCompensationRequests(compReqs);
-        });
-        const [chart, overall] = await Promise.all([
-          fetchBancoDeHoras(token, toDateOnly(daysAgo(29)), toDateOnly(today)),
-          fetchBancoDeHoras(token, toDateOnly(daysAgo(89)), toDateOnly(today)),
-        ]);
-        if (cancelled) return;
-        setChartSummary(chart);
-        setOverallSummary(overall);
-      });
-      return () => {
-        cancelled = true;
-      };
-    }, []),
-  );
-
   const { periodStart, periodEnd } = useMemo(() => {
     const today = new Date();
     if (period === "current") return { periodStart: startOfMonth(today), periodEnd: today };
@@ -111,28 +80,59 @@ export default function BancoDeHorasScreen() {
     return { periodStart: daysAgo(89), periodEnd: today };
   }, [period]);
 
-  useEffect(() => {
-    let cancelled = false;
-    getSessionToken().then(async (token) => {
-      if (!token) return;
-      const summary = await fetchBancoDeHoras(
-        token,
-        toDateOnly(periodStart),
-        toDateOnly(periodEnd),
-      );
-      if (!cancelled) setPeriodSummary(summary);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [periodStart, periodEnd]);
+  // Folded into one useFocusEffect (rather than a separate effect keyed on
+  // [periodStart, periodEnd]) so both a screen refocus and a period-picker
+  // change refetch the daily list/DSR/Extras together with the balance
+  // card, instead of leaving the former stale on refocus. useFocusEffect
+  // reruns its callback whenever the callback identity changes (via
+  // useCallback's deps below) AND the screen is currently focused — which
+  // also covers "period switch while already focused" the same way the
+  // previous separate effect did.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getSessionToken().then(async (token) => {
+        if (!token) return;
+        const today = new Date();
+        // fetchCompensationRequests is deliberately not folded into the
+        // Promise.all below: it races against handleSubmitCompensation's
+        // own POST-driven state update, and awaiting it alongside the
+        // slower fetchBancoDeHoras calls (each with its own JSON-shape
+        // validation) let it resolve after a just-submitted request had
+        // already landed in state, silently overwriting it with the
+        // (still-empty, pre-submission) server list. Fetching it on its
+        // own promise chain keeps that race from being introduced here.
+        fetchCompensationRequests(token).then((compReqs) => {
+          if (!cancelled && compReqs) setCompensationRequests(compReqs);
+        });
+        const [chart, overall, periodData] = await Promise.all([
+          fetchBancoDeHoras(token, toDateOnly(daysAgo(29)), toDateOnly(today)),
+          fetchBancoDeHoras(token, toDateOnly(daysAgo(89)), toDateOnly(today)),
+          fetchBancoDeHoras(token, toDateOnly(periodStart), toDateOnly(periodEnd)),
+        ]);
+        if (cancelled) return;
+        setChartSummary(chart);
+        setOverallSummary(overall);
+        setPeriodSummary(periodData);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [periodStart, periodEnd]),
+  );
 
   const chartDays = chartSummary?.days ?? [];
   const periodDays = periodSummary?.days ?? [];
+  // overallSummary/periodSummary stay null until a fetch has actually
+  // resolved successfully — that's distinct from a confirmed zero balance,
+  // so the cards below render "—" while null instead of defaulting to 0
+  // and looking identical to "you really have a zero balance."
+  const balanceLoaded = overallSummary !== null;
   const balance = overallSummary?.balanceMinutes ?? 0;
+  const periodLoaded = periodSummary !== null;
   const dsrMinutes = periodSummary?.dsrMinutes ?? 0;
   const overtimeValue = periodSummary?.overtimeValueBRL ?? null;
-  const balanceColor = balance >= 0 ? theme.success : theme.accent;
+  const balanceColor = balanceLoaded ? (balance >= 0 ? theme.success : theme.accent) : theme.textSecondary;
 
   async function handleSubmitCompensation() {
     if (!reason.trim()) return;
@@ -163,7 +163,7 @@ export default function BancoDeHorasScreen() {
             Saldo atual
           </ThemedText>
           <ThemedText type="title" style={[styles.balanceValue, { color: balanceColor }]}>
-            {formatSignedMinutes(balance)}
+            {balanceLoaded ? formatSignedMinutes(balance) : "—"}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Acumulado nos últimos 90 dias
@@ -229,7 +229,9 @@ export default function BancoDeHorasScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               DSR estimado
             </ThemedText>
-            <ThemedText type="smallBold">{formatSignedMinutes(dsrMinutes)}</ThemedText>
+            <ThemedText type="smallBold">
+              {periodLoaded ? formatSignedMinutes(dsrMinutes) : "—"}
+            </ThemedText>
           </View>
           <View style={[styles.insightCard, { backgroundColor: theme.backgroundElement }]}>
             <Ionicons name="cash-outline" size={20} color={theme.secondary} />
