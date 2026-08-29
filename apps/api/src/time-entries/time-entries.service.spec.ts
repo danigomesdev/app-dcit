@@ -3,14 +3,20 @@ process.env.DATABASE_URL = 'file:./test.db';
 import { Test, TestingModule } from '@nestjs/testing';
 import { TimeEntriesService } from './time-entries.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AlertasService } from '../alertas/alertas.service';
 
 describe('TimeEntriesService', () => {
   let service: TimeEntriesService;
   let prisma: PrismaService;
+  const alertasMock = { checkAfterPunch: jest.fn() };
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [TimeEntriesService, PrismaService],
+      providers: [
+        TimeEntriesService,
+        PrismaService,
+        { provide: AlertasService, useValue: alertasMock },
+      ],
     }).compile();
 
     service = module.get(TimeEntriesService);
@@ -86,6 +92,20 @@ describe('TimeEntriesService', () => {
       where: { id: created.id },
     });
     expect(found).not.toBeNull();
+  });
+
+  it('notifies AlertasService after creating a time entry', async () => {
+    alertasMock.checkAfterPunch.mockClear();
+
+    const created = await service.create({
+      userId: 'user-123',
+      clockedAt: '2026-08-19T14:00:00.000Z',
+    });
+
+    expect(alertasMock.checkAfterPunch).toHaveBeenCalledWith(
+      'user-123',
+      created,
+    );
   });
 
   it("lists only the given user's entries, oldest first", async () => {

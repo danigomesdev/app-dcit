@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TimeEntryInput } from '@ponto-dcit/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { AlertasService } from '../alertas/alertas.service';
 import {
   dateOnlyInSaoPaulo,
   isWeekend,
@@ -11,15 +12,20 @@ import {
 
 @Injectable()
 export class TimeEntriesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly alertas: AlertasService,
+  ) {}
 
-  create(input: TimeEntryInput) {
-    return this.prisma.timeEntry.create({
+  async create(input: TimeEntryInput) {
+    const created = await this.prisma.timeEntry.create({
       data: {
         userId: input.userId,
         clockedAt: new Date(input.clockedAt),
       },
     });
+    await this.alertas.checkAfterPunch(input.userId, created);
+    return created;
   }
 
   listForUser(userId: string) {
