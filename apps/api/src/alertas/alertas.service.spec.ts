@@ -39,20 +39,57 @@ describe('AlertasService', () => {
     await prisma.onModuleDestroy();
   });
 
+  describe('checkAfterPunch — error containment', () => {
+    it('does not throw when an underlying Prisma call fails', async () => {
+      await prisma.timeEntry.create({
+        data: {
+          userId: 'user-jornada-z',
+          clockedAt: new Date('2026-09-01T22:00:00.000Z'),
+        },
+      });
+      const newEntry = await prisma.timeEntry.create({
+        data: {
+          userId: 'user-jornada-z',
+          clockedAt: new Date('2026-09-02T05:00:00.000Z'),
+        },
+      });
+
+      const spy = jest
+        .spyOn(prisma.jornadaAlert, 'create')
+        .mockRejectedValueOnce(new Error('Database error'));
+
+      // This should not throw, even though jornadaAlert.create will fail
+      await expect(
+        service.checkAfterPunch('user-jornada-z', newEntry),
+      ).resolves.toBeUndefined();
+
+      spy.mockRestore();
+    });
+  });
+
   describe('checkAfterPunch — interjornada', () => {
     it('records a violation when the rest since the last punch is under 11h', async () => {
       await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-a', clockedAt: new Date('2026-09-01T22:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-a',
+          clockedAt: new Date('2026-09-01T22:00:00.000Z'),
+        },
       });
       const newEntry = await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-a', clockedAt: new Date('2026-09-02T05:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-a',
+          clockedAt: new Date('2026-09-02T05:00:00.000Z'),
+        },
       });
 
       await service.checkAfterPunch('user-jornada-a', newEntry);
 
       const alerts = await service.listForUser('user-jornada-a');
       expect(alerts).toHaveLength(1);
-      expect(alerts[0]).toMatchObject({ type: 'interjornada', minutesShort: 240 });
+      expect(alerts[0]).toMatchObject({
+        type: 'interjornada',
+        minutesShort: 240,
+      });
       expect(pushMock.sendToUser).toHaveBeenCalledWith(
         'user-jornada-a',
         expect.objectContaining({ title: 'Intervalo entre turnos' }),
@@ -61,10 +98,16 @@ describe('AlertasService', () => {
 
     it('does not record a violation when the rest is at least 11h', async () => {
       await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-b', clockedAt: new Date('2026-09-01T20:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-b',
+          clockedAt: new Date('2026-09-01T20:00:00.000Z'),
+        },
       });
       const newEntry = await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-b', clockedAt: new Date('2026-09-02T08:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-b',
+          clockedAt: new Date('2026-09-02T08:00:00.000Z'),
+        },
       });
 
       await service.checkAfterPunch('user-jornada-b', newEntry);
@@ -75,7 +118,10 @@ describe('AlertasService', () => {
 
     it("does nothing on a user's very first punch ever", async () => {
       const newEntry = await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-c', clockedAt: new Date('2026-09-02T08:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-c',
+          clockedAt: new Date('2026-09-02T08:00:00.000Z'),
+        },
       });
 
       await service.checkAfterPunch('user-jornada-c', newEntry);
@@ -101,7 +147,10 @@ describe('AlertasService', () => {
 
       const alerts = await service.listForUser(userId);
       expect(alerts).toHaveLength(1);
-      expect(alerts[0]).toMatchObject({ type: 'intrajornada', minutesShort: 30 });
+      expect(alerts[0]).toMatchObject({
+        type: 'intrajornada',
+        minutesShort: 30,
+      });
       expect(pushMock.sendToUser).toHaveBeenCalledWith(
         userId,
         expect.objectContaining({ title: 'Intervalo de almoço' }),
@@ -159,10 +208,16 @@ describe('AlertasService', () => {
         },
       });
       await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-g', clockedAt: new Date('2026-09-01T22:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-g',
+          clockedAt: new Date('2026-09-01T22:00:00.000Z'),
+        },
       });
       const newEntry = await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-g', clockedAt: new Date('2026-09-02T05:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-g',
+          clockedAt: new Date('2026-09-02T05:00:00.000Z'),
+        },
       });
       await service.checkAfterPunch('user-jornada-g', newEntry);
 
@@ -174,10 +229,16 @@ describe('AlertasService', () => {
 
     it('falls back to the bare userId when no Employee row exists', async () => {
       await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-h', clockedAt: new Date('2026-09-01T22:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-h',
+          clockedAt: new Date('2026-09-01T22:00:00.000Z'),
+        },
       });
       const newEntry = await prisma.timeEntry.create({
-        data: { userId: 'user-jornada-h', clockedAt: new Date('2026-09-02T05:00:00.000Z') },
+        data: {
+          userId: 'user-jornada-h',
+          clockedAt: new Date('2026-09-02T05:00:00.000Z'),
+        },
       });
       await service.checkAfterPunch('user-jornada-h', newEntry);
 

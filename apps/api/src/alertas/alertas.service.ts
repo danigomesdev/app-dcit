@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExpoPushService } from '../push/expo-push.service';
 import { dateOnlyInSaoPaulo } from '../common/sao-paulo-time';
@@ -10,6 +10,8 @@ type AlertType = 'interjornada' | 'intrajornada';
 
 @Injectable()
 export class AlertasService {
+  private readonly logger = new Logger(AlertasService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: ExpoPushService,
@@ -19,21 +21,34 @@ export class AlertasService {
     userId: string,
     newEntry: { id: string; clockedAt: Date },
   ): Promise<void> {
-    const todaySP = dateOnlyInSaoPaulo(newEntry.clockedAt);
-    const startOfDay = new Date(`${todaySP}T03:00:00.000Z`); // São Paulo midnight = UTC 03:00
-    const dateOnly = new Date(`${todaySP}T00:00:00.000Z`);
+    // Alert detection must never fail the punch it is attached to, so all
+    // errors here are swallowed and logged, not thrown.
+    try {
+      const todaySP = dateOnlyInSaoPaulo(newEntry.clockedAt);
+      const startOfDay = new Date(`${todaySP}T03:00:00.000Z`); // São Paulo midnight = UTC 03:00
+      const dateOnly = new Date(`${todaySP}T00:00:00.000Z`);
 
-    const priorToday = await this.prisma.timeEntry.count({
-      where: {
-        userId,
-        clockedAt: { gte: startOfDay, lt: newEntry.clockedAt },
-      },
-    });
+      const priorToday = await this.prisma.timeEntry.count({
+        where: {
+          userId,
+          clockedAt: { gte: startOfDay, lt: newEntry.clockedAt },
+        },
+      });
 
-    if (priorToday === 0) {
-      await this.checkInterjornada(userId, dateOnly, newEntry.clockedAt);
-    } else if (priorToday === 2) {
-      await this.checkIntrajornada(userId, dateOnly, startOfDay, newEntry.clockedAt);
+      if (priorToday === 0) {
+        await this.checkInterjornada(userId, dateOnly, newEntry.clockedAt);
+      } else if (priorToday === 2) {
+        await this.checkIntrajornada(
+          userId,
+          dateOnly,
+          startOfDay,
+          newEntry.clockedAt,
+        );
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Failed to check jornada alerts for user ${userId}: ${String(error)}`,
+      );
     }
   }
 
@@ -96,7 +111,10 @@ export class AlertasService {
       data: { userId, type, date, minutesShort },
     });
     void this.push.sendToUser(userId, {
-      title: type === 'interjornada' ? 'Intervalo entre turnos' : 'Intervalo de almoço',
+      title:
+        type === 'interjornada'
+          ? 'Intervalo entre turnos'
+          : 'Intervalo de almoço',
       body:
         type === 'interjornada'
           ? `Você iniciou este turno com menos de 11h de descanso desde o anterior (faltaram ${minutesShort} min).`
