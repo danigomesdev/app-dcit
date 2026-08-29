@@ -1,6 +1,6 @@
 # Alertas de Jornada (Intrajornada/Interjornada) — Ponto DCIT
 
-**Status:** Aprovado para implementação
+**Status:** Implementado
 **Spec funcional de referência:** [`docs/spec-funcional.md`](../../spec-funcional.md) (v2), seção 7 ("Conformidade Legal (Brasil)": "Intervalo interjornada e intrajornada: o sistema deve identificar e alertar violações automaticamente")
 **Arquitetura de referência:** [`docs/superpowers/specs/2026-08-19-arquitetura-ponto-dcit-design.md`](2026-08-19-arquitetura-ponto-dcit-design.md)
 
@@ -92,3 +92,4 @@ Mesmo padrão já estabelecido nas specs anteriores (Escala de Plantão, Cadastr
 - Justificativa/correção da violação pelo colaborador — o fluxo de "Ajuste de ponto" já existente em Aprovações cobre correções de ponto em geral; não é redesenhado aqui.
 - Recomputar violações retroativamente para batidas já existentes antes desta feature — só passa a detectar a partir de quando o código entrar em produção.
 - Geração de AFD e regras de hora extra/DSR/banco de horas parametrizáveis — os outros dois itens pendentes, cada um com sua própria spec.
+- Rajadas de sincronização offline (o colaborador registra vários pontos offline e o app os reenvia em sequência rápida ao reconectar) podem gerar um alerta de intrajornada falso, porque `POST /time-entries` sempre carimba `clockedAt` com o horário de chegada no servidor (não o horário real do toque no celular — decisão de design já documentada em `time-entries.controller.ts`), então pontos reenviados em lote chegam segundos um do outro. Resolver isso de verdade exige carimbo de tempo assinado localmente (já apontado como trabalho maior e separado nesse mesmo arquivo) ou um jeito de o servidor distinguir "isso é uma rajada de sincronização" de pontos reais — nenhum dos dois está nesta spec.

@@ -22,6 +22,18 @@ describe('AlertasService', () => {
     service = module.get(AlertasService);
     prisma = module.get(PrismaService);
     await prisma.onModuleInit();
+
+    // Guard against stale rows left behind by a previously-aborted test run,
+    // which would otherwise break toHaveLength(1)-style assertions below.
+    await prisma.jornadaAlert.deleteMany({
+      where: { userId: { startsWith: 'user-jornada-' } },
+    });
+    await prisma.timeEntry.deleteMany({
+      where: { userId: { startsWith: 'user-jornada-' } },
+    });
+    await prisma.employee.deleteMany({
+      where: { userId: { startsWith: 'user-jornada-' } },
+    });
   });
 
   afterEach(() => {
@@ -29,7 +41,9 @@ describe('AlertasService', () => {
   });
 
   afterAll(async () => {
-    await prisma.jornadaAlert.deleteMany();
+    await prisma.jornadaAlert.deleteMany({
+      where: { userId: { startsWith: 'user-jornada-' } },
+    });
     await prisma.timeEntry.deleteMany({
       where: { userId: { startsWith: 'user-jornada-' } },
     });
@@ -69,6 +83,16 @@ describe('AlertasService', () => {
 
   describe('checkAfterPunch — interjornada', () => {
     it('records a violation when the rest since the last punch is under 11h', async () => {
+      // An earlier punch the same day closes out that day's shift (even
+      // punch count), so the overnight-shift guard from Fix 1 doesn't treat
+      // this as a still-open shift being completed — this is a genuine new
+      // shift starting with too little rest since the prior one ended.
+      await prisma.timeEntry.create({
+        data: {
+          userId: 'user-jornada-a',
+          clockedAt: new Date('2026-09-01T10:00:00.000Z'),
+        },
+      });
       await prisma.timeEntry.create({
         data: {
           userId: 'user-jornada-a',
@@ -127,6 +151,41 @@ describe('AlertasService', () => {
       await service.checkAfterPunch('user-jornada-c', newEntry);
 
       expect(await service.listForUser('user-jornada-c')).toHaveLength(0);
+    });
+
+    it("does not flag an overnight shift's clock-out as an interjornada violation", async () => {
+      const userId = 'user-jornada-i';
+      await prisma.timeEntry.create({
+        data: { userId, clockedAt: new Date('2026-09-01T22:00:00.000Z') }, // clock-in, Monday night
+      });
+      const clockOut = await prisma.timeEntry.create({
+        data: { userId, clockedAt: new Date('2026-09-02T06:00:00.000Z') }, // clock-out, Tuesday morning
+      });
+
+      await service.checkAfterPunch(userId, clockOut);
+
+      expect(await service.listForUser(userId)).toHaveLength(0);
+    });
+
+    it('does not record a violation when the rest is exactly 11h (the boundary)', async () => {
+      const userId = 'user-jornada-j';
+      // An extra punch earlier the same day makes that day's punch count
+      // even (a fully-closed shift), so the new overnight-shift guard from
+      // Fix 1 doesn't short-circuit this test before the gap comparison
+      // (the actual thing under test) ever runs.
+      await prisma.timeEntry.create({
+        data: { userId, clockedAt: new Date('2026-09-01T08:00:00.000Z') },
+      });
+      await prisma.timeEntry.create({
+        data: { userId, clockedAt: new Date('2026-09-01T20:00:00.000Z') },
+      });
+      const newEntry = await prisma.timeEntry.create({
+        data: { userId, clockedAt: new Date('2026-09-02T07:00:00.000Z') }, // exactly 660 min later
+      });
+
+      await service.checkAfterPunch(userId, newEntry);
+
+      expect(await service.listForUser(userId)).toHaveLength(0);
     });
   });
 
@@ -207,6 +266,15 @@ describe('AlertasService', () => {
           hireDate: new Date('2024-01-01'),
         },
       });
+      // An earlier punch the same day closes out that day's shift (even
+      // punch count), so the overnight-shift guard from Fix 1 doesn't skip
+      // the interjornada check for the next punch below.
+      await prisma.timeEntry.create({
+        data: {
+          userId: 'user-jornada-g',
+          clockedAt: new Date('2026-09-01T10:00:00.000Z'),
+        },
+      });
       await prisma.timeEntry.create({
         data: {
           userId: 'user-jornada-g',
@@ -228,6 +296,15 @@ describe('AlertasService', () => {
     });
 
     it('falls back to the bare userId when no Employee row exists', async () => {
+      // An earlier punch the same day closes out that day's shift (even
+      // punch count), so the overnight-shift guard from Fix 1 doesn't skip
+      // the interjornada check for the next punch below.
+      await prisma.timeEntry.create({
+        data: {
+          userId: 'user-jornada-h',
+          clockedAt: new Date('2026-09-01T10:00:00.000Z'),
+        },
+      });
       await prisma.timeEntry.create({
         data: {
           userId: 'user-jornada-h',

@@ -99,7 +99,7 @@ export default function NotificacoesScreen() {
           alert.type === "interjornada"
             ? "Intervalo entre turnos não cumprido"
             : "Intervalo de almoço não cumprido",
-        description: `${formatDate(new Date(alert.date))} — faltaram ${alert.minutesShort} min para o mínimo exigido.`,
+        description: `${new Date(alert.date).toLocaleDateString("pt-BR", { timeZone: "UTC" })} — faltaram ${alert.minutesShort} min para o mínimo exigido.`,
       });
     }
 

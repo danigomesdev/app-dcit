@@ -63,6 +63,26 @@ export class AlertasService {
     });
     if (!previous) return;
 
+    // An overnight shift's clock-out (e.g. 06:00 the next day, after a 22:00
+    // clock-in) is the "first punch" of its own calendar day too — but it's
+    // completing the previous day's shift, not starting a new one after a
+    // rest period. If the previous day's punch count for this user is odd,
+    // that day's last shift was never closed (a clock-in with no matching
+    // clock-out yet), so this punch is that missing clock-out: skip the
+    // interjornada check rather than falsely accusing someone still on an
+    // overnight shift.
+    const previousDaySP = dateOnlyInSaoPaulo(previous.clockedAt);
+    const previousDayStart = new Date(`${previousDaySP}T03:00:00.000Z`);
+    const previousDayEnd = new Date(previousDayStart);
+    previousDayEnd.setUTCDate(previousDayEnd.getUTCDate() + 1);
+    const previousDayCount = await this.prisma.timeEntry.count({
+      where: {
+        userId,
+        clockedAt: { gte: previousDayStart, lt: previousDayEnd },
+      },
+    });
+    if (previousDayCount % 2 === 1) return;
+
     const gapMinutes = Math.round(
       (punchedAt.getTime() - previous.clockedAt.getTime()) / 60000,
     );
@@ -126,12 +146,14 @@ export class AlertasService {
     return this.prisma.jornadaAlert.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      take: 50,
     });
   }
 
   async listAll() {
     const alerts = await this.prisma.jornadaAlert.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 50,
     });
     const employees = await this.prisma.employee.findMany({
       where: { userId: { in: alerts.map((a) => a.userId) } },
