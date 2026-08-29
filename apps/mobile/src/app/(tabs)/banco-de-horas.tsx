@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
@@ -6,19 +6,18 @@ import { useFocusEffect } from "expo-router";
 import { TabBackground } from "@/components/tab-background";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
-import { usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
 import {
-  buildDailyRecords,
-  cumulativeBalance,
+  fetchBancoDeHoras,
+  type BancoDeHorasDay,
+  type BancoDeHorasSummary,
+} from "@/lib/banco-de-horas-api";
+import {
   endOfMonth,
-  estimateDsrMinutes,
-  estimateOvertimeValueBRL,
   formatBRL,
   formatSignedMinutes,
   startOfMonth,
-  type DailyRecord,
 } from "@/lib/banco-de-horas";
 import { getSessionToken } from "@/lib/session";
 import {
@@ -41,9 +40,26 @@ function daysAgo(n: number): Date {
   return date;
 }
 
+// Local calendar-day string (not UTC) — matches this screen's existing
+// convention (daysAgo/startOfMonth/endOfMonth all use local Date
+// components), so the query window sent to the API lines up with what the
+// period picker actually means on the device's clock.
+function toDateOnly(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Parses a "YYYY-MM-DD" string as a local-time Date (not UTC midnight) so
+// display formatting never shifts the day backward on devices west of UTC.
+function parseDateOnly(dateOnly: string): Date {
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export default function BancoDeHorasScreen() {
   const theme = useTheme();
-  const { entries } = usePonto();
   const [period, setPeriod] = useState<Period>("current");
   const [formOpen, setFormOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -52,14 +68,34 @@ export default function BancoDeHorasScreen() {
   const [compensationRequests, setCompensationRequests] = useState<CompensationRequestRecord[]>(
     [],
   );
+  const [chartSummary, setChartSummary] = useState<BancoDeHorasSummary | null>(null);
+  const [overallSummary, setOverallSummary] = useState<BancoDeHorasSummary | null>(null);
+  const [periodSummary, setPeriodSummary] = useState<BancoDeHorasSummary | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       getSessionToken().then(async (token) => {
         if (!token) return;
-        const result = await fetchCompensationRequests(token);
-        if (!cancelled && result) setCompensationRequests(result);
+        const today = new Date();
+        // fetchCompensationRequests is deliberately not folded into the
+        // Promise.all below: it races against handleSubmitCompensation's
+        // own POST-driven state update, and awaiting it alongside two
+        // slower fetchBancoDeHoras calls (each with its own JSON-shape
+        // validation) let it resolve after a just-submitted request had
+        // already landed in state, silently overwriting it with the
+        // (still-empty, pre-submission) server list. Fetching it on its
+        // own promise chain keeps that race from being introduced here.
+        fetchCompensationRequests(token).then((compReqs) => {
+          if (!cancelled && compReqs) setCompensationRequests(compReqs);
+        });
+        const [chart, overall] = await Promise.all([
+          fetchBancoDeHoras(token, toDateOnly(daysAgo(29)), toDateOnly(today)),
+          fetchBancoDeHoras(token, toDateOnly(daysAgo(89)), toDateOnly(today)),
+        ]);
+        if (cancelled) return;
+        setChartSummary(chart);
+        setOverallSummary(overall);
       });
       return () => {
         cancelled = true;
@@ -67,29 +103,35 @@ export default function BancoDeHorasScreen() {
     }, []),
   );
 
-  const chartRecords = useMemo(
-    () => buildDailyRecords(entries, daysAgo(29), new Date()),
-    [entries],
-  );
-  // "Saldo atual" is the accumulated balance over a 90-day rolling window —
-  // there's no real multi-year history to sum yet (seeded data only goes
-  // back so far), so this is the honest boundary of what's being tracked.
-  const overallRecords = useMemo(
-    () => buildDailyRecords(entries, daysAgo(89), new Date()),
-    [entries],
-  );
-  const balance = cumulativeBalance(overallRecords);
-
-  const periodRecords = useMemo(() => {
+  const { periodStart, periodEnd } = useMemo(() => {
     const today = new Date();
-    if (period === "current") return buildDailyRecords(entries, startOfMonth(today), today);
+    if (period === "current") return { periodStart: startOfMonth(today), periodEnd: today };
     if (period === "previous")
-      return buildDailyRecords(entries, startOfMonth(today, 1), endOfMonth(today, 1));
-    return buildDailyRecords(entries, daysAgo(89), today);
-  }, [period, entries]);
+      return { periodStart: startOfMonth(today, 1), periodEnd: endOfMonth(today, 1) };
+    return { periodStart: daysAgo(89), periodEnd: today };
+  }, [period]);
 
-  const dsrMinutes = estimateDsrMinutes(periodRecords);
-  const overtimeValue = estimateOvertimeValueBRL(periodRecords);
+  useEffect(() => {
+    let cancelled = false;
+    getSessionToken().then(async (token) => {
+      if (!token) return;
+      const summary = await fetchBancoDeHoras(
+        token,
+        toDateOnly(periodStart),
+        toDateOnly(periodEnd),
+      );
+      if (!cancelled) setPeriodSummary(summary);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [periodStart, periodEnd]);
+
+  const chartDays = chartSummary?.days ?? [];
+  const periodDays = periodSummary?.days ?? [];
+  const balance = overallSummary?.balanceMinutes ?? 0;
+  const dsrMinutes = periodSummary?.dsrMinutes ?? 0;
+  const overtimeValue = periodSummary?.overtimeValueBRL ?? null;
   const balanceColor = balance >= 0 ? theme.success : theme.accent;
 
   async function handleSubmitCompensation() {
@@ -130,7 +172,7 @@ export default function BancoDeHorasScreen() {
 
         <View style={styles.chartSection}>
           <ThemedText type="smallBold">Evolução (últimos 30 dias)</ThemedText>
-          <MiniChart records={chartRecords} />
+          <MiniChart days={chartDays} />
         </View>
 
         <View style={styles.periodFilter}>
@@ -173,11 +215,11 @@ export default function BancoDeHorasScreen() {
               Diferença
             </ThemedText>
           </View>
-          {periodRecords
+          {periodDays
             .slice()
             .reverse()
-            .map((record) => (
-              <DailyRow key={record.dateKey} record={record} />
+            .map((day) => (
+              <DailyRow key={day.date} day={day} />
             ))}
         </View>
 
@@ -194,12 +236,14 @@ export default function BancoDeHorasScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               Extras em R$
             </ThemedText>
-            <ThemedText type="smallBold">{formatBRL(overtimeValue)}</ThemedText>
+            <ThemedText type="smallBold">
+              {overtimeValue === null ? "—" : formatBRL(overtimeValue)}
+            </ThemedText>
           </View>
         </View>
         <ThemedText type="small" themeColor="textSecondary" style={styles.disclaimer}>
-          Estimativas ilustrativas com jornada padrão de 8h/dia e valor-hora fixo — não
-          substituem o cálculo oficial da folha.
+          Cálculo baseado nos seus registros de ponto e nos parâmetros da sua convenção
+          coletiva — não substitui o cálculo oficial da folha.
         </ThemedText>
 
         <ThemedButton
@@ -259,17 +303,17 @@ export default function BancoDeHorasScreen() {
   );
 }
 
-function MiniChart({ records }: { records: DailyRecord[] }) {
+function MiniChart({ days }: { days: BancoDeHorasDay[] }) {
   const theme = useTheme();
-  const scale = Math.max(60, ...records.map((r) => Math.abs(r.diffMinutes)));
+  const scale = Math.max(60, ...days.map((d) => Math.abs(d.diffMinutes)));
 
   return (
     <View style={styles.chart}>
-      {records.map((record) => {
-        const height = Math.max(2, (Math.abs(record.diffMinutes) / scale) * 36);
-        const positive = record.diffMinutes >= 0;
+      {days.map((day) => {
+        const height = Math.max(2, (Math.abs(day.diffMinutes) / scale) * 36);
+        const positive = day.diffMinutes >= 0;
         return (
-          <View key={record.dateKey} style={styles.chartBarColumn}>
+          <View key={day.date} style={styles.chartBarColumn}>
             {positive ? <View style={styles.chartBarSpacer} /> : null}
             <View
               style={[
@@ -288,28 +332,29 @@ function MiniChart({ records }: { records: DailyRecord[] }) {
   );
 }
 
-function DailyRow({ record }: { record: DailyRecord }) {
+function DailyRow({ day }: { day: BancoDeHorasDay }) {
   const theme = useTheme();
+  const isToday = day.date === toDateOnly(new Date());
   return (
     <View style={styles.dailyRow}>
       <ThemedText type="small" style={styles.colDate}>
-        {record.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-        {record.isToday ? " (hoje)" : ""}
+        {parseDateOnly(day.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+        {isToday ? " (hoje)" : ""}
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.colValue}>
-        {Math.round(record.expectedMinutes / 60)}h
+        {Math.round(day.expectedMinutes / 60)}h
       </ThemedText>
       <ThemedText type="small" themeColor="textSecondary" style={styles.colValue}>
-        {(record.workedMinutes / 60).toFixed(1)}h
+        {(day.workedMinutes / 60).toFixed(1)}h
       </ThemedText>
       <ThemedText
         type="smallBold"
         style={[
           styles.colValue,
-          { color: record.diffMinutes >= 0 ? theme.success : theme.accent },
+          { color: day.diffMinutes >= 0 ? theme.success : theme.accent },
         ]}
       >
-        {formatSignedMinutes(record.diffMinutes)}
+        {formatSignedMinutes(day.diffMinutes)}
       </ThemedText>
     </View>
   );

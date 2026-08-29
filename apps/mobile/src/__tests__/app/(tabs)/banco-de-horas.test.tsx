@@ -62,4 +62,30 @@ describe("banco de horas screen", () => {
     });
     expect(screen.getAllByText("Compensar 2h na sexta").length).toBeGreaterThan(0);
   });
+
+  it("shows the real balance and daily rows when the API returns data", async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/banco-de-horas/minhas")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            days: [
+              { date: "2026-08-20", expectedMinutes: 480, workedMinutes: 480, diffMinutes: 0 },
+            ],
+            balanceMinutes: 120,
+            dsrMinutes: 30,
+            hourlyRateBRL: 45.45,
+            overtimeValueBRL: 90.9,
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => [] });
+    });
+
+    renderRouter("src/app", { initialUrl: "/banco-de-horas" });
+
+    await waitFor(() => {
+      expect(screen.getByText("+2h 00min")).toBeTruthy();
+    });
+  });
 });
