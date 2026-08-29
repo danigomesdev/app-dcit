@@ -12,6 +12,7 @@ import { OnboardingModule } from './onboarding/onboarding.module';
 import { OperacionalModule } from './operacional/operacional.module';
 import { EmployeesModule } from './employees/employees.module';
 import { PushModule } from './push/push.module';
+import { AlertasModule } from './alertas/alertas.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -29,6 +30,7 @@ import { AppService } from './app.service';
     OperacionalModule,
     EmployeesModule,
     PushModule,
+    AlertasModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
