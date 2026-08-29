@@ -98,3 +98,138 @@ test("a failed save shows an inline error instead of crashing the page", async (
 
   await expect(page.getByText("Não foi possível salvar (código 500).")).toBeVisible();
 });
+
+test("the add-colaborador button is visible even with an empty roster", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { employees: [] });
+
+  await page.goto("/colaboradores");
+
+  await expect(page.getByText("Nenhum colaborador cadastrado ainda.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "+ Novo colaborador" })).toBeVisible();
+});
+
+test("opens the dialog and creates a new colaborador with the API", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { employees: [] });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "+ Novo colaborador" }).click();
+
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByLabel("Nome").fill("Fabio Novo");
+  await page.getByLabel("Data de admissão").fill("2026-03-01");
+  await page.getByLabel("CPF").fill("98765432100");
+  await page.getByLabel("Estado civil").selectOption("solteiro");
+  await page.getByLabel("Estado (UF)").selectOption("RJ");
+  await page.getByRole("button", { name: "Cadastrar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/employees")?.body;
+    })
+    .toEqual({
+      name: "Fabio Novo",
+      role: "colaborador",
+      hireDate: "2026-03-01",
+      cpf: "98765432100",
+      rg: null,
+      dataNascimento: null,
+      estadoCivil: "solteiro",
+      enderecoRua: null,
+      enderecoNumero: null,
+      enderecoBairro: null,
+      enderecoCidade: null,
+      enderecoEstado: "RJ",
+      enderecoCep: null,
+    });
+});
+
+test("a duplicate CPF shows an inline error without closing the dialog", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { employees: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/employees",
+    status: 409,
+    response: { message: "Já existe um colaborador cadastrado com esse CPF." },
+  });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "+ Novo colaborador" }).click();
+  await page.getByLabel("Nome").fill("Duplicado");
+  await page.getByLabel("Data de admissão").fill("2026-03-01");
+  await page.getByLabel("CPF").fill("11111111111");
+  await page.getByRole("button", { name: "Cadastrar" }).click();
+
+  await expect(
+    page.getByText("Já existe um colaborador cadastrado com esse CPF.")
+  ).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeVisible();
+});
+
+test("filling a CEP autofills the address from ViaCEP", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { employees: [] });
+
+  await page.route("https://viacep.com.br/ws/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        logradouro: "Rua das Flores",
+        bairro: "Centro",
+        localidade: "São Paulo",
+        uf: "SP",
+      }),
+    })
+  );
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "+ Novo colaborador" }).click();
+  await page.getByLabel("CEP").fill("01310100");
+  await page.getByLabel("CEP").blur();
+
+  await expect(page.getByLabel("Rua")).toHaveValue("Rua das Flores");
+  await expect(page.getByLabel("Bairro")).toHaveValue("Centro");
+  await expect(page.getByLabel("Cidade")).toHaveValue("São Paulo");
+  await expect(page.getByLabel("Estado (UF)")).toHaveValue("SP");
+});
+
+test("a CEP not found by ViaCEP leaves the address fields unchanged", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { employees: [] });
+
+  await page.route("https://viacep.com.br/ws/**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ erro: true }),
+    })
+  );
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "+ Novo colaborador" }).click();
+  await page.getByLabel("Rua").fill("Endereço Manual");
+  await page.getByLabel("CEP").fill("00000000");
+  await page.getByLabel("CEP").blur();
+
+  await expect(page.getByLabel("Rua")).toHaveValue("Endereço Manual");
+});

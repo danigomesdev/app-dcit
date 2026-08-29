@@ -36,3 +36,51 @@ export async function updateSchedule(
   revalidatePath("/");
   return { error: null };
 }
+
+export type CreateEmployeeState = { error: string | null; success: boolean };
+
+const OPTIONAL_FIELDS = [
+  "cpf",
+  "rg",
+  "dataNascimento",
+  "estadoCivil",
+  "enderecoRua",
+  "enderecoNumero",
+  "enderecoBairro",
+  "enderecoCidade",
+  "enderecoEstado",
+  "enderecoCep",
+] as const;
+
+export async function createEmployee(
+  _prevState: CreateEmployeeState,
+  formData: FormData
+): Promise<CreateEmployeeState> {
+  const name = formData.get("name");
+  const role = formData.get("role");
+  const hireDate = formData.get("hireDate");
+  if (typeof name !== "string" || typeof role !== "string" || typeof hireDate !== "string") {
+    return { error: "Dados do formulário inválidos.", success: false };
+  }
+
+  const payload: Record<string, string | null> = { name, role, hireDate };
+  for (const field of OPTIONAL_FIELDS) {
+    const value = formData.get(field);
+    payload[field] = typeof value === "string" && value !== "" ? value : null;
+  }
+
+  const res = await apiFetch("/employees", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    if (res.status === 409) {
+      return { error: "Já existe um colaborador cadastrado com esse CPF.", success: false };
+    }
+    return { error: `Não foi possível salvar (código ${res.status}).`, success: false };
+  }
+
+  revalidatePath("/colaboradores");
+  return { error: null, success: true };
+}

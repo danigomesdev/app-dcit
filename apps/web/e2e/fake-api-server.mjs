@@ -137,6 +137,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "PATCH" && /^\/employees\/[^/]+$/.test(url.pathname)) {
     return sendJson(res, 200, { userId: url.pathname.split("/")[2], ...body });
   }
+  if (req.method === "POST" && url.pathname === "/employees") {
+    return sendJson(res, 201, { userId: "generated-employee-id", ...body });
+  }
 
   sendJson(res, 404, { error: `no fake-api handler for ${req.method} ${url.pathname}` });
 });
