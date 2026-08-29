@@ -68,6 +68,15 @@ model Employee {
   deletedAt         DateTime? // null = ativo. Não-nulo = na lixeira.
 }
 
+model JornadaAlert {
+  id           String   @id @default(uuid())
+  userId       String
+  type         String   // "intrajornada" | "interjornada"
+  date         DateTime // dia (São Paulo, meia-noite UTC) a que a violação se refere
+  minutesShort Int      // quantos minutos faltaram pro mínimo exigido
+  createdAt    DateTime @default(now())
+}
+
 model VacationHistoryEntry {
   id        String   @id @default(uuid())
   userId    String
