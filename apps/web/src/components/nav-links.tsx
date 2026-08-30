@@ -18,6 +18,7 @@ const NAV_SECTIONS = [
   { href: "/alertas", label: "Alertas" },
   { href: "/convencoes", label: "Convenções" },
   { href: "/banco-de-horas", label: "Banco de Horas" },
+  { href: "/holerites", label: "Holerites" },
 ] as const;
 
 export function NavLinks() {

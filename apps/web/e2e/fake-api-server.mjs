@@ -129,6 +129,9 @@ const server = http.createServer(async (req, res) => {
   ) {
     return sendJson(res, 200, []);
   }
+  if (req.method === "GET" && url.pathname === "/documentos/holerites/equipe") {
+    return sendJson(res, 200, []);
+  }
   if (req.method === "POST" && url.pathname === "/operacional/escala") {
     return sendJson(res, 201, { id: "generated-id", ...body });
   }
@@ -142,6 +145,15 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { id: url.pathname.split("/")[2], ...body });
   }
   if (req.method === "DELETE" && /^\/convencoes\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
+  }
+  if (req.method === "POST" && url.pathname === "/documentos/holerites") {
+    return sendJson(res, 201, { id: "generated-id", ...body });
+  }
+  if (req.method === "PATCH" && /^\/documentos\/holerites\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 200, { id: url.pathname.split("/")[3], ...body });
+  }
+  if (req.method === "DELETE" && /^\/documentos\/holerites\/[^/]+$/.test(url.pathname)) {
     return sendJson(res, 204, null);
   }
   if (
