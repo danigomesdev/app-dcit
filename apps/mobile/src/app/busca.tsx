@@ -16,6 +16,7 @@ import {
   type AdmissionDocumentRecord,
   type CertificationRecord,
 } from "@/lib/documentos-api";
+import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
 import { fetchMuralPosts, type MuralPostRecord } from "@/lib/mural-api";
 import { getSessionToken } from "@/lib/session";
 
@@ -25,7 +26,136 @@ type SearchResult = {
   title: string;
   subtitle: string;
   href: Href;
+  // Extra terms a result should match on without being shown — lets
+  // "banco", "hora extra" etc find "Banco de Horas" even though neither
+  // phrase appears verbatim in its title/subtitle.
+  keywords?: string;
 };
+
+// Every screen in the app, so search doubles as a command palette — not
+// just a filter over user-generated content (documents, atestados, mural
+// posts). Gated entries (role) mirror the same gating perfil.tsx already
+// applies to its menu rows, so search never surfaces a destination the
+// viewer wouldn't otherwise see.
+function screenResults(role: SessionClaims["role"] | undefined): SearchResult[] {
+  const results: SearchResult[] = [
+    {
+      id: "screen-ponto",
+      icon: "time-outline",
+      title: "Bater Ponto",
+      subtitle: "Ponto",
+      href: "/(tabs)",
+      keywords: "registrar entrada saida horario",
+    },
+    {
+      id: "screen-banco-de-horas",
+      icon: "hourglass-outline",
+      title: "Banco de Horas",
+      subtitle: "Saldo, extras e compensações",
+      href: "/(tabs)/banco-de-horas",
+      keywords: "hora extra saldo compensacao",
+    },
+    {
+      id: "screen-ferias",
+      icon: "sunny-outline",
+      title: "Férias",
+      subtitle: "Solicitar e acompanhar",
+      href: "/(tabs)/ferias",
+      keywords: "descanso",
+    },
+    {
+      id: "screen-documentos",
+      icon: "document-text-outline",
+      title: "Documentos",
+      subtitle: "Admissionais, atestados, holerites, certificações",
+      href: "/(tabs)/documentos",
+    },
+    {
+      id: "screen-mural",
+      icon: "megaphone-outline",
+      title: "Mural",
+      subtitle: "Avisos e aniversariantes",
+      href: "/(tabs)/mural",
+      keywords: "aviso comunicado aniversario",
+    },
+    {
+      id: "screen-historico",
+      icon: "receipt-outline",
+      title: "Histórico de pontos",
+      subtitle: "Ponto",
+      href: "/historico",
+    },
+    {
+      id: "screen-folha",
+      icon: "document-text-outline",
+      title: "Folha de ponto",
+      subtitle: "Ponto",
+      href: "/folha",
+      keywords: "espelho de ponto exportar pdf",
+    },
+    {
+      id: "screen-ajustar",
+      icon: "briefcase-outline",
+      title: "Ajustar meu ponto",
+      subtitle: "Ponto",
+      href: "/ajustar",
+    },
+    {
+      id: "screen-solicitacoes",
+      icon: "create-outline",
+      title: "Solicitações de ajustes",
+      subtitle: "Ponto",
+      href: "/solicitacoes",
+    },
+    {
+      id: "screen-perfil",
+      icon: "person-outline",
+      title: "Perfil",
+      subtitle: "Meus dados e configurações",
+      href: "/perfil",
+    },
+    {
+      id: "screen-notificacoes",
+      icon: "notifications-outline",
+      title: "Notificações",
+      subtitle: "Central de avisos",
+      href: "/notificacoes",
+    },
+    {
+      id: "screen-beneficios",
+      icon: "gift-outline",
+      title: "Benefícios e clube de vantagens",
+      subtitle: "Perfil",
+      href: "/beneficios",
+    },
+    {
+      id: "screen-onboarding",
+      icon: "rocket-outline",
+      title: "Boas-vindas / Onboarding",
+      subtitle: "Perfil",
+      href: "/onboarding",
+    },
+    {
+      id: "screen-operacional",
+      icon: "construct-outline",
+      title: "Operacional / TI",
+      subtitle: "Perfil",
+      href: "/operacional",
+    },
+  ];
+
+  if (role && role !== "colaborador") {
+    results.push({
+      id: "screen-atestados-equipe",
+      icon: "people-outline",
+      title: "Atestados da equipe",
+      subtitle: "Perfil · Gestão",
+      href: "/atestados-equipe",
+    });
+  }
+
+  return results;
+}
 
 const DIACRITICS_PATTERN = new RegExp("[̀-ͯ]", "g");
 
@@ -37,6 +167,7 @@ export default function BuscaScreen() {
   const theme = useTheme();
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [claims, setClaims] = useState<SessionClaims | null>(null);
   const [atestados, setAtestados] = useState<AtestadoRecord[]>([]);
   const [certifications, setCertifications] = useState<CertificationRecord[]>([]);
   const [admissionDocuments, setAdmissionDocuments] = useState<AdmissionDocumentRecord[]>([]);
@@ -47,6 +178,7 @@ export default function BuscaScreen() {
       let cancelled = false;
       getSessionToken().then(async (token) => {
         if (!token) return;
+        setClaims(decodeSessionToken(token));
         const [atestadoResult, certResult, admissionResult, muralResult] = await Promise.all([
           fetchMyAtestados(token),
           fetchCertifications(token),
@@ -66,7 +198,7 @@ export default function BuscaScreen() {
   );
 
   const allResults = useMemo<SearchResult[]>(() => {
-    const results: SearchResult[] = [];
+    const results: SearchResult[] = [...screenResults(claims?.role)];
 
     for (const doc of admissionDocuments) {
       results.push({
@@ -106,13 +238,16 @@ export default function BuscaScreen() {
     }
 
     return results;
-  }, [admissionDocuments, atestados, certifications, muralPosts]);
+  }, [claims?.role, admissionDocuments, atestados, certifications, muralPosts]);
 
   const filtered = useMemo(() => {
     const needle = normalize(query.trim());
     if (!needle) return [];
     return allResults.filter(
-      (result) => normalize(result.title).includes(needle) || normalize(result.subtitle).includes(needle),
+      (result) =>
+        normalize(result.title).includes(needle) ||
+        normalize(result.subtitle).includes(needle) ||
+        (result.keywords && normalize(result.keywords).includes(needle)),
     );
   }, [allResults, query]);
 
@@ -123,7 +258,7 @@ export default function BuscaScreen() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Buscar documentos, atestados, avisos..."
+          placeholder="Buscar telas, documentos, atestados, avisos..."
           placeholderTextColor={theme.textSecondary}
           autoFocus
           style={[styles.input, { backgroundColor: theme.backgroundElement, color: theme.text }]}
@@ -133,8 +268,8 @@ export default function BuscaScreen() {
       {query.trim() === "" ? (
         <EmptyState
           glyph="🔎"
-          title="Busque no seu conteúdo"
-          description="Documentos, atestados, certificações e avisos do mural."
+          title="Busque em qualquer lugar do app"
+          description="Telas, documentos, atestados, certificações e avisos do mural."
         />
       ) : filtered.length === 0 ? (
         <EmptyState
