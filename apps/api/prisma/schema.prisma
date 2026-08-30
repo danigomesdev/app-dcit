@@ -101,17 +101,17 @@ model VacationHistoryEntry {
 // --- Atestados -------------------------------------------------------------
 
 model Atestado {
-  id         String   @id @default(uuid())
-  userId     String
-  userName   String
-  cid        String?
-  crm        String?
-  medico     String?
-  dias       Int?
-  photoUri   String?
-  status     String   @default("enviado")
-  reviewNote String?
-  createdAt  DateTime @default(now())
+  id            String   @id @default(uuid())
+  userId        String
+  userName      String
+  cid           String?
+  crm           String?
+  medico        String?
+  dias          Int?
+  photoDataUrl  String?
+  status        String   @default("enviado")
+  reviewNote    String?
+  createdAt     DateTime @default(now())
 }
 
 // --- Documentos --------------------------------------------------------

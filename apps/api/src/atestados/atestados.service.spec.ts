@@ -144,6 +144,94 @@ describe('AtestadosService', () => {
     expect(rhEntry?.medico).toBe('Dra. Fernanda Costa');
   });
 
+  it('persists photoDataUrl on create', async () => {
+    const created = await service.create('user-photo', 'Paula', {
+      cid: 'J06.9',
+      crm: 'CRM-MG 45213',
+      medico: 'Dr. Carlos Mendes',
+      dias: 2,
+      photoDataUrl: 'data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh',
+    });
+
+    expect(created.photoDataUrl).toBe(
+      'data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh',
+    );
+  });
+
+  it('never includes photoDataUrl in the team list, for either role', async () => {
+    await service.create('user-f', 'Fabio Colaborador', {
+      cid: 'J06.9',
+      crm: 'CRM-MG 45213',
+      medico: 'Dr. Carlos Mendes',
+      dias: 2,
+      photoDataUrl: 'data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh',
+    });
+
+    const gestorView = await service.listTeam('gestor');
+    const rhView = await service.listTeam('rh');
+
+    const gestorEntry = gestorView.find((a) => a.userId === 'user-f') as Record<
+      string,
+      unknown
+    >;
+    const rhEntry = rhView.find((a) => a.userId === 'user-f') as Record<
+      string,
+      unknown
+    >;
+
+    expect('photoDataUrl' in gestorEntry).toBe(false);
+    expect('photoDataUrl' in rhEntry).toBe(false);
+  });
+
+  describe('getPhoto', () => {
+    it('returns the photo for an rh viewer', async () => {
+      const created = await service.create('user-g', 'Gabriela', {
+        cid: 'J06.9',
+        crm: 'CRM-MG 45213',
+        medico: 'Dr. Carlos Mendes',
+        dias: 2,
+        photoDataUrl: 'data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh',
+      });
+
+      const photo = await service.getPhoto(created.id, 'rh');
+
+      expect(photo).toBe('data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh');
+    });
+
+    it('returns null for a gestor viewer, even though the photo exists', async () => {
+      const created = await service.create('user-h', 'Helena', {
+        cid: 'J06.9',
+        crm: 'CRM-MG 45213',
+        medico: 'Dr. Carlos Mendes',
+        dias: 2,
+        photoDataUrl: 'data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh',
+      });
+
+      const photo = await service.getPhoto(created.id, 'gestor');
+
+      expect(photo).toBeNull();
+    });
+
+    it('returns null for an rh viewer when the atestado has no photo', async () => {
+      const created = await service.create('user-i', 'Igor', {
+        cid: 'J06.9',
+        crm: 'CRM-MG 45213',
+        medico: 'Dr. Carlos Mendes',
+        dias: 2,
+      });
+
+      const photo = await service.getPhoto(created.id, 'rh');
+
+      expect(photo).toBeNull();
+    });
+
+    it('returns null for an id that does not exist, rather than throwing', async () => {
+      const photo = await service.getPhoto('never-existed', 'rh');
+
+      expect(photo).toBeNull();
+    });
+  });
+
   it('updates the status of an atestado', async () => {
     const created = await service.create('user-d', 'Daniela', {
       cid: 'J06.9',

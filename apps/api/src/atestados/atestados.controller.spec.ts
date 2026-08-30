@@ -57,6 +57,23 @@ describe('AtestadosController guard metadata', () => {
     expect(roles).toEqual(['gestor', 'rh']);
   });
 
+  it('applies AuthGuard and RolesGuard(rh) — RH only, not gestor — to the getPhoto (GET) handler', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      AtestadosController.prototype.getPhoto,
+    ) as unknown[] | undefined;
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      AtestadosController.prototype.getPhoto,
+    ) as unknown[] | undefined;
+
+    expect(guards).toContain(AuthGuard);
+    expect(guards).toContain(RolesGuard);
+    expect(roles).toEqual(['rh']);
+  });
+
   it('applies AuthGuard and RolesGuard(gestor, rh) to the updateStatus (PATCH) handler', () => {
     const guards = Reflect.getMetadata(
       GUARDS_METADATA,
@@ -82,6 +99,7 @@ describe('AtestadosController', () => {
     create: jest.fn(),
     listMine: jest.fn(),
     listTeam: jest.fn(),
+    getPhoto: jest.fn(),
     updateStatus: jest.fn(),
   };
 
@@ -180,6 +198,18 @@ describe('AtestadosController', () => {
     await controller.listTeam(requestAs('gestor-1', 'gestor'));
 
     expect(serviceMock.listTeam).toHaveBeenCalledWith('gestor');
+  });
+
+  it("delegates getPhoto to the service with the viewer's role", async () => {
+    serviceMock.getPhoto.mockResolvedValue('data:image/jpeg;base64,ZmFrZQ==');
+
+    const result = await controller.getPhoto(
+      'atestado-1',
+      requestAs('rh-1', 'rh'),
+    );
+
+    expect(serviceMock.getPhoto).toHaveBeenCalledWith('atestado-1', 'rh');
+    expect(result).toEqual({ photoDataUrl: 'data:image/jpeg;base64,ZmFrZQ==' });
   });
 
   it('rejects an invalid status update payload', async () => {

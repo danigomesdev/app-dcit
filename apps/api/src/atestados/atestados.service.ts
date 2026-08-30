@@ -102,7 +102,7 @@ export class AtestadosService {
         crm: input.crm,
         medico: input.medico,
         dias: input.dias,
-        photoUri: input.photoUri,
+        photoDataUrl: input.photoDataUrl,
       },
     });
   }
@@ -118,9 +118,27 @@ export class AtestadosService {
   // who's out, for how long, and the approval status, matching the spec's
   // gestor/RH visibility split. Masked server-side now, not just hidden in
   // the mobile UI, so the data never leaves the API for a non-RH caller.
+  //
+  // photoDataUrl is deliberately left out of this `select` for both roles —
+  // it's the same clinical-sensitivity data as cid/crm/medico (often the
+  // diagnosis is legible right on the photo), so it never belongs in a bulk
+  // list response. RH fetches it one at a time via getPhoto, only when
+  // actually reviewing a specific atestado.
   async listTeam(viewerRole: Role) {
     const atestados = await this.prisma.atestado.findMany({
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        userId: true,
+        userName: true,
+        cid: true,
+        crm: true,
+        medico: true,
+        dias: true,
+        status: true,
+        reviewNote: true,
+        createdAt: true,
+      },
     });
     if (viewerRole === 'rh') {
       return atestados;
@@ -131,6 +149,20 @@ export class AtestadosService {
       crm: null,
       medico: null,
     }));
+  }
+
+  // RH-only, same LGPD-driven boundary as the clinical text fields above —
+  // returns null (never throws) for a non-RH viewer, a missing atestado, or
+  // an atestado that simply has no photo on file.
+  async getPhoto(id: string, viewerRole: Role): Promise<string | null> {
+    if (viewerRole !== 'rh') {
+      return null;
+    }
+    const atestado = await this.prisma.atestado.findUnique({
+      where: { id },
+      select: { photoDataUrl: true },
+    });
+    return atestado?.photoDataUrl ?? null;
   }
 
   async updateStatus(

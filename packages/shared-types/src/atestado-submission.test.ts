@@ -30,6 +30,38 @@ describe("AtestadoInputSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("accepts a valid image data URL as photoDataUrl", () => {
+    const result = AtestadoInputSchema.safeParse({
+      cid: "J06.9",
+      crm: "CRM-MG 45213",
+      medico: "Dr. Carlos Mendes",
+      dias: 2,
+      photoDataUrl: "data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a submission with no photoDataUrl at all", () => {
+    const result = AtestadoInputSchema.safeParse({
+      cid: "J06.9",
+      crm: "CRM-MG 45213",
+      medico: "Dr. Carlos Mendes",
+      dias: 2,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a photoDataUrl that isn't a data: image URL", () => {
+    const result = AtestadoInputSchema.safeParse({
+      cid: "J06.9",
+      crm: "CRM-MG 45213",
+      medico: "Dr. Carlos Mendes",
+      dias: 2,
+      photoDataUrl: "file:///data/user/0/photo.jpg",
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("AtestadoStatusUpdateSchema", () => {

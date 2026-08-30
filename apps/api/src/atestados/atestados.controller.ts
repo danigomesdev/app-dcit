@@ -63,6 +63,17 @@ export class AtestadosController {
     return this.atestados.listTeam(req.user.role);
   }
 
+  // RH-only, not gestor — same LGPD boundary as the masked cid/crm/medico
+  // fields on listTeam; the photo often shows the same clinical detail
+  // legibly. Fetched one atestado at a time, never bundled into the list.
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('rh')
+  @Get(':id/photo')
+  async getPhoto(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    const photoDataUrl = await this.atestados.getPhoto(id, req.user.role);
+    return { photoDataUrl };
+  }
+
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('gestor', 'rh')
   @Patch(':id/status')
