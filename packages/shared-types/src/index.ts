@@ -48,3 +48,5 @@ export { EmployeeCreateSchema, ESTADOS_CIVIS, UFS } from "./employee-create";
 export type { EmployeeCreateInput } from "./employee-create";
 export { ConvencaoInputSchema } from "./convencao";
 export type { ConvencaoInput } from "./convencao";
+export { PayslipInputSchema, PayslipUpdateSchema } from "./payslip";
+export type { PayslipInput, PayslipUpdate } from "./payslip";
