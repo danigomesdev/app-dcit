@@ -1,6 +1,6 @@
 # Holerites — cadastro de gestor/RH — Ponto DCIT
 
-**Status:** Aprovado para implementação
+**Status:** Implementado
 **Arquitetura de referência:** [`docs/superpowers/specs/2026-08-19-arquitetura-ponto-dcit-design.md`](2026-08-19-arquitetura-ponto-dcit-design.md)
 
 ## 1. Objetivo e escopo
