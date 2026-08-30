@@ -10,7 +10,23 @@
   font-weight: 600;
 }
 
-.subheading {
+.periodNav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.periodNavLink {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.periodNavLink:hover {
+  color: var(--color-text);
+}
+
+.periodRange {
   font-size: 14px;
   color: var(--color-text-secondary);
 }
