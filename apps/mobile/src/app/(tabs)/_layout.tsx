@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import type { ColorValue } from "react-native";
 
 import { useTheme } from "@/hooks/use-theme";
+import { Radius } from "@/constants/theme";
 
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -31,6 +32,17 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: theme.secondary,
         tabBarInactiveTintColor: theme.textSecondary,
+        tabBarStyle: {
+          backgroundColor: theme.backgroundElement,
+          borderTopWidth: 0,
+          borderTopLeftRadius: Radius.xl,
+          borderTopRightRadius: Radius.xl,
+          shadowColor: "#000000",
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          elevation: 8,
+        },
       }}
     >
       <Tabs.Screen

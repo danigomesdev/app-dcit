@@ -7,7 +7,7 @@ import { TabBackground } from "@/components/tab-background";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing } from "@/constants/theme";
+import { Elevation, Radius, Spacing } from "@/constants/theme";
 import {
   fetchBancoDeHoras,
   type BancoDeHorasDay,
@@ -158,7 +158,7 @@ export default function BancoDeHorasScreen() {
           Banco de Horas
         </ThemedText>
 
-        <View style={[styles.balanceCard, { backgroundColor: theme.backgroundElement }]}>
+        <View style={[styles.balanceCard, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
           <ThemedText type="small" themeColor="textSecondary">
             Saldo atual
           </ThemedText>
@@ -224,7 +224,7 @@ export default function BancoDeHorasScreen() {
         </View>
 
         <View style={[styles.insightsRow]}>
-          <View style={[styles.insightCard, { backgroundColor: theme.backgroundElement }]}>
+          <View style={[styles.insightCard, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
             <Ionicons name="calendar-outline" size={20} color={theme.secondary} />
             <ThemedText type="small" themeColor="textSecondary">
               DSR estimado
@@ -233,7 +233,7 @@ export default function BancoDeHorasScreen() {
               {periodLoaded ? formatSignedMinutes(dsrMinutes) : "—"}
             </ThemedText>
           </View>
-          <View style={[styles.insightCard, { backgroundColor: theme.backgroundElement }]}>
+          <View style={[styles.insightCard, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
             <Ionicons name="cash-outline" size={20} color={theme.secondary} />
             <ThemedText type="small" themeColor="textSecondary">
               Extras em R$
@@ -258,7 +258,7 @@ export default function BancoDeHorasScreen() {
         />
 
         {formOpen ? (
-          <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
+          <View style={[styles.form, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
             <TextInput
               value={reason}
               onChangeText={(text) => {
@@ -290,7 +290,7 @@ export default function BancoDeHorasScreen() {
             {compensationRequests.map((request) => (
               <View
                 key={request.id}
-                style={[styles.requestRow, { backgroundColor: theme.backgroundElement }]}
+                style={[styles.requestRow, { backgroundColor: theme.backgroundElement }, Elevation.card]}
               >
                 <ThemedText type="small">{request.reason}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   balanceCard: {
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     padding: Spacing.four,
     alignItems: "center",
     gap: Spacing.one,

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import type { ComponentProps } from "react";
 import NetInfo from "@react-native-community/netinfo";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PunchConfirmationModal } from "@/components/punch-confirmation-modal";
 import { ThemedButton } from "@/components/themed-button";
@@ -11,8 +12,9 @@ import { ThemedText } from "@/components/themed-text";
 import { TabBackground } from "@/components/tab-background";
 import { formatMinutes, summarizeDay, usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing } from "@/constants/theme";
+import { Elevation, Radius, Spacing } from "@/constants/theme";
 import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
+import { greetingForHour } from "@/lib/greeting";
 import { captureCurrentAddress } from "@/lib/location";
 import { cancelForgotPunchReminder, scheduleForgotPunchReminder } from "@/lib/reminders";
 import { getSessionToken } from "@/lib/session";
@@ -53,7 +55,7 @@ function HeaderIconButton({
     <Pressable
       onPress={onPress}
       accessibilityLabel={accessibilityLabel}
-      style={[styles.headerIcon, { backgroundColor: theme.backgroundElement }]}
+      style={[styles.headerIcon, { backgroundColor: theme.backgroundElement }, Elevation.card]}
     >
       <Ionicons name={icon} size={20} color={theme.text} />
     </Pressable>
@@ -66,7 +68,7 @@ function QuickAction({ icon, label, href }: QuickActionItem) {
   return (
     <Pressable
       onPress={() => router.push(href)}
-      style={[styles.quickAction, { backgroundColor: theme.backgroundElement }]}
+      style={[styles.quickAction, { backgroundColor: theme.backgroundElement }, Elevation.card]}
     >
       <View style={[styles.quickActionIcon, { backgroundColor: theme.background }]}>
         <Ionicons name={icon} size={20} color={theme.secondary} />
@@ -81,6 +83,7 @@ function QuickAction({ icon, label, href }: QuickActionItem) {
 export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { entries, addEntry, markEntrySynced, hydrateEntries } = usePonto();
   const [error, setError] = useState<string | null>(null);
   const [hoursVisible, setHoursVisible] = useState(false);
@@ -88,6 +91,7 @@ export default function HomeScreen() {
   const [claims, setClaims] = useState<SessionClaims | null>(null);
   const [confirmation, setConfirmation] = useState<Date | null>(null);
   const [locationText, setLocationText] = useState<string | null>(null);
+  const [addressExpanded, setAddressExpanded] = useState(false);
 
   useEffect(() => {
     getSessionToken().then(async (token) => {
@@ -133,6 +137,7 @@ export default function HomeScreen() {
     });
   }, []);
 
+  const greeting = greetingForHour(new Date().getHours());
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayEntries = entries.filter((entry) => entry.clockedAt.slice(0, 10) === todayKey);
   const pendingSyncCount = entries.filter((entry) => entry.synced === false).length;
@@ -186,9 +191,13 @@ export default function HomeScreen() {
 
   return (
     <TabBackground>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
+        ]}
+      >
         <View style={styles.header}>
-          <View style={[styles.brandMark, { backgroundColor: theme.accent }]} />
           <View style={styles.headerActions}>
             <HeaderIconButton
               icon="search-outline"
@@ -200,30 +209,49 @@ export default function HomeScreen() {
               accessibilityLabel="Notificações"
               onPress={() => router.push("/notificacoes")}
             />
-            <HeaderIconButton
-              icon="menu-outline"
+          </View>
+          <View style={styles.identity}>
+            <Pressable
               accessibilityLabel="Abrir perfil"
               onPress={() => router.push("/perfil")}
-            />
-          </View>
-        </View>
-
-        <View style={styles.identity}>
-          <View style={[styles.avatar, { backgroundColor: theme.backgroundElement }]}>
-            <Ionicons name="person-outline" size={22} color={theme.secondary} />
-          </View>
-          <View style={styles.identityText}>
-            <ThemedText type="smallBold">Olá, {claims?.name ?? "Colaborador"}</ThemedText>
-            <View style={styles.locationInline}>
-              <Ionicons name="location-outline" size={14} color={theme.textSecondary} />
-              <ThemedText type="small" themeColor="textSecondary">
-                {locationText ?? "Obtendo localização..."}
+              style={[styles.avatar, { backgroundColor: theme.backgroundElement }, Elevation.card]}
+            >
+              <Ionicons name="person-outline" size={24} color={theme.secondary} />
+            </Pressable>
+            <View style={styles.identityText}>
+              <ThemedText
+                type="subtitle"
+                style={styles.greeting}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {greeting}, {claims?.name ?? "Colaborador"}
               </ThemedText>
+              <Pressable
+                style={styles.locationInline}
+                onPress={() => setAddressExpanded((expanded) => !expanded)}
+              >
+                <Ionicons name="location-outline" size={14} color={theme.textSecondary} />
+                <ThemedText
+                  type="small"
+                  themeColor="textSecondary"
+                  numberOfLines={addressExpanded ? undefined : 1}
+                  ellipsizeMode="tail"
+                  style={styles.locationText}
+                >
+                  {locationText ?? "Obtendo localização..."}
+                </ThemedText>
+                <Ionicons
+                  name={addressExpanded ? "chevron-up" : "chevron-down"}
+                  size={14}
+                  color={theme.textSecondary}
+                />
+              </Pressable>
             </View>
           </View>
         </View>
 
-        <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+        <View style={[styles.card, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
           <View style={styles.cardHeader}>
             <ThemedText type="subtitle" style={styles.cardTitle}>
               Meu ponto
@@ -316,21 +344,17 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   scrollContent: {
-    padding: Spacing.four,
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  brandMark: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    gap: Spacing.two,
   },
   headerActions: {
     flexDirection: "row",
+    alignSelf: "flex-end",
     gap: Spacing.two,
   },
   headerIcon: {
@@ -342,13 +366,13 @@ const styles = StyleSheet.create({
   },
   identity: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: Spacing.three,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -356,10 +380,17 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  greeting: {
+    fontSize: 20,
+    lineHeight: 26,
+  },
   locationInline: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.one,
+  },
+  locationText: {
+    flex: 1,
   },
   quickActionsGrid: {
     flexDirection: "row",
@@ -386,7 +417,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   card: {
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     padding: Spacing.four,
     gap: Spacing.three,
   },

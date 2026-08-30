@@ -144,7 +144,7 @@ describe("HomeScreen", () => {
     });
   });
 
-  it("navigates to the profile screen from the header menu icon", async () => {
+  it("navigates to the profile screen from the avatar", async () => {
     renderRouter("src/app", { initialUrl: "/" });
 
     fireEvent.press(screen.getByLabelText("Abrir perfil"));

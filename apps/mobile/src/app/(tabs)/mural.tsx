@@ -6,7 +6,7 @@ import { useFocusEffect } from "expo-router";
 import { TabBackground } from "@/components/tab-background";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing } from "@/constants/theme";
+import { Elevation, Spacing } from "@/constants/theme";
 import {
   UNREAD_WINDOW_DAYS,
   birthdaysThisMonthExcludingToday,
@@ -101,7 +101,7 @@ export default function MuralScreen() {
         </ThemedText>
 
         {todayBirthdays.length > 0 ? (
-          <View style={[styles.birthdayCard, { backgroundColor: theme.accent }]}>
+          <View style={[styles.birthdayCard, { backgroundColor: theme.accent }, Elevation.card]}>
             <ThemedText style={styles.birthdayGlyph}>🎂</ThemedText>
             <View style={styles.birthdayText}>
               <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
@@ -131,7 +131,7 @@ export default function MuralScreen() {
               <Pressable
                 key={post.id}
                 onPress={() => markRead(post.id)}
-                style={[styles.card, { backgroundColor: theme.backgroundElement }]}
+                style={[styles.card, { backgroundColor: theme.backgroundElement }, Elevation.card]}
               >
                 <View style={styles.cardHeader}>
                   <ThemedText style={styles.cardGlyph}>{post.glyph}</ThemedText>

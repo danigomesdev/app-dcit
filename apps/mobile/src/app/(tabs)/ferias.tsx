@@ -8,7 +8,7 @@ import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { TabBackground } from "@/components/tab-background";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing } from "@/constants/theme";
+import { Elevation, Radius, Spacing } from "@/constants/theme";
 import {
   AVAILABLE_DAYS,
   currentVacationCycle,
@@ -129,7 +129,7 @@ export default function FeriasScreen() {
           Férias
         </ThemedText>
 
-        <View style={[styles.balanceCard, { backgroundColor: theme.backgroundElement }]}>
+        <View style={[styles.balanceCard, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
           <ThemedText type="title" style={styles.balanceValue}>
             {AVAILABLE_DAYS} dias disponíveis
           </ThemedText>
@@ -158,7 +158,7 @@ export default function FeriasScreen() {
           {vacationRequests.map((request) => (
               <View
                 key={request.id}
-                style={[styles.requestRow, { backgroundColor: theme.backgroundElement }]}
+                style={[styles.requestRow, { backgroundColor: theme.backgroundElement }, Elevation.card]}
               >
                 <View style={styles.requestInfo}>
                   <ThemedText type="small">
@@ -184,7 +184,7 @@ export default function FeriasScreen() {
           {history.map((entry) => (
               <View
                 key={entry.id}
-                style={[styles.historyRow, { backgroundColor: theme.backgroundElement }]}
+                style={[styles.historyRow, { backgroundColor: theme.backgroundElement }, Elevation.card]}
               >
                 <ThemedText type="smallBold">{entry.year}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     lineHeight: 30,
   },
   balanceCard: {
-    borderRadius: 20,
+    borderRadius: Radius.xl,
     padding: Spacing.four,
     gap: Spacing.one,
   },

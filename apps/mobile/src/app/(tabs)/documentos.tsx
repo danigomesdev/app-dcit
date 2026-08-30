@@ -9,7 +9,7 @@ import { TabBackground } from "@/components/tab-background";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing } from "@/constants/theme";
+import { Elevation, Spacing } from "@/constants/theme";
 import {
   DOCUMENT_STATUS_LABEL,
   formatBRL,
@@ -153,7 +153,7 @@ function AdmissionaisSection() {
       />
 
       {formOpen ? (
-        <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
+        <View style={[styles.form, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
           <View style={styles.photoButtons}>
             <Pressable
               style={[styles.photoButton, { backgroundColor: theme.background }]}
@@ -185,7 +185,7 @@ function AdmissionaisSection() {
       ) : null}
 
       {admissionDocuments.map((doc) => (
-        <View key={doc.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+        <View key={doc.id} style={[styles.row, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
           <Ionicons name="document-text-outline" size={20} color={theme.secondary} />
           <View style={styles.rowContent}>
             <ThemedText type="smallBold">{doc.title}</ThemedText>
@@ -288,7 +288,7 @@ function AtestadosSection() {
       />
 
       {formOpen ? (
-        <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
+        <View style={[styles.form, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
           <View style={styles.photoButtons}>
             <Pressable
               style={[styles.photoButton, { backgroundColor: theme.background }]}
@@ -364,7 +364,7 @@ function AtestadosSection() {
         atestados.map((atestado) => (
           <View
             key={atestado.id}
-            style={[styles.row, { backgroundColor: theme.backgroundElement }]}
+            style={[styles.row, { backgroundColor: theme.backgroundElement }, Elevation.card]}
           >
             <Ionicons name="medkit-outline" size={20} color={theme.secondary} />
             <View style={styles.rowContent}>
@@ -421,7 +421,7 @@ function HoleritesSection() {
         return (
           <Pressable
             key={payslip.id}
-            style={[styles.payslipCard, { backgroundColor: theme.backgroundElement }]}
+            style={[styles.payslipCard, { backgroundColor: theme.backgroundElement }, Elevation.card]}
             onPress={() => setExpanded(isOpen ? null : payslip.id)}
           >
             <View style={styles.payslipHeader}>
@@ -550,7 +550,7 @@ function CertificacoesSection() {
       />
 
       {formOpen ? (
-        <View style={[styles.form, { backgroundColor: theme.backgroundElement }]}>
+        <View style={[styles.form, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
           <TextInput
             value={name}
             onChangeText={setName}
@@ -584,7 +584,7 @@ function CertificacoesSection() {
         />
       ) : (
         certifications.map((cert) => (
-            <View key={cert.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+            <View key={cert.id} style={[styles.row, { backgroundColor: theme.backgroundElement }, Elevation.card]}>
               <Ionicons name="ribbon-outline" size={20} color={theme.secondary} />
               <View style={styles.rowContent}>
                 <ThemedText type="smallBold">{cert.name}</ThemedText>

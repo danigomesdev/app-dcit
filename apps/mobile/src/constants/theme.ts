@@ -73,5 +73,24 @@ export const Spacing = {
   six: 64,
 } as const;
 
+export const Radius = {
+  md: 14,
+  lg: 20,
+  xl: 24,
+} as const;
+
+// A single soft-shadow spec reused by every card in the app — iOS reads
+// shadow*, Android reads elevation; both are set so the same style object
+// works on either platform without a Platform.select at each call site.
+export const Elevation = {
+  card: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+} as const;
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
