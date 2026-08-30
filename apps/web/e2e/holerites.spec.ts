@@ -36,6 +36,7 @@ test("gestor sees the holerites list", async ({ page, context, request }) => {
     page.getByText("Fernanda Colaboradora · Agosto/2026", { exact: true })
   ).toBeVisible();
   await expect(page.getByText(/Bruto: R\$\s?6\.200,00/)).toBeVisible();
+  await expect(page.getByText(/Líquido: R\$\s?4\.728,00/)).toBeVisible();
 });
 
 test("shows an empty state when no holerite is cadastrado", async ({
@@ -69,7 +70,7 @@ test("opens the dialog and creates a new holerite with the API", async ({
   await page.getByLabel("Bruto (R$)").fill("6200");
   await page.getByLabel("INSS (R$)").fill("682");
   await page.getByLabel("IRRF (R$)").fill("410");
-  await page.getByLabel("Benefícios (R$)").fill("380");
+  await page.getByLabel("Descontos de benefícios (R$)").fill("380");
   await page.getByRole("button", { name: "Cadastrar" }).click();
 
   await expect

@@ -96,6 +96,18 @@ describe('DocumentosService', () => {
     await prisma.employee.delete({ where: { userId: 'user-g' } });
   });
 
+  it('throws NotFoundException when updating a payslip that does not exist', async () => {
+    await expect(
+      service.updatePayslip('never-existed', {
+        label: 'X',
+        gross: 100,
+        inss: 10,
+        irrf: 10,
+        benefits: 10,
+      }),
+    ).rejects.toThrow('Holerite não encontrado.');
+  });
+
   it('deletes a payslip idempotently', async () => {
     const created = await service.createPayslip({
       userId: 'user-h',

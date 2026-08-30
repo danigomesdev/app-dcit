@@ -87,7 +87,7 @@ export function HoleriteFormFields({
         />
       </label>
       <label className={styles.field}>
-        <span className={styles.fieldLabel}>Benefícios (R$)</span>
+        <span className={styles.fieldLabel}>Descontos de benefícios (R$)</span>
         <input
           type="number"
           name="benefits"
@@ -97,6 +97,9 @@ export function HoleriteFormFields({
           defaultValue={defaults.benefits ?? ""}
           className={styles.fieldInput}
         />
+        <span className={styles.fieldHint}>
+          Vale-refeição, vale-transporte e plano de saúde já descontados do líquido
+        </span>
       </label>
     </div>
   );

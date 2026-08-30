@@ -56,6 +56,22 @@ describe('DocumentosController guard metadata', () => {
     expect(guards).toContain(RolesGuard);
     expect(roles).toEqual(['gestor', 'rh']);
   });
+
+  it('does NOT apply RolesGuard or a role restriction to listPayslips (self-service)', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      DocumentosController.prototype.listPayslips,
+    ) as unknown[] | undefined;
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      DocumentosController.prototype.listPayslips,
+    ) as unknown[] | undefined;
+
+    expect(guards).not.toContain(RolesGuard);
+    expect(roles).toBeUndefined();
+  });
 });
 
 describe('DocumentosController', () => {

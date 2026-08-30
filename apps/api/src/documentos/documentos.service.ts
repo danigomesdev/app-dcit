@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   AdmissionDocumentInput,
   CertificationInput,
@@ -24,7 +24,11 @@ export class DocumentosService {
     return this.prisma.payslip.create({ data: input });
   }
 
-  updatePayslip(id: string, input: PayslipUpdate) {
+  async updatePayslip(id: string, input: PayslipUpdate) {
+    const existing = await this.prisma.payslip.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException('Holerite não encontrado.');
+    }
     return this.prisma.payslip.update({ where: { id }, data: input });
   }
 

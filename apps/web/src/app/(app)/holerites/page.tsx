@@ -29,7 +29,7 @@ export default async function HoleritesPage() {
 
   const [holerites, employees] = await Promise.all([
     apiFetchJson<Holerite[]>("/documentos/holerites/equipe"),
-    apiFetchJson<Employee[]>("/employees"),
+    apiFetchJson<Employee[]>("/employees").catch(() => []),
   ]);
 
   return (

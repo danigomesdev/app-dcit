@@ -30,7 +30,9 @@ export function HoleritesRow({ holerite }: { holerite: Holerite }) {
       </span>
       <span className={styles.itemDetail}>
         Bruto: {formatBRL(holerite.gross)} · INSS: {formatBRL(holerite.inss)} · IRRF:{" "}
-        {formatBRL(holerite.irrf)} · Benefícios: {formatBRL(holerite.benefits)}
+        {formatBRL(holerite.irrf)} · Descontos de benefícios:{" "}
+        {formatBRL(holerite.benefits)} · Líquido:{" "}
+        {formatBRL(holerite.gross - holerite.inss - holerite.irrf - holerite.benefits)}
       </span>
       <EditarHoleriteDialog holerite={holerite} />
       <button
