@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import type {
   AdmissionDocumentInput,
   CertificationInput,
+  PayslipInput,
+  PayslipUpdate,
 } from '@ponto-dcit/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -16,6 +18,25 @@ export class DocumentosService {
 
   listPayslips(userId: string) {
     return this.prisma.payslip.findMany({ where: { userId } });
+  }
+
+  createPayslip(input: PayslipInput) {
+    return this.prisma.payslip.create({ data: input });
+  }
+
+  updatePayslip(id: string, input: PayslipUpdate) {
+    return this.prisma.payslip.update({ where: { id }, data: input });
+  }
+
+  // Idempotent — calling this twice, or on an id that never existed, must
+  // not throw. Same pattern as ConvencoesService.delete.
+  deletePayslip(id: string) {
+    return this.prisma.payslip.deleteMany({ where: { id } });
+  }
+
+  async listAllPayslips() {
+    const payslips = await this.prisma.payslip.findMany();
+    return this.withRequesterNames(payslips);
   }
 
   createAdmissionDocument(userId: string, input: AdmissionDocumentInput) {

@@ -56,6 +56,65 @@ describe('DocumentosService', () => {
     expect(results[0].gross).toBe(6200);
   });
 
+  it('creates, updates, and lists a payslip across the whole team', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-g',
+        name: 'Gabriela Holerite',
+        role: 'colaborador',
+        hireDate: new Date('2024-03-15'),
+      },
+    });
+
+    const created = await service.createPayslip({
+      userId: 'user-g',
+      label: 'Agosto/2026',
+      gross: 6200,
+      inss: 682,
+      irrf: 410,
+      benefits: 380,
+    });
+
+    expect(created.label).toBe('Agosto/2026');
+    expect(created.gross).toBe(6200);
+
+    const listed = await service.listAllPayslips();
+    expect(listed.find((p) => p.id === created.id)?.userName).toBe(
+      'Gabriela Holerite',
+    );
+
+    const updated = await service.updatePayslip(created.id, {
+      label: 'Agosto/2026 (corrigido)',
+      gross: 6500,
+      inss: 700,
+      irrf: 420,
+      benefits: 380,
+    });
+    expect(updated.label).toBe('Agosto/2026 (corrigido)');
+    expect(updated.gross).toBe(6500);
+
+    await prisma.employee.delete({ where: { userId: 'user-g' } });
+  });
+
+  it('deletes a payslip idempotently', async () => {
+    const created = await service.createPayslip({
+      userId: 'user-h',
+      label: 'Setembro/2026',
+      gross: 5000,
+      inss: 500,
+      irrf: 300,
+      benefits: 200,
+    });
+
+    await service.deletePayslip(created.id);
+    // Calling it a second time, or on an id that never existed, must not throw.
+    await service.deletePayslip(created.id);
+    await service.deletePayslip('never-existed');
+
+    const listed = await service.listAllPayslips();
+    expect(listed.find((p) => p.id === created.id)).toBeUndefined();
+  });
+
   it('creates and lists admission documents scoped to the user', async () => {
     await service.createAdmissionDocument('user-c', {
       title: 'Comprovante de residência',
