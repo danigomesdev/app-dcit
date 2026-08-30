@@ -1,5 +1,11 @@
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
 import { getSessionToken, saveSessionToken } from "@/lib/session";
+import { unregisterPushNotifications } from "@/lib/push";
+
+jest.mock("@/lib/push", () => ({
+  registerForPushNotifications: jest.fn().mockResolvedValue(undefined),
+  unregisterPushNotifications: jest.fn().mockResolvedValue(undefined),
+}));
 
 function fakeJwt(claims: Record<string, unknown>) {
   const BASE64URL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
@@ -35,6 +41,36 @@ describe("perfil screen", () => {
   });
 
   it("clears the session and returns to login on logout", async () => {
+    await saveSessionToken(fakeJwt({ sub: "colaborador-1", role: "colaborador", name: "Ana" }));
+
+    renderRouter("src/app", { initialUrl: "/" });
+    fireEvent.press(screen.getByLabelText("Abrir perfil"));
+    await waitFor(() => {
+      expect(screen).toHavePathname("/perfil");
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Sair da conta")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Sair da conta"));
+
+    await waitFor(() => {
+      expect(screen).toHavePathname("/login");
+    });
+    expect(await getSessionToken()).toBeNull();
+  });
+
+  it("still clears the session and returns to login even if push-token cleanup fails", async () => {
+    // Regression test: expo-notifications throws a synchronous error from a
+    // module-level side effect on Android in Expo Go (removed in SDK 53) —
+    // logout must never get stuck behind that, or any other push-cleanup
+    // failure.
+    (unregisterPushNotifications as jest.Mock).mockRejectedValueOnce(
+      new Error(
+        "expo-notifications: Android Push notifications (remote notifications) functionality " +
+          "provided by expo-notifications was removed from Expo Go with the release of SDK 53.",
+      ),
+    );
     await saveSessionToken(fakeJwt({ sub: "colaborador-1", role: "colaborador", name: "Ana" }));
 
     renderRouter("src/app", { initialUrl: "/" });

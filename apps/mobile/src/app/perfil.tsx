@@ -32,7 +32,12 @@ export default function PerfilScreen() {
   async function handleLogout() {
     const token = await getSessionToken();
     if (token) {
-      await unregisterPushNotifications(token);
+      try {
+        await unregisterPushNotifications(token);
+      } catch {
+        // Best-effort — logout must never get stuck behind push-token
+        // cleanup (e.g. expo-notifications throwing on Android in Expo Go).
+      }
     }
     await clearSessionToken();
     router.replace("/login");
