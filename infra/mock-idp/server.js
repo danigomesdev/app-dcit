@@ -50,6 +50,7 @@ const configuration = {
       redirect_uris: [
         'http://localhost:3000/auth/callback',
         'http://192.168.1.16:3000/auth/callback',
+        'http://192.168.1.20:3000/auth/callback',
       ],
       grant_types: ['authorization_code'],
       response_types: ['code'],
