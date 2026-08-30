@@ -1,5 +1,6 @@
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
 import * as ImagePicker from "expo-image-picker";
+import * as Sharing from "expo-sharing";
 import { saveSessionToken } from "@/lib/session";
 
 jest.mock("expo-image-picker", () => ({
@@ -244,6 +245,23 @@ describe("documentos screen", () => {
 
     expect(screen.getByText("Salário bruto")).toBeTruthy();
     expect(screen.getByText("Líquido a receber")).toBeTruthy();
+  });
+
+  it("downloads a payslip as a PDF when Baixar PDF is pressed", async () => {
+    (Sharing.shareAsync as jest.Mock).mockClear();
+    renderRouter("src/app", { initialUrl: "/documentos" });
+
+    fireEvent.press(screen.getByText("Holerites"));
+    await waitFor(() => {
+      expect(screen.getByText("Julho 2026")).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText("Julho 2026"));
+
+    fireEvent.press(screen.getByText("Baixar PDF"));
+
+    await waitFor(() => {
+      expect(Sharing.shareAsync).toHaveBeenCalled();
+    });
   });
 
   it("adds a new certification", async () => {

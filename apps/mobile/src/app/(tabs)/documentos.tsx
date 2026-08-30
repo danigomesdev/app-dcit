@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
@@ -16,6 +16,7 @@ import {
   netPay,
   type DocumentStatus,
 } from "@/lib/documentos";
+import { exportHoleritePdf } from "@/lib/export-holerite";
 import { pickPhoto } from "@/lib/photo-picker";
 import { extractAtestadoData } from "@/lib/atestado-ocr";
 import { fetchMyAtestados, submitAtestado, type AtestadoRecord } from "@/lib/atestados-api";
@@ -384,6 +385,18 @@ function HoleritesSection() {
   const theme = useTheme();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [payslips, setPayslips] = useState<PayslipRecord[]>([]);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  async function handleDownload(payslip: PayslipRecord) {
+    setExportingId(payslip.id);
+    try {
+      await exportHoleritePdf(payslip);
+    } catch {
+      Alert.alert("Não foi possível gerar o PDF", "Tente novamente em instantes.");
+    } finally {
+      setExportingId(null);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -440,6 +453,16 @@ function HoleritesSection() {
                 />
                 <View style={styles.payslipDivider} />
                 <PayslipLine label="Líquido a receber" value={formatBRL(netPay(payslip))} bold />
+                <Pressable
+                  onPress={() => handleDownload(payslip)}
+                  disabled={exportingId === payslip.id}
+                  style={styles.downloadRow}
+                >
+                  <Ionicons name="download-outline" size={16} color={theme.secondary} />
+                  <ThemedText type="small" themeColor="secondary">
+                    {exportingId === payslip.id ? "Gerando PDF..." : "Baixar PDF"}
+                  </ThemedText>
+                </Pressable>
               </View>
             ) : null}
           </Pressable>
@@ -677,5 +700,11 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "rgba(255,255,255,0.12)",
     marginVertical: Spacing.one,
+  },
+  downloadRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
+    marginTop: Spacing.one,
   },
 });
