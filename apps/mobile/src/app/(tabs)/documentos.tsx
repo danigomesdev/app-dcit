@@ -18,6 +18,7 @@ import {
 } from "@/lib/documentos";
 import { exportHoleritePdf } from "@/lib/export-holerite";
 import { pickPhoto } from "@/lib/photo-picker";
+import { readPhotoAsDataUrl } from "@/lib/photo-data-url";
 import { extractAtestadoData } from "@/lib/atestado-ocr";
 import { fetchMyAtestados, submitAtestado, type AtestadoRecord } from "@/lib/atestados-api";
 import {
@@ -265,12 +266,13 @@ function AtestadosSection() {
     if (!cid.trim() || !crm.trim() || !medico.trim() || !parsedDias) return;
     const token = await getSessionToken();
     if (!token) return;
+    const photoDataUrl = photoUri ? await readPhotoAsDataUrl(photoUri) : undefined;
     const created = await submitAtestado(token, {
       cid: cid.trim(),
       crm: crm.trim(),
       medico: medico.trim(),
       dias: parsedDias,
-      photoUri: photoUri ?? undefined,
+      photoDataUrl,
     });
     if (created) {
       setAtestados((current) => [created, ...current]);

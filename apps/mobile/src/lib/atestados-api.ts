@@ -10,7 +10,6 @@ export type AtestadoRecord = {
   crm: string | null;
   medico: string | null;
   dias: number | null;
-  photoUri: string | null;
   status: string;
   createdAt: string;
 };

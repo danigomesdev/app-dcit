@@ -107,10 +107,25 @@ export class AtestadosService {
     });
   }
 
+  // photoDataUrl excluded here too — a list response is never the right
+  // place for a base64 image, even the caller's own; getPhoto is the
+  // one-at-a-time path for actually viewing it.
   listMine(userId: string) {
     return this.prisma.atestado.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        userId: true,
+        userName: true,
+        cid: true,
+        crm: true,
+        medico: true,
+        dias: true,
+        status: true,
+        reviewNote: true,
+        createdAt: true,
+      },
     });
   }
 

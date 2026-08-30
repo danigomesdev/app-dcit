@@ -189,6 +189,39 @@ describe("documentos screen", () => {
     });
   });
 
+  it("sends the photo as a data URL when submitting an atestado with a photo attached", async () => {
+    (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file://fake-photo.jpg" }],
+    });
+
+    renderRouter("src/app", { initialUrl: "/documentos" });
+    fireEvent.press(screen.getByText("Enviar Atestado"));
+    fireEvent.press(screen.getByText("Tirar foto"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Dados preenchidos automaticamente|Não foi possível ler/),
+      ).toBeTruthy();
+    });
+
+    fireEvent.changeText(screen.getByPlaceholderText("CID"), "J06.9");
+    fireEvent.changeText(screen.getByPlaceholderText("CRM do médico"), "CRM-MG 11111");
+    fireEvent.changeText(screen.getByPlaceholderText("Nome do médico"), "Dr. Teste");
+    fireEvent.changeText(screen.getByPlaceholderText("Quantidade de dias"), "3");
+    fireEvent.press(screen.getByText("Enviar"));
+
+    await waitFor(() => {
+      const submitCall = (globalThis.fetch as jest.Mock).mock.calls.find(
+        ([url, options]: [string, RequestInit | undefined]) =>
+          url.endsWith("/atestados") && options?.method === "POST",
+      );
+      expect(submitCall).toBeTruthy();
+      const body = JSON.parse(submitCall![1].body as string) as Record<string, unknown>;
+      expect(body.photoDataUrl).toBe("data:image/jpeg;base64,ZmFrZS1pbWFnZS1kYXRh");
+    });
+  });
+
   it("prefills the atestado fields after a successful automatic OCR read", async () => {
     (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValue({
       canceled: false,

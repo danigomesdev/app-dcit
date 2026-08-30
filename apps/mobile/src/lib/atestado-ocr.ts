@@ -2,12 +2,9 @@ import * as FileSystem from "expo-file-system/legacy";
 import type { AtestadoOcrResult } from "@ponto-dcit/shared-types";
 
 import { API_URL } from "@/constants/api";
+import { mediaTypeFor } from "@/lib/photo-data-url";
 
 export type OcrOutcome = { ok: true; result: AtestadoOcrResult } | { ok: false };
-
-function mediaTypeFor(uri: string): "image/jpeg" | "image/png" {
-  return uri.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
-}
 
 /**
  * Never throws — a failed OCR call falls back to manual entry, the same
