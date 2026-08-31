@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 
@@ -12,6 +20,7 @@ import { DOCUMENT_STATUS_LABEL, type DocumentStatus } from "@/lib/documentos";
 import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
 import { getSessionToken } from "@/lib/session";
 import {
+  fetchAtestadoPhoto,
   fetchTeamAtestados,
   updateAtestadoStatus,
   type AtestadoRecord,
@@ -39,6 +48,8 @@ export default function AtestadosEquipeScreen() {
   const theme = useTheme();
   const [claims, setClaims] = useState<SessionClaims | null>(null);
   const [atestados, setAtestados] = useState<AtestadoRecord[]>([]);
+  const [photoStatus, setPhotoStatus] = useState<"idle" | "loading" | "loaded" | "empty">("idle");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -70,6 +81,20 @@ export default function AtestadosEquipeScreen() {
     setAtestados((current) => current.map((a) => (a.id === id ? updated : a)));
   }
 
+  async function handleViewPhoto(id: string) {
+    setPhotoStatus("loading");
+    setPhotoUrl(null);
+    const token = await getSessionToken();
+    const url = token ? await fetchAtestadoPhoto(token, id) : null;
+    setPhotoUrl(url);
+    setPhotoStatus(url ? "loaded" : "empty");
+  }
+
+  function closePhoto() {
+    setPhotoStatus("idle");
+    setPhotoUrl(null);
+  }
+
   return (
     <ThemedView style={styles.container}>
       <ScreenHeader title="Atestados da equipe" />
@@ -98,6 +123,14 @@ export default function AtestadosEquipeScreen() {
                 <ThemedText type="small">CRM: {atestado.crm}</ThemedText>
               </View>
             ) : null}
+            {canSeeClinicalDetails ? (
+              <Pressable
+                style={[styles.photoButton, { borderColor: theme.secondary }]}
+                onPress={() => handleViewPhoto(atestado.id)}
+              >
+                <ThemedText type="small">Ver foto</ThemedText>
+              </Pressable>
+            ) : null}
             {atestado.status === "enviado" ? (
               <View style={styles.actions}>
                 <Pressable
@@ -121,6 +154,28 @@ export default function AtestadosEquipeScreen() {
           </View>
         ))}
       </ScrollView>
+
+      <Modal visible={photoStatus !== "idle"} transparent animationType="fade">
+        <Pressable style={styles.backdrop} onPress={closePhoto}>
+          <Pressable style={[styles.photoCard, { backgroundColor: theme.backgroundElement }]}>
+            {photoStatus === "loading" ? <ActivityIndicator color={theme.secondary} /> : null}
+            {photoStatus === "loaded" && photoUrl ? (
+              <Image
+                source={{ uri: photoUrl }}
+                accessibilityLabel="Foto do atestado"
+                style={styles.photoImage}
+                resizeMode="contain"
+              />
+            ) : null}
+            {photoStatus === "empty" ? (
+              <ThemedText type="small">Este atestado não possui foto anexada.</ThemedText>
+            ) : null}
+            <Pressable style={styles.photoCloseButton} onPress={closePhoto}>
+              <ThemedText type="small">Fechar</ThemedText>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ThemedView>
   );
 }
@@ -170,5 +225,35 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: Spacing.two,
     alignItems: "center",
+  },
+  photoButton: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.two,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.four,
+  },
+  photoCard: {
+    borderRadius: 16,
+    padding: Spacing.four,
+    gap: Spacing.three,
+    alignItems: "center",
+    maxWidth: "100%",
+  },
+  photoImage: {
+    width: 280,
+    height: 280,
+  },
+  photoCloseButton: {
+    alignSelf: "center",
+    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
   },
 });

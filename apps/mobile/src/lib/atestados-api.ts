@@ -63,6 +63,17 @@ export async function fetchTeamAtestados(token: string): Promise<AtestadoRecord[
   }
 }
 
+export async function fetchAtestadoPhoto(token: string, id: string): Promise<string | null> {
+  try {
+    const response = await authedFetch(token, `/atestados/${id}/photo`);
+    if (!response.ok) return null;
+    const data = (await response.json()) as { photoDataUrl: string | null };
+    return data.photoDataUrl;
+  } catch {
+    return null;
+  }
+}
+
 export async function updateAtestadoStatus(
   token: string,
   id: string,

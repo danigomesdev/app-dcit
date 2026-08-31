@@ -1,4 +1,4 @@
-import { renderRouter, screen } from "expo-router/testing-library";
+import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { saveSessionToken } from "@/lib/session";
 
 function fakeJwt(claims: Record<string, unknown>) {
@@ -34,10 +34,16 @@ const TEAM_ATESTADOS = [
 
 describe("atestados da equipe screen", () => {
   beforeEach(() => {
-    globalThis.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => TEAM_ATESTADOS,
-    });
+    globalThis.fetch = jest.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.endsWith("/photo")) {
+        return {
+          ok: true,
+          json: async () => ({ photoDataUrl: "data:image/jpeg;base64,ZmFrZQ==" }),
+        } as Response;
+      }
+      return { ok: true, json: async () => TEAM_ATESTADOS } as Response;
+    }) as jest.Mock;
   });
 
   it("hides clinical fields (CID, CRM, médico) for a gestor", async () => {
@@ -57,5 +63,24 @@ describe("atestados da equipe screen", () => {
 
     expect(await screen.findByText(/CID: J06.9/)).toBeTruthy();
     expect(screen.getByText(/CRM: CRM-MG 45213/)).toBeTruthy();
+  });
+
+  it("does not offer a photo button to a gestor", async () => {
+    await saveSessionToken(fakeJwt({ sub: "gestor-1", role: "gestor", name: "Bruno Gestor" }));
+
+    renderRouter("src/app", { initialUrl: "/atestados-equipe" });
+
+    expect(await screen.findByText("Ana Colaboradora")).toBeTruthy();
+    expect(screen.queryByText("Ver foto")).toBeNull();
+  });
+
+  it("lets RH open and view the atestado photo", async () => {
+    await saveSessionToken(fakeJwt({ sub: "rh-1", role: "rh", name: "Carla RH" }));
+
+    renderRouter("src/app", { initialUrl: "/atestados-equipe" });
+
+    fireEvent.press(await screen.findByText("Ver foto"));
+
+    expect(await screen.findByLabelText("Foto do atestado")).toBeTruthy();
   });
 });

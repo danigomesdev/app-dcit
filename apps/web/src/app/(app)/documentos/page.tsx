@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { AtestadoPhotoButton } from "./atestado-photo-button";
 import styles from "./documentos.module.css";
 
 type Atestado = {
@@ -122,6 +123,7 @@ export default async function DocumentosPage() {
                   ) : null}
                 </div>
               ) : null}
+              {session.role === "rh" ? <AtestadoPhotoButton id={atestado.id} /> : null}
             </li>
           );
         })}

@@ -93,3 +93,66 @@
   color: var(--color-text);
   font-weight: 600;
 }
+
+.photoButton {
+  appearance: none;
+  align-self: flex-start;
+  border: 1px solid var(--color-background-selected);
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.photoButton:hover {
+  background: var(--color-background-selected);
+}
+
+.photoDialog {
+  margin: auto;
+  border: none;
+  border-radius: 12px;
+  padding: 24px;
+  width: min(640px, calc(100vw - 48px));
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.photoDialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.photoImage {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: 8px;
+  display: block;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.dialogClose {
+  appearance: none;
+  border: 1px solid var(--color-background-selected);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: transparent;
+  cursor: pointer;
+}
+
+.dialogClose:hover {
+  background: var(--color-background-selected);
+}
