@@ -101,7 +101,10 @@ describe('AuthController', () => {
     expect(res.json).not.toHaveBeenCalled();
   });
 
-  it('refuses a colaborador web callback without setting a cookie', async () => {
+  it('sets a session cookie and redirects for a colaborador web callback too', async () => {
+    // The web portal now has real colaborador-facing pages (bater ponto,
+    // histórico, folha) — colaborador no longer gets refused here, same
+    // treatment as gestor/rh.
     authServiceMock.handleCallback.mockResolvedValue({
       sessionToken: 'jwt-1',
       origin: 'web',
@@ -112,10 +115,12 @@ describe('AuthController', () => {
 
     await controller.callback(req, res as unknown as Response);
 
-    expect(res.cookie).not.toHaveBeenCalled();
-    expect(res.redirect).toHaveBeenCalledWith(
-      expect.stringContaining('/login?error=colaborador_web'),
+    expect(res.cookie).toHaveBeenCalledWith(
+      'ponto_session',
+      'jwt-1',
+      expect.objectContaining({ httpOnly: true }),
     );
+    expect(res.redirect).toHaveBeenCalled();
   });
 
   it('redirects to the mobile redirect URI with the token for a mobile callback', async () => {
