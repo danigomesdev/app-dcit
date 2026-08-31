@@ -9,7 +9,7 @@ export type NavSection = {
 // roles mirrors each page's own session.role guard — kept here so search
 // can filter results without duplicating that logic per page.
 export const NAV_SECTIONS: NavSection[] = [
-  { href: "/", label: "Ponto", roles: ["gestor", "rh"] },
+  { href: "/", label: "Ponto", roles: ["gestor", "rh", "colaborador"] },
   { href: "/colaboradores", label: "Colaboradores", roles: ["gestor", "rh"] },
   { href: "/escala", label: "Plantão", roles: ["gestor", "rh"] },
   { href: "/aprovacoes", label: "Aprovações", roles: ["gestor", "rh"] },

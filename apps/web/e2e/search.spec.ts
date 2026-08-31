@@ -39,3 +39,13 @@ test("only shows screens the viewer's role can access", async ({ page, context, 
   await page.getByPlaceholder("Buscar telas...").fill("conven");
   await expect(page.getByRole("button", { name: "Convenções" })).toBeVisible();
 });
+
+test("colaborador can find Ponto via search", async ({ page, context }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("ponto");
+
+  await expect(page.getByRole("button", { name: "Ponto", exact: true })).toBeVisible();
+});
