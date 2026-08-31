@@ -188,6 +188,17 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "DELETE" && /^\/employees\/[^/]+\/permanent$/.test(url.pathname)) {
     return sendJson(res, 204, null);
   }
+  // Default: invalid credentials — tests seed a success response for their
+  // own email/senha combination via seedResponse, same as any other POST.
+  if (req.method === "POST" && url.pathname === "/auth/password-login") {
+    return sendJson(res, 401, { message: "Email ou senha incorretos." });
+  }
+  if (req.method === "POST" && url.pathname === "/auth/forgot-password") {
+    return sendJson(res, 200, {});
+  }
+  if (req.method === "POST" && url.pathname === "/auth/reset-password") {
+    return sendJson(res, 400, { message: "Código inválido ou expirado." });
+  }
 
   sendJson(res, 404, { error: `no fake-api handler for ${req.method} ${url.pathname}` });
 });

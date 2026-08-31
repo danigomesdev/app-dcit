@@ -3,24 +3,55 @@
 // models here) mural posts, birthdays, benefit partners, onboarding tasks.
 // Run with `npx prisma db seed` (idempotent: upserts, safe to re-run).
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+// Same value for every dev account — this is local/demo data, not a real
+// credential. Login form: email above + "dev12345".
+const DEV_PASSWORD = 'dev12345';
+
 const DEV_ACCOUNTS = [
-  { userId: 'colaborador-1', name: 'Ana Colaboradora', role: 'colaborador' },
-  { userId: 'gestor-1', name: 'Bruno Gestor', role: 'gestor' },
-  { userId: 'rh-1', name: 'Carla RH', role: 'rh' },
+  {
+    userId: 'colaborador-1',
+    name: 'Ana Colaboradora',
+    role: 'colaborador',
+    email: 'colaborador@dev.local',
+    phone: '+5511900000001',
+  },
+  {
+    userId: 'gestor-1',
+    name: 'Bruno Gestor',
+    role: 'gestor',
+    email: 'gestor@dev.local',
+    phone: '+5511900000002',
+  },
+  {
+    userId: 'rh-1',
+    name: 'Carla RH',
+    role: 'rh',
+    email: 'rh@dev.local',
+    phone: '+5511900000003',
+  },
 ];
 
 async function seedEmployees() {
+  const passwordHash = await bcrypt.hash(DEV_PASSWORD, 10);
   for (const account of DEV_ACCOUNTS) {
     await prisma.employee.upsert({
       where: { userId: account.userId },
-      update: {},
+      update: {
+        email: account.email,
+        phone: account.phone,
+        passwordHash,
+      },
       create: {
         userId: account.userId,
         name: account.name,
         role: account.role,
+        email: account.email,
+        phone: account.phone,
+        passwordHash,
         hireDate: new Date(Date.UTC(2024, 2, 15)),
       },
     });

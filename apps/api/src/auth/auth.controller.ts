@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -9,7 +10,19 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import {
+  ForgotPasswordInputSchema,
+  PasswordLoginInputSchema,
+  ResetPasswordInputSchema,
+} from '@ponto-dcit/shared-types';
 import { AuthService } from './auth.service';
+
+const SESSION_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  maxAge: 8 * 60 * 60 * 1000,
+};
 
 @Controller('auth')
 export class AuthController {
@@ -55,13 +68,63 @@ export class AuthController {
       return;
     }
 
-    res.cookie('ponto_session', sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 8 * 60 * 60 * 1000,
-    });
+    res.cookie('ponto_session', sessionToken, SESSION_COOKIE_OPTIONS);
     res.redirect(process.env.WEB_APP_URL ?? 'http://localhost:3001');
+  }
+
+  // Same JWT shape (`{sub, role, name}`) as the SSO callback above — nothing
+  // downstream (AuthGuard, client-side decode) needs to know which login
+  // path produced the token. One endpoint serves both platforms: web sets
+  // the session cookie here (a fetch from a Server Action can't rely on a
+  // top-level redirect the way SSO's browser-navigation flow does), mobile
+  // reads `token` from the body and stores it itself.
+  @Post('password-login')
+  @HttpCode(200)
+  async passwordLogin(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = PasswordLoginInputSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    const { email, password, origin } = result.data;
+    const { sessionToken, role, name } = await this.authService.loginWithPassword(
+      email,
+      password,
+    );
+
+    if (origin === 'web') {
+      res.cookie('ponto_session', sessionToken, SESSION_COOKIE_OPTIONS);
+    }
+    return { token: sessionToken, role, name };
+  }
+
+  // Always 200, even for an unknown email/phone — revealing which
+  // identifiers have an account would let an attacker enumerate real users.
+  @Post('forgot-password')
+  @HttpCode(200)
+  async forgotPassword(@Body() body: unknown) {
+    const result = ForgotPasswordInputSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    return this.authService.requestPasswordReset(result.data.identifier);
+  }
+
+  @Post('reset-password')
+  @HttpCode(200)
+  async resetPassword(@Body() body: unknown) {
+    const result = ResetPasswordInputSchema.safeParse(body);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    await this.authService.resetPassword(
+      result.data.identifier,
+      result.data.code,
+      result.data.newPassword,
+    );
+    return { ok: true };
   }
 
   @Post('logout')
