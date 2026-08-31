@@ -18,15 +18,30 @@ export function AppShell({ children, user }: { children: ReactNode; user: Sessio
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
-        <div className={styles.logo}>
-          <Image
-            src="/dcit-logo-v2.png"
-            alt="DCiT Tecnologia"
-            width={1197}
-            height={658}
-            className={styles.logoImage}
-            priority
-          />
+        <div className={styles.brand}>
+          <div className={styles.brandIcon}>
+            <Image
+              src="/dcit-logo-v2.png"
+              alt="DCiT Tecnologia"
+              width={1197}
+              height={658}
+              className={styles.brandIconImage}
+              priority
+            />
+          </div>
+          <div className={styles.brandText}>
+            <span className={styles.brandTitle}>SGP</span>
+            <span className={styles.brandSubtitle}>Sistema de Gestão de Pessoas</span>
+          </div>
+          <svg className={styles.brandChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M15 18l-6-6 6-6"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
         <NavLinks />
       </aside>
