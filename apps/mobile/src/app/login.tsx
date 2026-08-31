@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, ImageBackground, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, ImageBackground, StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
@@ -81,6 +81,23 @@ export default function LoginScreen() {
           <ActivityIndicator color="#ffffff" />
         ) : (
           <>
+            <View style={styles.brand}>
+              <View style={styles.brandIcon}>
+                <Image
+                  source={require("@/assets/images/brand/dcit-logo.png")}
+                  style={styles.brandIconImage}
+                  resizeMode="contain"
+                />
+              </View>
+              <View style={styles.brandText}>
+                <ThemedText type="smallBold" style={styles.brandTitle}>
+                  SGP
+                </ThemedText>
+                <ThemedText type="small" style={styles.brandSubtitle}>
+                  Sistema de Gestão de Pessoas
+                </ThemedText>
+              </View>
+            </View>
             <ThemedText type="default" style={styles.description}>
               Entre com sua conta corporativa para continuar.
             </ThemedText>
@@ -111,6 +128,36 @@ const styles = StyleSheet.create({
   description: {
     textAlign: "center",
     color: "#ffffff",
+  },
+  brand: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+  brandIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  brandIconImage: {
+    width: "100%",
+    height: "100%",
+    padding: 4,
+  },
+  brandText: {
+    flex: 1,
+    gap: 1,
+  },
+  brandTitle: {
+    color: "#ffffff",
+  },
+  brandSubtitle: {
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.72)",
   },
   error: {
     textAlign: "center",
