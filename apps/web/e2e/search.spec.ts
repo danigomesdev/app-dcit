@@ -1,0 +1,41 @@
+import { test, expect } from "@playwright/test";
+
+import { addSessionCookie, mockApi } from "./test-session";
+
+test("search finds a screen by name and navigates to it", async ({ page, context, request }) => {
+  await addSessionCookie(context);
+  await mockApi(request);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("banco");
+
+  await page.getByRole("button", { name: "Banco de Horas" }).click();
+  await expect(page).toHaveURL(/\/banco-de-horas$/);
+});
+
+test("Ctrl+K opens the search dialog with the input focused", async ({ page, context, request }) => {
+  await addSessionCookie(context);
+  await mockApi(request);
+  await page.goto("/");
+
+  await page.keyboard.press("Control+k");
+
+  await expect(page.getByPlaceholder("Buscar telas...")).toBeFocused();
+});
+
+test("only shows screens the viewer's role can access", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "gestor-1", role: "gestor", name: "Bruno Gestor" });
+  await mockApi(request);
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("conven");
+  await expect(page.getByText("Nada encontrado")).toBeVisible();
+
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("conven");
+  await expect(page.getByRole("button", { name: "Convenções" })).toBeVisible();
+});

@@ -3,23 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import styles from "./app-shell.module.css";
+import { NAV_SECTIONS } from "@/lib/nav-sections";
 
-const NAV_SECTIONS = [
-  { href: "/", label: "Ponto" },
-  { href: "/colaboradores", label: "Colaboradores" },
-  { href: "/escala", label: "Plantão" },
-  { href: "/aprovacoes", label: "Aprovações" },
-  { href: "/documentos", label: "Documentos" },
-  { href: "/mural", label: "Mural" },
-  { href: "/beneficios", label: "Benefícios" },
-  { href: "/onboarding", label: "Onboarding" },
-  { href: "/operacional", label: "Operacional" },
-  { href: "/alertas", label: "Alertas" },
-  { href: "/convencoes", label: "Convenções" },
-  { href: "/banco-de-horas", label: "Banco de Horas" },
-  { href: "/holerites", label: "Holerites" },
-] as const;
+import styles from "./app-shell.module.css";
 
 export function NavLinks() {
   const pathname = usePathname();

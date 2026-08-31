@@ -5,6 +5,7 @@ import type { Session } from "@/lib/session";
 import { logout } from "@/lib/session";
 
 import { NavLinks } from "./nav-links";
+import { SearchOverlay } from "./search-overlay";
 import styles from "./app-shell.module.css";
 
 const ROLE_LABELS: Record<Session["role"], string> = {
@@ -31,6 +32,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Sessio
       </aside>
       <div className={styles.main}>
         <header className={styles.topbar}>
+          <SearchOverlay role={user.role} />
           <details className={styles.userMenu}>
             <summary className={styles.userMenuButton} aria-label="Menu do usuário">
               <svg
