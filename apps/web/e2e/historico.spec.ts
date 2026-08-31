@@ -28,8 +28,7 @@ test("lists every punch, most recent first, in São Paulo time", async ({
   request,
 }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
-  // Explicitly reset the API state to ensure a clean slate
-  await request.post("http://localhost:3000/__reset");
+  await mockApi(request);
   await seedResponse(request, {
     method: "GET",
     path: "/time-entries",
@@ -41,19 +40,11 @@ test("lists every punch, most recent first, in São Paulo time", async ({
 
   await page.goto("/historico");
 
-  // Verify the page heading exists
-  await expect(page.getByRole("heading", { name: "Histórico de pontos" })).toBeVisible();
-
-  // Verify both date entries are visible
-  await expect(page.getByText("20 de agosto")).toBeVisible();
-  await expect(page.getByText("09:30")).toBeVisible();
-  await expect(page.getByText("19 de agosto")).toBeVisible();
-  await expect(page.getByText("12:00")).toBeVisible();
-
-  // Verify order: 20 de agosto should appear before 19 de agosto in the page (newest first)
-  const heading20 = page.getByText("20 de agosto").first();
-  const heading19 = page.getByText("19 de agosto").first();
-  const box20 = await heading20.boundingBox();
-  const box19 = await heading19.boundingBox();
-  expect(box20?.y).toBeLessThan(box19?.y || Infinity);
+  const rows = page.locator("main ul > li");
+  await expect(rows).toHaveCount(2);
+  // Newest first: the 08-20 entry comes before the 08-19 one.
+  await expect(rows.nth(0)).toContainText("20 de agosto");
+  await expect(rows.nth(0)).toContainText("09:30");
+  await expect(rows.nth(1)).toContainText("19 de agosto");
+  await expect(rows.nth(1)).toContainText("12:00");
 });
