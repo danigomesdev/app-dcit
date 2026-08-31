@@ -69,6 +69,7 @@ export function MeuPontoCard({
   const lastEntry = sorted[sorted.length - 1];
   const lastPunchTime = lastEntry
     ? new Date(lastEntry.clockedAt).toLocaleTimeString("pt-BR", {
+        timeZone: "America/Sao_Paulo",
         hour: "2-digit",
         minute: "2-digit",
       })
