@@ -21,10 +21,10 @@ export function AppShell({ children, user }: { children: ReactNode; user: Sessio
         <div className={styles.brand}>
           <div className={styles.brandIcon}>
             <Image
-              src="/dcit-logo-v2.png"
-              alt="DCiT Tecnologia"
-              width={1197}
-              height={658}
+              src="/sgp-icon.png"
+              alt="SGP"
+              width={38}
+              height={54}
               className={styles.brandIconImage}
               priority
             />

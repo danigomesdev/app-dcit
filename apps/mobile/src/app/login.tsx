@@ -84,7 +84,7 @@ export default function LoginScreen() {
             <View style={styles.brand}>
               <View style={styles.brandIcon}>
                 <Image
-                  source={require("@/assets/images/brand/dcit-logo.png")}
+                  source={require("@/assets/images/brand/sgp-icon.png")}
                   style={styles.brandIconImage}
                   resizeMode="contain"
                 />
@@ -135,10 +135,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   brandIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#ffffff",
+    width: 24,
+    height: 34,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
