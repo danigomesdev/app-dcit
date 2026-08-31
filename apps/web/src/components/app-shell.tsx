@@ -23,8 +23,8 @@ export function AppShell({ children, user }: { children: ReactNode; user: Sessio
             <Image
               src="/sgp-icon.png"
               alt="SGP"
-              width={38}
-              height={54}
+              width={1265}
+              height={1243}
               className={styles.brandIconImage}
               priority
             />
