@@ -21,9 +21,13 @@ test("sidebar renders both sections and navigates between them", async ({
   await expect(page.getByRole("link", { name: "Onboarding" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Operacional" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Alertas" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Convenções" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Banco de Horas" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Holerites" })).toBeVisible();
+
+  // rh-only and colaborador-only items don't show up for gestor.
+  await expect(page.getByRole("link", { name: "Convenções" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Folha de Ponto" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Aprovações" }).click();
   await expect(page).toHaveURL(/\/aprovacoes$/);
@@ -36,6 +40,28 @@ test("sidebar renders both sections and navigates between them", async ({
   await page.getByRole("link", { name: "Operacional" }).click();
   await expect(page).toHaveURL(/\/operacional$/);
   await expect(page.getByRole("heading", { name: "Operacional" })).toBeVisible();
+});
+
+test("colaborador sees a curated, grouped sidebar instead of the gestor/rh menu", async ({
+  page,
+  context,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+
+  await expect(page.getByText("Ponto", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Bater Ponto" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Folha de Ponto" })).toBeVisible();
+
+  await expect(page.getByRole("link", { name: "Colaboradores" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Plantão" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Aprovações" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Convenções" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Holerites" })).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Histórico de Pontos" }).click();
+  await expect(page).toHaveURL(/\/historico$/);
 });
 
 test("highlights the active nav link and only the active one", async ({
