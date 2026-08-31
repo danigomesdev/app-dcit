@@ -37,12 +37,16 @@ export default async function Home() {
   }
 
   if (session.role === "colaborador") {
+    // The full history, not just today's entries: clock-in/out always
+    // alternate over a person's *entire* punch history, not per calendar
+    // day, so pairing must happen over the complete list — an overnight
+    // shift's clock-in would otherwise be filtered out before it ever gets
+    // matched with its clock-out. MeuPontoCard does the pairing and decides
+    // per-pair which day (São Paulo) its worked time counts toward.
     const entries = await apiFetchJson<TimeEntry[]>("/time-entries");
-    const today = todaySaoPauloDateOnly();
-    const todayEntries = entries.filter(
-      (entry) => dateOnlyInSaoPaulo(new Date(entry.clockedAt)) === today,
+    return (
+      <MeuPontoCard name={session.name} initialEntries={entries} today={todaySaoPauloDateOnly()} />
     );
-    return <MeuPontoCard name={session.name} initialEntries={todayEntries} />;
   }
 
   const team = await apiFetchJson<TeamMember[]>("/time-entries/team");

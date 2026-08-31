@@ -26,6 +26,11 @@ test("colaborador bate o ponto e vê o horário e as horas trabalhadas", async (
 }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
 
+  // Real "today" (São Paulo), not a hardcoded past date: the punch card now
+  // filters every entry (freshly punched ones included) against today's
+  // actual date, so a fixture date from the past would never match.
+  const spToday = saoPauloDateString(new Date());
+
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Sem permissão" })).toHaveCount(0);
   await expect(page.getByText("Último ponto: --:--")).toBeVisible();
@@ -35,7 +40,7 @@ test("colaborador bate o ponto e vê o horário e as horas trabalhadas", async (
     method: "POST",
     path: "/time-entries",
     status: 201,
-    response: { id: "te-1", clockedAt: "2026-08-20T12:00:00.000Z" },
+    response: { id: "te-1", clockedAt: `${spToday}T09:00:00-03:00` },
   });
   await page.getByRole("button", { name: "Bater Ponto" }).click();
   await expect(page.getByText("Último ponto: 09:00")).toBeVisible();
@@ -45,7 +50,7 @@ test("colaborador bate o ponto e vê o horário e as horas trabalhadas", async (
     method: "POST",
     path: "/time-entries",
     status: 201,
-    response: { id: "te-2", clockedAt: "2026-08-20T13:30:00.000Z" },
+    response: { id: "te-2", clockedAt: `${spToday}T10:30:00-03:00` },
   });
   await page.getByRole("button", { name: "Bater Ponto" }).click();
   await expect(page.getByText("Último ponto: 10:30")).toBeVisible();
@@ -76,7 +81,7 @@ test("shows a fallback when location isn't available", async ({ page, context })
   await expect(page.getByText("Localização não disponível")).toBeVisible();
 });
 
-test("only counts today's entries in São Paulo time, not a UTC calendar day", async ({
+test("shows a late-night punch as today's, not tomorrow's UTC date", async ({
   page,
   context,
   request,
@@ -84,47 +89,70 @@ test("only counts today's entries in São Paulo time, not a UTC calendar day", a
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await mockApi(request);
 
-  // Chosen so that a UTC-naive `new Date().toISOString().slice(0, 10)`
-  // implementation of "today" disagrees with the São-Paulo-aware one no
-  // matter what wall-clock time this test happens to run at:
-  //   - todayEntry sits at noon SP time -> its UTC date-slice is also
-  //     spToday (SP is UTC-3, so +3h never crosses a UTC day boundary).
-  //   - yesterdayEntry sits at 23:00 SP time on spYesterday -> converted to
-  //     UTC that's 02:00 the next day, i.e. also spToday's UTC date-slice.
-  // So both entries land on the same UTC calendar day (spToday), but only
-  // one of them is actually "today" in São Paulo. A UTC-naive filter would
-  // either include both (when the real UTC day equals spToday) or exclude
-  // both (in the UTC 00:00-02:59 window, when the real UTC day is
-  // spToday + 1) -- either way it disagrees with the correct SP-aware
-  // result of "only todayEntry counts", so the assertions below fail under
-  // a regression and pass under the current dateOnlyInSaoPaulo logic.
+  // 23:30 São Paulo time converts to a UTC instant on the *next* calendar
+  // day (SP is UTC-3). A UTC-naive `.toISOString().slice(0, 10)` read of
+  // "today" would exclude this entry from "today" entirely, falling back
+  // to "Último ponto: --:--" — this fails under that regression and passes
+  // under the current São-Paulo-aware dateOnlyInSaoPaulo logic.
+  const now = new Date();
+  const spToday = saoPauloDateString(now);
+  const lateNightEntryIso = `${spToday}T23:30:00-03:00`;
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/time-entries",
+    response: [{ id: "te-late-sp", clockedAt: lateNightEntryIso }],
+  });
+
+  await page.goto("/");
+
+  const expectedLastPunch = new Date(lateNightEntryIso).toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  await expect(page.getByText(`Último ponto: ${expectedLastPunch}`)).toBeVisible();
+  // A single, unpaired entry — no completed shift yet, so no minutes.
+  await expect(page.getByText("Horas trabalhadas hoje: 0h 00min")).toBeVisible();
+});
+
+test("pairs an overnight shift across midnight instead of stranding the clock-in", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request);
+
+  // Clock-in yesterday 23:00 SP, clock-out today 01:00 SP — a 2-hour shift
+  // that crosses midnight. Entries alternate clock-in/out over the whole
+  // history, not per calendar day, so pairing must span the boundary: if
+  // "today" were filtered before pairing (the pre-fix behavior), the
+  // clock-in would be dropped for being "yesterday", leaving the clock-out
+  // looking like an unpaired, still-open punch with 0 worked minutes.
   const now = new Date();
   const spToday = saoPauloDateString(now);
   const spYesterday = saoPauloDateString(new Date(now.getTime() - 24 * 60 * 60 * 1000));
-  const todayEntryIso = `${spToday}T12:00:00-03:00`;
-  const yesterdayEntryIso = `${spYesterday}T23:00:00-03:00`;
+  const clockInIso = `${spYesterday}T23:00:00-03:00`;
+  const clockOutIso = `${spToday}T01:00:00-03:00`;
 
   await seedResponse(request, {
     method: "GET",
     path: "/time-entries",
     response: [
-      { id: "te-yesterday-sp", clockedAt: yesterdayEntryIso },
-      { id: "te-today-sp", clockedAt: todayEntryIso },
+      { id: "te-overnight-in", clockedAt: clockInIso },
+      { id: "te-overnight-out", clockedAt: clockOutIso },
     ],
   });
 
   await page.goto("/");
 
-  const expectedLastPunch = new Date(todayEntryIso).toLocaleTimeString("pt-BR", {
+  const expectedLastPunch = new Date(clockOutIso).toLocaleTimeString("pt-BR", {
     timeZone: "America/Sao_Paulo",
     hour: "2-digit",
     minute: "2-digit",
   });
-  // Only the SP-today entry should be counted: it's the sole entry, so
-  // "Último ponto" reflects it and "Horas trabalhadas hoje" is 0 (no pair
-  // to sum). If the yesterday entry were wrongly included too, they'd pair
-  // up into a large non-zero worked-time; if both were wrongly excluded,
-  // "Último ponto" would fall back to "--:--".
+  // The shift closes today, so its 2 hours are credited to today.
   await expect(page.getByText(`Último ponto: ${expectedLastPunch}`)).toBeVisible();
-  await expect(page.getByText("Horas trabalhadas hoje: 0h 00min")).toBeVisible();
+  await expect(page.getByText("Horas trabalhadas hoje: 2h 00min")).toBeVisible();
 });
