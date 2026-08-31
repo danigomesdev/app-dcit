@@ -49,6 +49,10 @@ export function MeuPontoCard({
         setLocationText(`Localização: ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`);
       },
       () => setLocationText("Localização não disponível"),
+      // Without an explicit timeout, the browser default is Infinity — an
+      // unanswered permission prompt would leave "Obtendo localização..."
+      // on screen forever, since neither callback ever fires.
+      { timeout: 10_000 },
     );
   }, []);
 
