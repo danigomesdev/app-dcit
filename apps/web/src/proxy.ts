@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { SESSION_COOKIE } from "@/lib/session";
 
-const PUBLIC_ROUTES = ["/login"];
+const PUBLIC_ROUTES = ["/login", "/esqueci-senha"];
 
 // Files under /public (login-background.png, favicon.ico, ...) are static
 // assets, not app routes — redirecting them to /login when unauthenticated

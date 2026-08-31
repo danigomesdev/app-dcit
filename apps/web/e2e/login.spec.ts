@@ -45,7 +45,7 @@ test("login page renders the email/password form, no SSO link, no app sidebar", 
 }) => {
   await page.goto("/login");
 
-  await expect(page.getByRole("heading", { name: "Ponto DCIT" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Portal SGP" })).toBeVisible();
   await expect(page.getByPlaceholder("Email")).toBeVisible();
   await expect(page.getByPlaceholder("Senha")).toBeVisible();
   await expect(page.getByRole("button", { name: "Entrar" })).toBeVisible();
