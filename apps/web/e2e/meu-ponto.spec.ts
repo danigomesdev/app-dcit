@@ -45,3 +45,11 @@ test("gestor keeps seeing the team presence panel at /, not the punch card", asy
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Bater Ponto" })).toHaveCount(0);
 });
+
+test("shows a fallback when location isn't available", async ({ page, context }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+  // The default Playwright browser context has no geolocation permission
+  // granted, so the browser's geolocation API errors out immediately.
+  await expect(page.getByText("Localização não disponível")).toBeVisible();
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { punchTimeEntry } from "./ponto-actions";
 import styles from "./ponto.module.css";
@@ -36,6 +36,21 @@ export function MeuPontoCard({
   const [entries, setEntries] = useState<TimeEntry[]>(initialEntries);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [locationText, setLocationText] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) {
+      setLocationText("Localização não disponível");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setLocationText(`Localização: ${latitude.toFixed(2)}, ${longitude.toFixed(2)}`);
+      },
+      () => setLocationText("Localização não disponível"),
+    );
+  }, []);
 
   async function handlePunch() {
     setPending(true);
@@ -73,6 +88,7 @@ export function MeuPontoCard({
         </button>
         <p className={styles.itemDetail}>Último ponto: {lastPunchTime}</p>
         <p className={styles.itemDetail}>Horas trabalhadas hoje: {formatMinutes(workedMinutes)}</p>
+        <p className={styles.itemDetail}>{locationText ?? "Obtendo localização..."}</p>
         {error ? <p className={styles.errorText}>{error}</p> : null}
       </div>
     </div>
