@@ -48,3 +48,30 @@ test("lists every punch, most recent first, in São Paulo time", async ({
   await expect(rows.nth(1)).toContainText("19 de agosto");
   await expect(rows.nth(1)).toContainText("12:00");
 });
+
+test("shows a punch's São Paulo calendar day, not its UTC day", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request);
+  // 22:00 in São Paulo (UTC-3) is already 01:00 the next day in UTC. The
+  // existing test above uses -03:00 timestamps whose displayed "09:30"/
+  // "12:00" would also survive a regression to ambient/UTC formatting as
+  // long as the test host happens to run in SP time, which isn't
+  // guaranteed. This timestamp's date only matches in one of the two
+  // timezones, so it actually pins the São-Paulo-aware behavior down.
+  await seedResponse(request, {
+    method: "GET",
+    path: "/time-entries",
+    response: [{ id: "te-late", clockedAt: "2026-08-20T22:00:00-03:00" }],
+  });
+
+  await page.goto("/historico");
+
+  const rows = page.locator("main ul > li");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.nth(0)).toContainText("20 de agosto");
+  await expect(rows.nth(0)).not.toContainText("21 de agosto");
+});

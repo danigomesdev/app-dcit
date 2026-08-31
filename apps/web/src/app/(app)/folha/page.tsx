@@ -43,6 +43,15 @@ function formatDayLabel(day: string): string {
 // *end* falls on. At most one trailing entry can ever be unpaired (a
 // linear alternating stream can't have two), so there's at most one open
 // day.
+//
+// Known limitation: pairing is index-based (entry 0 = in, 1 = out, 2 = in,
+// ...), the same app-wide convention used by
+// apps/api/src/time-entries/time-entries.service.ts's listTeamToday —
+// TimeEntry carries no in/out discriminator anywhere in this system. A
+// single missed punch-out desyncs every later pair, so a day can render an
+// implausible duration (e.g. "24h 00min") that the employee could export
+// on a PDF. Fixing this needs a data-model change or an adjustment flow;
+// both are out of scope here (see spec §7).
 function groupByDay(entries: TimeEntry[]): DayRow[] {
   const sorted = [...entries].sort(
     (a, b) => new Date(a.clockedAt).getTime() - new Date(b.clockedAt).getTime(),

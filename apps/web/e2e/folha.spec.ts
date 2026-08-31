@@ -2,8 +2,6 @@ import { test, expect } from "@playwright/test";
 
 import { addSessionCookie, mockApi, seedResponse } from "./test-session";
 
-test.use({ timezoneId: "America/Sao_Paulo" });
-
 // Some tests below seed GET /time-entries directly on the fake API server,
 // which is shared, unreset state across the whole e2e run (workers: 1, no
 // per-test server restart). Resetting after every test — not just before
@@ -88,6 +86,34 @@ test("credits an overnight shift's hours to the day it closes on, not the day it
   await expect(rows.nth(0)).toContainText("2h 00min");
 });
 
+test("attributes a punch to its São Paulo calendar day, not its UTC day", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  // 22:00 in São Paulo (UTC-3) is already 01:00 the next day in UTC. This
+  // guards the day-attribution half of the São-Paulo-aware constraint: a
+  // UTC-naive implementation (e.g. clockedAt.slice(0, 10)) would show this
+  // punch under "21 de agosto" instead of the correct "20 de agosto". Every
+  // other seeded timestamp in this file happens to have the same calendar
+  // date in UTC and in São Paulo, so none of them would catch that
+  // regression — this test exists specifically to close that gap.
+  await mockApi(request);
+  await seedResponse(request, {
+    method: "GET",
+    path: "/time-entries",
+    response: [{ id: "te-late", clockedAt: "2026-08-20T22:00:00-03:00" }],
+  });
+
+  await page.goto("/folha");
+
+  const rows = page.locator("main ul > li");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.nth(0)).toContainText("20 de agosto");
+  await expect(rows.nth(0)).not.toContainText("21 de agosto");
+});
+
 test("shows an open-shift day for a trailing unpaired punch", async ({
   page,
   context,
@@ -135,4 +161,12 @@ test("exports via window.print, and hides sidebar/topbar while printing", async 
 
   const printed = await page.evaluate(() => (window as unknown as { __printed: boolean }).__printed);
   expect(printed).toBe(true);
+
+  // Also verify the print stylesheet itself, not just that window.print()
+  // was called: app-shell.module.css's .sidebar/.topbar print rule and
+  // folha.module.css's .exportButton print rule.
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator("aside")).toBeHidden();
+  await expect(page.getByRole("button", { name: "Exportar PDF" })).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
 });
