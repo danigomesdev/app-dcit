@@ -1,0 +1,66 @@
+.page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.headingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.exportButton {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-background);
+  background: var(--color-text);
+  cursor: pointer;
+}
+
+.exportButton:hover {
+  opacity: 0.85;
+}
+
+@media print {
+  .exportButton {
+    display: none;
+  }
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-background-element);
+}
+
+.itemDate {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.itemHours {
+  color: var(--color-text-secondary);
+}
