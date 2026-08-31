@@ -1,5 +1,4 @@
-import { API_URL } from "@/constants/api";
-
+import { LoginForm } from "./login-form";
 import styles from "./page.module.css";
 
 export default function LoginPage() {
@@ -10,9 +9,7 @@ export default function LoginPage() {
         <p className={styles.description}>
           Entre com sua conta corporativa para acessar o sistema.
         </p>
-        <a className={styles.button} href={`${API_URL}/auth/login?origin=web`}>
-          Entrar com SSO
-        </a>
+        <LoginForm />
       </div>
     </div>
   );

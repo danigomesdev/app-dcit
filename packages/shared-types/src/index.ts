@@ -50,3 +50,13 @@ export { ConvencaoInputSchema } from "./convencao";
 export type { ConvencaoInput } from "./convencao";
 export { PayslipInputSchema, PayslipUpdateSchema } from "./payslip";
 export type { PayslipInput, PayslipUpdate } from "./payslip";
+export {
+  PasswordLoginInputSchema,
+  ForgotPasswordInputSchema,
+  ResetPasswordInputSchema,
+} from "./password-auth";
+export type {
+  PasswordLoginInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+} from "./password-auth";

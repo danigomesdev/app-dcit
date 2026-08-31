@@ -1,24 +1,22 @@
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
-import * as WebBrowser from "expo-web-browser";
 import { clearSessionToken, getSessionToken, saveSessionToken } from "@/lib/session";
-
-jest.mock("expo-web-browser", () => ({
-  openAuthSessionAsync: jest.fn(),
-}));
 
 describe("login screen", () => {
   beforeEach(async () => {
-    (WebBrowser.openAuthSessionAsync as jest.Mock).mockReset();
     await clearSessionToken();
     globalThis.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
   });
 
-  it("renders the SSO entry point when there is no saved session", async () => {
+  it("renders the email/password form when there is no saved session", async () => {
     renderRouter("src/app", { initialUrl: "/login" });
 
     await waitFor(() => {
-      expect(screen.getByText("Entrar com SSO")).toBeTruthy();
+      expect(screen.getByPlaceholderText("Email")).toBeTruthy();
     });
+    expect(screen.getByPlaceholderText("Senha")).toBeTruthy();
+    expect(screen.getByText("Entrar")).toBeTruthy();
+    expect(screen.getByText("Esqueci minha senha")).toBeTruthy();
+    expect(screen.queryByText("Entrar com SSO")).toBeNull();
     expect(screen.getByText("Entre com sua conta corporativa para continuar.")).toBeTruthy();
   });
 
@@ -33,16 +31,20 @@ describe("login screen", () => {
   });
 
   it("stores the token and navigates to the Ponto tab on a successful login", async () => {
-    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({
-      type: "success",
-      url: "mobile://auth-callback?token=abc123",
+    (globalThis.fetch as jest.Mock).mockImplementation(async (url: string) => {
+      if (url.includes("/auth/password-login")) {
+        return { ok: true, json: async () => ({ token: "abc123", role: "colaborador", name: "Ana" }) };
+      }
+      return { ok: true, json: async () => ({}) };
     });
 
     renderRouter("src/app", { initialUrl: "/login" });
     await waitFor(() => {
-      expect(screen.getByText("Entrar com SSO")).toBeTruthy();
+      expect(screen.getByPlaceholderText("Email")).toBeTruthy();
     });
-    fireEvent.press(screen.getByText("Entrar com SSO"));
+    fireEvent.changeText(screen.getByPlaceholderText("Email"), "colaborador@dev.local");
+    fireEvent.changeText(screen.getByPlaceholderText("Senha"), "dev12345");
+    fireEvent.press(screen.getByText("Entrar"));
 
     await waitFor(async () => {
       expect(screen).toHavePathname("/");
@@ -57,17 +59,24 @@ describe("login screen", () => {
     });
   });
 
-  it("stays on the login screen when the browser session is cancelled", async () => {
-    (WebBrowser.openAuthSessionAsync as jest.Mock).mockResolvedValue({ type: "cancel" });
+  it("shows an inline error and stays on the login screen for wrong credentials", async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation(async (url: string) => {
+      if (url.includes("/auth/password-login")) {
+        return { ok: false, json: async () => ({}) };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
 
     renderRouter("src/app", { initialUrl: "/login" });
     await waitFor(() => {
-      expect(screen.getByText("Entrar com SSO")).toBeTruthy();
+      expect(screen.getByPlaceholderText("Email")).toBeTruthy();
     });
-    fireEvent.press(screen.getByText("Entrar com SSO"));
+    fireEvent.changeText(screen.getByPlaceholderText("Email"), "colaborador@dev.local");
+    fireEvent.changeText(screen.getByPlaceholderText("Senha"), "wrong-password");
+    fireEvent.press(screen.getByText("Entrar"));
 
     await waitFor(() => {
-      expect(WebBrowser.openAuthSessionAsync).toHaveBeenCalled();
+      expect(screen.getByText("Email ou senha incorretos.")).toBeTruthy();
     });
     expect(screen).toHavePathname("/login");
   });

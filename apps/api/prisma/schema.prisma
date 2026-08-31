@@ -68,6 +68,21 @@ model Employee {
   enderecoEstado    String?   // UF, 2 letras
   enderecoCep       String?   // 8 dígitos, sem hífen
   deletedAt         DateTime? // null = ativo. Não-nulo = na lixeira.
+  email             String?   @unique // login por senha; opcional pra não quebrar quem só usa SSO
+  phone             String?   // canal alternativo de identificação na recuperação de senha
+  passwordHash      String?   // bcrypt; null = login por senha desabilitado pra este usuário
+}
+
+// Código de recuperação de senha, 6 dígitos, curta duração. Não é hasheado
+// (não é segredo de longa duração como a senha) — expira em 15min e é
+// invalidado após o primeiro uso (usedAt).
+model PasswordResetCode {
+  id        String    @id @default(uuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 model JornadaAlert {

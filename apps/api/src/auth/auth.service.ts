@@ -1,8 +1,18 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcryptjs';
 import { Issuer, generators, type Client } from 'openid-client';
 import type { Role } from '@ponto-dcit/shared-types';
+import { PrismaService } from '../prisma/prisma.service';
 import { OIDC_CLIENT_CONFIG, type OidcClientConfig } from './oidc-client.token';
+
+const RESET_CODE_TTL_MS = 15 * 60 * 1000;
+const BCRYPT_ROUNDS = 10;
 
 type LoginOrigin = 'web' | 'mobile';
 type PendingLogin = {
@@ -29,6 +39,7 @@ export class AuthService {
   constructor(
     @Inject(OIDC_CLIENT_CONFIG) private readonly config: OidcClientConfig,
     private readonly jwt: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
   // OIDC discovery hits the IdP over the network, so it can't run at module
@@ -118,6 +129,96 @@ export class AuthService {
       mobileRedirectUri: pending.mobileRedirectUri,
       role,
     };
+  }
+
+  async loginWithPassword(
+    email: string,
+    password: string,
+  ): Promise<{ sessionToken: string; role: Role; name: string }> {
+    const employee = await this.prisma.employee.findUnique({ where: { email } });
+    // Same generic message whether the email doesn't exist, has no password
+    // set (SSO-only account), or the password is simply wrong — telling
+    // those apart would let an attacker enumerate real accounts.
+    if (!employee || !employee.passwordHash) {
+      throw new UnauthorizedException('Email ou senha incorretos.');
+    }
+    const matches = await bcrypt.compare(password, employee.passwordHash);
+    if (!matches) {
+      throw new UnauthorizedException('Email ou senha incorretos.');
+    }
+
+    const role = this.resolveRole(employee.role);
+    const sessionToken = this.jwt.sign({ sub: employee.userId, role, name: employee.name });
+    return { sessionToken, role, name: employee.name };
+  }
+
+  // Always resolves, even for an unknown identifier — returning {} (no
+  // devCode) rather than throwing keeps the controller's response
+  // indistinguishable from "code sent", so this never reveals whether an
+  // email/phone has an account (see AuthController.forgotPassword).
+  async requestPasswordReset(identifier: string): Promise<{ devCode?: string }> {
+    const employee = await this.prisma.employee.findFirst({
+      where: { OR: [{ email: identifier }, { phone: identifier }] },
+    });
+    if (!employee) {
+      return {};
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    await this.prisma.passwordResetCode.create({
+      data: {
+        userId: employee.userId,
+        code,
+        expiresAt: new Date(Date.now() + RESET_CODE_TTL_MS),
+      },
+    });
+
+    // Dev mode: no real email/SMS provider is configured (see design spec
+    // §7), so the code is handed straight back instead of silently going
+    // nowhere. Swap this for an actual delivery integration before
+    // production.
+    return { devCode: code };
+  }
+
+  async resetPassword(
+    identifier: string,
+    code: string,
+    newPassword: string,
+  ): Promise<void> {
+    const invalidCode = () =>
+      new BadRequestException('Código inválido ou expirado.');
+
+    const employee = await this.prisma.employee.findFirst({
+      where: { OR: [{ email: identifier }, { phone: identifier }] },
+    });
+    if (!employee) {
+      throw invalidCode();
+    }
+
+    const resetCode = await this.prisma.passwordResetCode.findFirst({
+      where: {
+        userId: employee.userId,
+        code,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!resetCode) {
+      throw invalidCode();
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+    await this.prisma.$transaction([
+      this.prisma.passwordResetCode.update({
+        where: { id: resetCode.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.employee.update({
+        where: { userId: employee.userId },
+        data: { passwordHash },
+      }),
+    ]);
   }
 
   private resolveRole(claim: unknown): Role {

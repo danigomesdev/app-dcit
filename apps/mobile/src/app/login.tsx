@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Image, ImageBackground, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  ImageBackground,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
@@ -15,8 +23,11 @@ import { registerForPushNotifications } from "@/lib/push";
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   // useFocusEffect (not a plain mount effect) so this only runs — and only
   // redirects — while login is the screen actually being shown. A plain
@@ -43,6 +54,10 @@ export default function LoginScreen() {
     }, [router]),
   );
 
+  // SSO stays fully working in code — just without a UI entry point
+  // (decided in conversation: email/senha is now the primary login,
+  // SSO is parked, not removed, so it's easy to bring back).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept, not wired to a button
   async function handleSignIn() {
     setError(null);
     // In Expo Go this resolves to an exp:// URL Expo Go itself knows how to
@@ -68,6 +83,33 @@ export default function LoginScreen() {
     await saveSessionToken(token);
     registerForPushNotifications(token);
     router.replace("/(tabs)");
+  }
+
+  async function handlePasswordLogin() {
+    if (!email.trim() || !password || submitting) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const response = await fetch(`${API_URL}/auth/password-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password, origin: "mobile" }),
+      });
+      if (!response.ok) {
+        setError("Email ou senha incorretos.");
+        return;
+      }
+      const data = (await response.json()) as { token: string };
+      await saveSessionToken(data.token);
+      registerForPushNotifications(data.token);
+      router.replace("/(tabs)");
+    } catch {
+      setError("Não foi possível entrar. Verifique sua conexão.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -101,7 +143,30 @@ export default function LoginScreen() {
             <ThemedText type="default" style={styles.description}>
               Entre com sua conta corporativa para continuar.
             </ThemedText>
-            <ThemedButton title="Entrar com SSO" onPress={handleSignIn} />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              placeholderTextColor="rgba(255, 255, 255, 0.6)"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              style={styles.input}
+            />
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Senha"
+              placeholderTextColor="rgba(255, 255, 255, 0.6)"
+              secureTextEntry
+              style={styles.input}
+            />
+            <ThemedButton title="Entrar" onPress={handlePasswordLogin} />
+            <Pressable onPress={() => router.push("/esqueci-senha")}>
+              <ThemedText type="small" style={styles.link}>
+                Esqueci minha senha
+              </ThemedText>
+            </Pressable>
             {error ? (
               <ThemedText type="small" style={styles.error}>
                 {error}
@@ -156,6 +221,21 @@ const styles = StyleSheet.create({
   brandSubtitle: {
     fontSize: 11,
     color: "rgba(255, 255, 255, 0.72)",
+  },
+  input: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    color: "#ffffff",
+    fontSize: 15,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+  },
+  link: {
+    textAlign: "center",
+    color: "rgba(255, 255, 255, 0.7)",
+    textDecorationLine: "underline",
   },
   error: {
     textAlign: "center",
