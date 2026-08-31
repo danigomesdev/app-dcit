@@ -80,6 +80,9 @@ const server = http.createServer(async (req, res) => {
   ) {
     return sendJson(res, 200, []);
   }
+  if (req.method === "GET" && url.pathname === "/time-entries") {
+    return sendJson(res, 200, []);
+  }
   if (req.method === "GET" && url.pathname === "/time-entries/team") {
     return sendJson(res, 200, []);
   }

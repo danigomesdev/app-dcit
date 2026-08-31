@@ -2,14 +2,15 @@ import { test, expect } from "@playwright/test";
 
 import { addSessionCookie, mockApi, seedResponse } from "./test-session";
 
-test("colaborador sees a permission message instead of the team's ponto", async ({
+test("colaborador sees their own punch card instead of the team's ponto", async ({
   page,
   context,
 }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Olá, Ana" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bater Ponto" })).toBeVisible();
 });
 
 test("renders its empty state when there's nothing to show", async ({ page, context, request }) => {
