@@ -49,3 +49,15 @@ test("colaborador can find Ponto via search", async ({ page, context }) => {
 
   await expect(page.getByRole("button", { name: "Ponto", exact: true })).toBeVisible();
 });
+
+test("colaborador can find Histórico and Folha via search", async ({ page, context }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("hist");
+  await expect(page.getByRole("button", { name: "Histórico de Pontos" })).toBeVisible();
+
+  await page.getByPlaceholder("Buscar telas...").fill("folha");
+  await expect(page.getByRole("button", { name: "Folha de Ponto" })).toBeVisible();
+});

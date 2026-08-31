@@ -10,6 +10,8 @@ export type NavSection = {
 // can filter results without duplicating that logic per page.
 export const NAV_SECTIONS: NavSection[] = [
   { href: "/", label: "Ponto", roles: ["gestor", "rh", "colaborador"] },
+  { href: "/historico", label: "Histórico de Pontos", roles: ["colaborador"] },
+  { href: "/folha", label: "Folha de Ponto", roles: ["colaborador"] },
   { href: "/colaboradores", label: "Colaboradores", roles: ["gestor", "rh"] },
   { href: "/escala", label: "Plantão", roles: ["gestor", "rh"] },
   { href: "/aprovacoes", label: "Aprovações", roles: ["gestor", "rh"] },
