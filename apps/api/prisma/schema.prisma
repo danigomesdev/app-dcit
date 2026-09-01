@@ -52,6 +52,7 @@ model Employee {
   name              String
   role              String
   cargo             String?   // função técnica, ex: "desenvolvedor" — ver CARGOS em shared-types
+  team              String?   // time/squad, ex: "SGN360" — texto livre, sem lista fixa
   nivel             String?   // "junior" | "pleno" | "senior" | "especialista"
   convencaoId       String?   // id de ConvencaoColetiva, sem FK — resolvido na camada de serviço
   salarioMensal     Float?    // R$, mesma visibilidade de cpf/rg (RH e gestor)
@@ -71,6 +72,18 @@ model Employee {
   email             String?   @unique // login por senha; opcional pra não quebrar quem só usa SSO
   phone             String?   // canal alternativo de identificação na recuperação de senha
   passwordHash      String?   // bcrypt; null = login por senha desabilitado pra este usuário
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String    // "pagamento" for now — a free string (not a Prisma enum) so a
+                       // future notification producer (e.g. missed-punch detection)
+                       // can reuse this table without a new migration.
+  category  String?   // only set when type === "pagamento": one of PAGAMENTO_CATEGORIAS
+  message   String    // final display text, generated server-side at send time
+  createdAt DateTime  @default(now())
+  readAt    DateTime? // null = unread
 }
 
 // Código de recuperação de senha, 6 dígitos, curta duração. Não é hasheado
