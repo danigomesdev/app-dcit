@@ -406,3 +406,153 @@ test("shows a message when there are no certifications yet", async ({ page, cont
 
   await expect(page.getByText("Nenhuma certificação cadastrada ainda.")).toBeVisible();
 });
+
+test("colaborador sees their own atestados and can submit one manually, without a photo", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    myAdmissionDocuments: [],
+    myCertifications: [],
+    myAtestados: [
+      {
+        id: "at-1",
+        cid: "J11",
+        crm: "CRM-MG 12345",
+        medico: "Dr. Teste",
+        dias: 2,
+        status: "recusado",
+        reviewNote: "Faltou assinatura do médico.",
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados",
+    status: 201,
+    response: { id: "at-new", cid: "A01", crm: "CRM-SP 999", medico: "Dra. Nova", dias: 3, status: "enviado", reviewNote: null, createdAt: "2026-08-31T12:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  await expect(page.getByText("2 dia(s)")).toBeVisible();
+  await expect(page.getByText("Recusado")).toBeVisible();
+  await expect(page.getByText("Faltou assinatura do médico.")).toBeVisible();
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/atestados/mine",
+    response: [
+      { id: "at-new", cid: "A01", crm: "CRM-SP 999", medico: "Dra. Nova", dias: 3, status: "enviado", reviewNote: null, createdAt: "2026-08-31T12:00:00.000Z" },
+      { id: "at-1", cid: "J11", crm: "CRM-MG 12345", medico: "Dr. Teste", dias: 2, status: "recusado", reviewNote: "Faltou assinatura do médico.", createdAt: "2026-08-20T12:00:00.000Z" },
+    ],
+  });
+
+  await page.getByLabel("CID").fill("A01");
+  await page.getByLabel("CRM do médico").fill("CRM-SP 999");
+  await page.getByLabel("Nome do médico").fill("Dra. Nova");
+  await page.getByLabel("Quantidade de dias").fill("3");
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/atestados")?.body;
+    })
+    .toEqual({ cid: "A01", crm: "CRM-SP 999", medico: "Dra. Nova", dias: 3 });
+
+  await expect(page.getByText("3 dia(s)")).toBeVisible();
+});
+
+test("shows a message when there are no atestados yet", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  await expect(page.getByText("Nenhum atestado enviado ainda.")).toBeVisible();
+});
+
+test("picking a photo runs OCR and pre-fills CID/CRM/médico/dias, which stay editable", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados/ocr",
+    response: { cid: "B34", crm: "CRM-RJ 111", medico: "Dr. OCR", dias: 5 },
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados",
+    status: 201,
+    response: { id: "at-ocr", cid: "B34", crm: "CRM-RJ 111", medico: "Editado", dias: 5, status: "enviado", reviewNote: null, createdAt: "2026-08-31T12:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: "atestado.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("fake-jpeg-bytes"),
+  });
+
+  await expect(page.getByText("Dados preenchidos automaticamente — confira antes de enviar.")).toBeVisible();
+  await expect(page.getByLabel("CID")).toHaveValue("B34");
+  await expect(page.getByLabel("CRM do médico")).toHaveValue("CRM-RJ 111");
+  await expect(page.getByLabel("Nome do médico")).toHaveValue("Dr. OCR");
+  await expect(page.getByLabel("Quantidade de dias")).toHaveValue("5");
+
+  // OCR-filled fields stay editable — prove it by changing one before submit.
+  await page.getByLabel("Nome do médico").fill("Editado");
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/atestados")?.body;
+    })
+    .toEqual({
+      cid: "B34",
+      crm: "CRM-RJ 111",
+      medico: "Editado",
+      dias: 5,
+      photoDataUrl: expect.stringMatching(/^data:image\/jpeg;base64,/),
+    });
+});
+
+test("shows a manual-entry message when OCR can't read the photo", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados/ocr",
+    status: 500,
+    response: {},
+  });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: "atestado.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("fake-jpeg-bytes"),
+  });
+
+  await expect(
+    page.getByText("Não foi possível ler automaticamente — preencha os dados abaixo manualmente."),
+  ).toBeVisible();
+  await expect(page.getByLabel("CID")).toHaveValue("");
+});

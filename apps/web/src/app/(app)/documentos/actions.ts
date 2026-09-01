@@ -57,3 +57,52 @@ export async function submitCertification(formData: FormData) {
   }
   revalidatePath("/documentos");
 }
+
+export async function submitAtestado(formData: FormData) {
+  const cid = formData.get("cid");
+  const crm = formData.get("crm");
+  const medico = formData.get("medico");
+  const diasRaw = formData.get("dias");
+  const photo = formData.get("photo");
+  const dias = typeof diasRaw === "string" ? Number.parseInt(diasRaw, 10) : NaN;
+  if (
+    typeof cid !== "string" ||
+    cid.trim().length === 0 ||
+    typeof crm !== "string" ||
+    crm.trim().length === 0 ||
+    typeof medico !== "string" ||
+    medico.trim().length === 0 ||
+    !Number.isInteger(dias) ||
+    dias <= 0
+  ) {
+    throw new Error("Preencha CID, CRM, médico e uma quantidade de dias válida.");
+  }
+  const res = await apiFetch("/atestados", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      cid: cid.trim(),
+      crm: crm.trim(),
+      medico: medico.trim(),
+      dias,
+      photoDataUrl: typeof photo === "string" && photo.length > 0 ? photo : undefined,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`/atestados responded with ${res.status}`);
+  }
+  revalidatePath("/documentos");
+}
+
+export async function runAtestadoOcr(
+  base64: string,
+  mediaType: string,
+): Promise<{ cid: string | null; crm: string | null; medico: string | null; dias: number | null } | null> {
+  const res = await apiFetch("/atestados/ocr", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ imageBase64: base64, mediaType }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}

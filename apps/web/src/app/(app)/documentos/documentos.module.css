@@ -230,3 +230,13 @@
   border-radius: 8px;
   object-fit: cover;
 }
+
+.itemNote {
+  font-size: 13px;
+  color: #f87171;
+}
+
+.ocrStatus {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}

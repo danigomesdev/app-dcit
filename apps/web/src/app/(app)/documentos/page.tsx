@@ -4,6 +4,7 @@ import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
 import { submitAdmissionDocument, submitCertification } from "./actions";
+import { AtestadoForm } from "./atestado-form";
 import { AtestadoPhotoButton } from "./atestado-photo-button";
 import styles from "./documentos.module.css";
 import { PhotoUploadField } from "./photo-upload-field";
@@ -221,6 +222,17 @@ type CertificationRecord = {
   validUntil: string;
 };
 
+type AtestadoRecord = {
+  id: string;
+  cid: string | null;
+  crm: string | null;
+  medico: string | null;
+  dias: number | null;
+  status: DocumentStatus;
+  reviewNote: string | null;
+  createdAt: string;
+};
+
 async function ColaboradorView({
   searchParams,
 }: {
@@ -229,9 +241,10 @@ async function ColaboradorView({
   const params = await searchParams;
   const categoria = resolveCategoria(typeof params.categoria === "string" ? params.categoria : undefined);
 
-  const [admissionDocuments, certifications] = await Promise.all([
+  const [admissionDocuments, certifications, atestados] = await Promise.all([
     apiFetchJson<AdmissionDocumentRecord[]>("/documentos/admissionais"),
     apiFetchJson<CertificationRecord[]>("/documentos/certificacoes"),
+    apiFetchJson<AtestadoRecord[]>("/atestados/mine"),
   ]);
 
   return (
@@ -257,6 +270,7 @@ async function ColaboradorView({
       {categoria === "admissionais" ? (
         <AdmissionaisSection documents={admissionDocuments} />
       ) : null}
+      {categoria === "atestados" ? <AtestadosSection atestados={atestados} /> : null}
       {categoria === "certificacoes" ? (
         <CertificacoesSection certifications={certifications} />
       ) : null}
@@ -297,6 +311,45 @@ function AdmissionaisSection({ documents }: { documents: AdmissionDocumentRecord
                   }`}
                 >
                   {STATUS_LABEL[document.status]}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function AtestadosSection({ atestados }: { atestados: AtestadoRecord[] }) {
+  return (
+    <div className={styles.section}>
+      <h2 className={styles.sectionTitle}>Enviar atestado</h2>
+      <AtestadoForm />
+
+      <h2 className={styles.sectionTitle}>Meus atestados</h2>
+      {atestados.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhum atestado enviado ainda.</p>
+      ) : (
+        <ul className={styles.list}>
+          {atestados.map((atestado) => (
+            <li key={atestado.id} className={styles.item}>
+              <div className={styles.itemHeader}>
+                <div className={styles.itemInfo}>
+                  <span className={styles.itemName}>
+                    {atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"}
+                  </span>
+                  <span className={styles.itemDetail}>Enviado em {formatDate(atestado.createdAt)}</span>
+                  {atestado.reviewNote ? (
+                    <span className={styles.itemNote}>{atestado.reviewNote}</span>
+                  ) : null}
+                </div>
+                <span
+                  className={`${styles.status} ${
+                    atestado.status === "aprovado" ? styles.statusAprovado : ""
+                  }`}
+                >
+                  {STATUS_LABEL[atestado.status]}
                 </span>
               </div>
             </li>
