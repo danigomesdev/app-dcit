@@ -37,6 +37,7 @@ export function PhotoUploadField({
     if (!ACCEPTED_TYPES.includes(file.type)) {
       setError(true);
       setPreview(null);
+      if (hiddenInputRef.current) hiddenInputRef.current.value = "";
       return;
     }
     setError(false);

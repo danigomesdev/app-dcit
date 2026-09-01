@@ -293,3 +293,58 @@ test("shows a message when there are no admissionais documents yet", async ({
 
   await expect(page.getByText("Nenhum documento admissional enviado ainda.")).toBeVisible();
 });
+
+test("submitting the admissionais form with a photo sends it as photoUri", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/documentos/admissionais",
+    status: 201,
+    response: {
+      id: "adm-photo",
+      title: "CNH",
+      photoUri: "data:image/jpeg;base64,ZmFrZQ==",
+      status: "enviado",
+      submittedAt: "2026-08-31T12:00:00.000Z",
+    },
+  });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await page.getByLabel("Título").fill("CNH");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "doc.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("fake-jpeg-bytes"),
+  });
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/documentos/admissionais")?.body;
+    })
+    .toEqual({ title: "CNH", photoUri: expect.stringMatching(/^data:image\/jpeg;base64,/) });
+});
+
+test("rejects an unsupported file type with an inline error", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "doc.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("not an image"),
+  });
+
+  await expect(
+    page.getByText("Formato não suportado — use JPEG, PNG ou WEBP.")
+  ).toBeVisible();
+});
