@@ -154,6 +154,40 @@ test("lists admission documents and certifications submitted by the team", async
   await expect(page.getByText("Elias Colaborador")).toBeVisible();
 });
 
+test("shows a certification's UTC calendar day, not a day shifted by local timezone", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  // validUntil is a date-only value stored as UTC midnight (same reasoning
+  // as banco-de-horas/page.tsx's formatMonthLabel/formatDayLabel and
+  // aprovacoes/page.tsx's formatDateOnly). Without formatDate's explicit
+  // timeZone: "UTC", this UTC-midnight instant would render in the server's
+  // ambient timezone (America/Sao_Paulo, UTC-3) as September 30th instead
+  // of October 1st — a regression the noon-UTC fixtures used elsewhere in
+  // this file wouldn't catch, since noon UTC never crosses a day boundary
+  // in UTC-3.
+  await mockApi(request, {
+    certifications: [
+      {
+        id: "cert-2",
+        userId: "user-4",
+        userName: "Gabriela Colaboradora",
+        name: "PMP",
+        institution: "PMI",
+        validUntil: "2026-10-01T00:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/documentos");
+
+  await expect(page.getByText("Gabriela Colaboradora")).toBeVisible();
+  await expect(page.getByText("válida até 01/10/2026")).toBeVisible();
+  await expect(page.getByText("válida até 30/09/2026")).toHaveCount(0);
+});
+
 test("shows a proper label instead of the raw status for an admissionais document", async ({
   page,
   context,
