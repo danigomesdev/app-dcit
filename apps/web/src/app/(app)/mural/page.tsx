@@ -236,6 +236,10 @@ async function ColaboradorView() {
                         ? `${styles.reactionButton} ${styles.reactionButtonActive}`
                         : styles.reactionButton
                     }
+                    aria-pressed={post.reacted}
+                    aria-label={
+                      post.reacted ? `Remover reação de ${post.title}` : `Reagir a ${post.title}`
+                    }
                   >
                     {post.reacted ? "♥" : "♡"} {post.reactionCount}
                   </button>

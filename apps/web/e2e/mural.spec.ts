@@ -196,10 +196,12 @@ test("shows the reaction button's count and reacted state", async ({ page, conte
 
   await page.goto("/mural");
 
-  const unreacted = page.getByRole("button", { name: "♡ 4" });
-  const reacted = page.getByRole("button", { name: "♥ 1" });
+  const unreacted = page.getByRole("button", { name: "Reagir a Boas-vindas!" });
+  const reacted = page.getByRole("button", { name: "Remover reação de Aviso" });
   await expect(unreacted).toBeVisible();
   await expect(reacted).toBeVisible();
+  await expect(unreacted).toHaveText("♡ 4");
+  await expect(reacted).toHaveText("♥ 1");
   await expect(reacted).toHaveClass(/reactionButtonActive/);
   await expect(unreacted).not.toHaveClass(/reactionButtonActive/);
 });
@@ -248,14 +250,23 @@ test("clicking the reaction button toggles it via the API and reflects the new s
     ],
   });
 
-  await page.getByRole("button", { name: "♡ 4" }).click();
+  await page.getByRole("button", { name: "Reagir a Boas-vindas!" }).click();
 
+  let reactRequest: { method: string; path: string; body: unknown } | undefined;
   await expect
     .poll(async () => {
       const recorded = await getRecordedRequests(request);
-      return recorded.find((r) => r.method === "POST" && r.path === "/mural/posts/post-1/react");
+      reactRequest = recorded.find(
+        (r) => r.method === "POST" && r.path === "/mural/posts/post-1/react",
+      );
+      return reactRequest;
     })
     .toBeTruthy();
+  // The design spec requires this toggle POST to carry no body — confirm it,
+  // not just that the request happened.
+  expect(reactRequest?.body).toBeUndefined();
 
-  await expect(page.getByRole("button", { name: "♥ 5" })).toBeVisible();
+  const toggled = page.getByRole("button", { name: "Remover reação de Boas-vindas!" });
+  await expect(toggled).toBeVisible();
+  await expect(toggled).toHaveText("♥ 5");
 });

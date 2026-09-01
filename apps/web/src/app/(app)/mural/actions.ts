@@ -9,7 +9,9 @@ export async function toggleMuralReaction(formData: FormData) {
   if (typeof postId !== "string" || postId.length === 0) {
     throw new Error("postId é obrigatório.");
   }
-  const res = await apiFetch(`/mural/posts/${postId}/react`, { method: "POST" });
+  const res = await apiFetch(`/mural/posts/${encodeURIComponent(postId)}/react`, {
+    method: "POST",
+  });
   if (!res.ok) {
     throw new Error(`/mural/posts/${postId}/react responded with ${res.status}`);
   }
