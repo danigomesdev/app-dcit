@@ -23,6 +23,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { href: "/alertas", label: "Alertas", roles: ["gestor", "rh"] },
   { href: "/convencoes", label: "Convenções", roles: ["rh"] },
   { href: "/banco-de-horas", label: "Banco de Horas", roles: ["gestor", "rh", "colaborador"] },
+  { href: "/ferias", label: "Férias", roles: ["colaborador"] },
   { href: "/holerites", label: "Holerites", roles: ["gestor", "rh"] },
 ];
 
@@ -54,4 +55,5 @@ export const COLABORADOR_SIDEBAR: SidebarEntry[] = [
     ],
   },
   { href: "/banco-de-horas", label: "Banco de Horas" },
+  { href: "/ferias", label: "Férias" },
 ];

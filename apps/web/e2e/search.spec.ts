@@ -70,3 +70,13 @@ test("colaborador can find Banco de Horas via search", async ({ page, context })
   await page.getByPlaceholder("Buscar telas...").fill("banco");
   await expect(page.getByRole("button", { name: "Banco de Horas" })).toBeVisible();
 });
+
+test("colaborador can find Férias via search", async ({ page, context }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("férias");
+
+  await expect(page.getByRole("button", { name: "Férias" })).toBeVisible();
+});
