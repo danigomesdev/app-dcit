@@ -42,6 +42,7 @@ export const EmployeeCreateSchema = z.object({
   name: z.string().min(1),
   role: RoleSchema,
   cargo: z.enum(CARGOS).nullable(),
+  team: z.string().min(1).nullable(),
   nivel: z.enum(NIVEIS).nullable(),
   convencaoId: z.string().nullable(),
   // z.coerce.number() (não z.number()): o formulário de colaborador
