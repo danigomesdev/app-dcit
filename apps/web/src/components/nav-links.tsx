@@ -32,11 +32,12 @@ function NavLinkItem({ link, pathname }: { link: SidebarLink; pathname: string }
 
 function NavGroupItem({ group, pathname }: { group: SidebarGroup; pathname: string }) {
   const active = pathname === group.href;
-  const containsActive = group.children.some((child) => child.href === pathname);
-  // Expanded by default whenever the group or one of its children is the
-  // current page, so landing anywhere in "Ponto" shows where else to go —
-  // collapsed otherwise, so it doesn't just look like a flat list.
-  const [open, setOpen] = useState(active || containsActive);
+  // Always starts collapsed ("normal") — expanding is a deliberate click,
+  // not something the current route decides for you. Auto-expanding
+  // whenever the group's own page was active looked like it never actually
+  // collapsed, since "/" (the group's target) is where a colaborador lands
+  // right after login.
+  const [open, setOpen] = useState(false);
 
   return (
     <div className={styles.navGroup}>
