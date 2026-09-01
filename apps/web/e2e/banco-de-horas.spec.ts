@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, mockApi } from "./test-session";
+import { addSessionCookie, getRecordedRequests, mockApi, seedResponse } from "./test-session";
 
 test("colaborador sees their own saldo, DSR, and daily breakdown for the current month", async ({
   page,
@@ -183,4 +183,95 @@ test("month navigation moves between periods and re-enables the next-month link 
   await page.getByRole("link", { name: "Próximo mês →" }).click();
   await expect(page).toHaveURL(/start=2026-02-01/);
   await expect(page.getByText(/Saldo de fevereiro de 2026/i)).toBeVisible();
+});
+
+test("colaborador sees their own compensation requests, including the reviewer's note on a recusado one", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    bancoDeHorasMinhas: {
+      days: [],
+      balanceMinutes: 0,
+      dsrMinutes: 0,
+      hourlyRateBRL: null,
+      overtimeValueBRL: null,
+    },
+    myCompensations: [
+      {
+        id: "cp-1",
+        reason: "Compensar 2h de plantão",
+        status: "recusado",
+        reviewNote: "Saldo insuficiente",
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/banco-de-horas");
+
+  await expect(page.getByText("Compensar 2h de plantão")).toBeVisible();
+  await expect(page.getByText("Recusado")).toBeVisible();
+  await expect(page.getByText("Saldo insuficiente")).toBeVisible();
+});
+
+test("shows a message when there are no compensation requests yet", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    bancoDeHorasMinhas: {
+      days: [],
+      balanceMinutes: 0,
+      dsrMinutes: 0,
+      hourlyRateBRL: null,
+      overtimeValueBRL: null,
+    },
+    myCompensations: [],
+  });
+
+  await page.goto("/banco-de-horas");
+
+  await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toBeVisible();
+});
+
+test("submitting the compensation form posts the reason to the API", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    bancoDeHorasMinhas: {
+      days: [],
+      balanceMinutes: 0,
+      dsrMinutes: 0,
+      hourlyRateBRL: null,
+      overtimeValueBRL: null,
+    },
+    myCompensations: [],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/solicitacoes/compensacoes",
+    status: 201,
+    response: { id: "cp-new", reason: "Compensar plantão de sábado", status: "pendente" },
+  });
+
+  await page.goto("/banco-de-horas");
+  await page.getByLabel("Motivo").fill("Compensar plantão de sábado");
+  await page.getByRole("button", { name: "Enviar solicitação" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find(
+        (r) => r.method === "POST" && r.path === "/solicitacoes/compensacoes",
+      )?.body;
+    })
+    .toEqual({ reason: "Compensar plantão de sábado" });
 });

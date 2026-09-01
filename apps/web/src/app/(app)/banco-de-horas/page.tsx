@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { requestCompensation } from "./actions";
 import styles from "./banco-de-horas.module.css";
 
 type TeamSummary = {
@@ -22,6 +23,20 @@ type MinhaSummary = {
   overtimeValueBRL: number | null;
 };
 type Periodo = "atual" | "anterior" | "3meses";
+
+type CompensationRequest = {
+  id: string;
+  reason: string;
+  status: "pendente" | "aprovado" | "recusado";
+  reviewNote: string | null;
+  createdAt: string;
+};
+
+const COMPENSATION_STATUS_LABEL: Record<CompensationRequest["status"], string> = {
+  pendente: "Pendente",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
+};
 
 // Duplicated (not imported from a shared package) — these are two tiny pure
 // functions, not worth a new shared-types entry; the same trade-off already
@@ -207,9 +222,10 @@ async function ColaboradorView({
   const periodo = resolvePeriodo(typeof periodoParam === "string" ? periodoParam : undefined);
   const { start, end } = periodoRange(periodo);
 
-  const summary = await apiFetchJson<MinhaSummary>(
-    `/banco-de-horas/minhas?start=${start}&end=${end}`,
-  );
+  const [summary, minhasSolicitacoes] = await Promise.all([
+    apiFetchJson<MinhaSummary>(`/banco-de-horas/minhas?start=${start}&end=${end}`),
+    apiFetchJson<CompensationRequest[]>("/solicitacoes/compensacoes"),
+  ]);
 
   return (
     <div className={styles.page}>
@@ -263,6 +279,38 @@ async function ColaboradorView({
           </li>
         ))}
       </ul>
+
+      <h2 className={styles.sectionTitle}>Solicitar compensação</h2>
+      <form className={styles.form} action={requestCompensation}>
+        <label htmlFor="reason">Motivo</label>
+        <textarea id="reason" name="reason" className={styles.textarea} required />
+        <button type="submit" className={styles.submitButton}>
+          Enviar solicitação
+        </button>
+      </form>
+
+      <h2 className={styles.sectionTitle}>Minhas solicitações</h2>
+      {minhasSolicitacoes.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhuma solicitação registrada ainda.</p>
+      ) : (
+        <ul className={styles.list}>
+          {minhasSolicitacoes.map((solicitacao) => (
+            <li key={solicitacao.id} className={styles.item}>
+              <span className={styles.itemDetail}>
+                {solicitacao.reason}
+                {solicitacao.reviewNote ? ` · ${solicitacao.reviewNote}` : ""}
+              </span>
+              <span
+                className={`${styles.status} ${
+                  solicitacao.status === "aprovado" ? styles.statusAprovado : ""
+                } ${solicitacao.status === "recusado" ? styles.statusRecusado : ""}`}
+              >
+                {COMPENSATION_STATUS_LABEL[solicitacao.status]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
