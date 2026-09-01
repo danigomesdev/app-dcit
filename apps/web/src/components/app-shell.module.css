@@ -84,13 +84,54 @@
   gap: 4px;
 }
 
-.navGroupLabel {
-  padding: 8px 12px 0;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+.navGroupRow {
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
   color: var(--color-text-secondary);
+}
+
+.navGroupRow:hover {
+  background: var(--color-background-selected);
+  color: var(--color-text);
+}
+
+.navGroupLink {
+  flex: 1;
+  display: block;
+  padding: 8px 12px;
+  color: inherit;
+}
+
+.navGroupToggle {
+  appearance: none;
+  border: none;
+  background: none;
+  color: inherit;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navChevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s ease;
+}
+
+.navChevronOpen {
+  transform: rotate(180deg);
+}
+
+.navChildren {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+  margin-top: 2px;
 }
 
 .navLink {

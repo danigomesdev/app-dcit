@@ -27,24 +27,28 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 export type SidebarLink = { href: string; label: string };
-export type SidebarGroup = { label: string; links: SidebarLink[] };
+// A group's own row is itself a link (label + href) — clicking it navigates,
+// like any other item. Its chevron independently expands/collapses
+// `children`, which only ever show while expanded.
+export type SidebarGroup = { href: string; label: string; children: SidebarLink[] };
 export type SidebarEntry = SidebarLink | SidebarGroup;
 
 export function isSidebarGroup(entry: SidebarEntry): entry is SidebarGroup {
-  return "links" in entry;
+  return "children" in entry;
 }
 
 // The colaborador sidebar is curated and grouped, unlike NAV_SECTIONS above
 // (which stays flat — gestor/rh's sidebar, and every role's search results,
 // are unaffected by this). Entries here only exist once their page does;
 // each is added by its own sub-project as it ships (Ajustar Meu Ponto,
-// Solicitações de Ajuste, Banco de Horas, Férias, Documentos, Mural —
+// Solicitações de Ajuste land inside the "Ponto" group; Banco de Horas,
+// Férias, Documentos, Mural join as their own top-level entries —
 // decided in conversation, mirroring the mobile app's tab structure).
 export const COLABORADOR_SIDEBAR: SidebarEntry[] = [
   {
+    href: "/",
     label: "Ponto",
-    links: [
-      { href: "/", label: "Bater Ponto" },
+    children: [
       { href: "/historico", label: "Histórico de Pontos" },
       { href: "/folha", label: "Folha de Ponto" },
     ],

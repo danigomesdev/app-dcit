@@ -49,8 +49,9 @@ test("colaborador sees a curated, grouped sidebar instead of the gestor/rh menu"
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await page.goto("/");
 
-  await expect(page.getByText("Ponto", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Bater Ponto" })).toBeVisible();
+  // "Ponto" is expanded by default because "/" (its own target) is the
+  // active page — its children are visible without having to click anything.
+  await expect(page.getByRole("link", { name: "Ponto", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Folha de Ponto" })).toBeVisible();
 
@@ -62,6 +63,24 @@ test("colaborador sees a curated, grouped sidebar instead of the gestor/rh menu"
 
   await page.getByRole("link", { name: "Histórico de Pontos" }).click();
   await expect(page).toHaveURL(/\/historico$/);
+});
+
+test("collapses and re-expands the Ponto group on click, without navigating", async ({
+  page,
+  context,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+
+  const toggle = page.getByRole("button", { name: "Recolher Ponto" });
+  await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toBeVisible();
+
+  await toggle.click();
+  await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.getByRole("button", { name: "Expandir Ponto" }).click();
+  await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toBeVisible();
 });
 
 test("highlights the active nav link and only the active one", async ({
