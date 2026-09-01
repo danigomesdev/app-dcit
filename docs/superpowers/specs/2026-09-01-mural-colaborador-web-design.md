@@ -168,7 +168,7 @@ async function ColaboradorView() {
                     type="submit"
                     className={post.reacted ? `${styles.reactionButton} ${styles.reactionButtonActive}` : styles.reactionButton}
                   >
-                    <span aria-hidden="true">{post.reacted ? "♥" : "♡"}</span> {post.reactionCount}
+                    {post.reacted ? "♥" : "♡"} {post.reactionCount}
                   </button>
                 </form>
               </li>
