@@ -1,0 +1,48 @@
+.page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.balanceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--color-background-element);
+}
+
+.balanceValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.balanceDetail {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.alertBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+  font-size: 14px;
+}
+
+.alertBanner svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
