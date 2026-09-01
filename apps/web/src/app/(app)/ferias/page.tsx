@@ -59,6 +59,12 @@ function addYearsToDateOnly(dateStr: string, years: number): string {
 
 type VacationCycle = { aquisitivoInicio: string; aquisitivoFim: string; vencimento: string };
 
+const STATUS_LABEL: Record<VacationRequestRecord["status"], string> = {
+  pendente: "Pendente",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
+};
+
 // CLT gives 12 months to accrue vacation (período aquisitivo), then another
 // 12 months to take it (período concessivo) before the employer risks
 // paying it in double. Walks forward from hireDate to the cycle whose
@@ -141,6 +147,34 @@ export default async function FeriasPage() {
           </span>
         </div>
       ) : null}
+
+      <h2 className={styles.sectionTitle}>Minhas solicitações</h2>
+      {data.requests.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhuma solicitação registrada ainda.</p>
+      ) : (
+        <ul className={styles.list}>
+          {data.requests.map((request) => (
+            <li key={request.id} className={styles.item}>
+              <div className={styles.itemInfo}>
+                <span className={styles.itemName}>
+                  {formatDate(request.startDate)} — {formatDate(request.endDate)}
+                </span>
+                <span className={styles.itemDetail}>{request.days} dia(s)</span>
+                {request.reviewNote ? (
+                  <span className={styles.itemNote}>{request.reviewNote}</span>
+                ) : null}
+              </div>
+              <span
+                className={`${styles.status} ${
+                  request.status === "aprovado" ? styles.statusAprovado : ""
+                } ${request.status === "recusado" ? styles.statusRecusado : ""}`}
+              >
+                {STATUS_LABEL[request.status]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -116,3 +116,62 @@ test("does not show the vencimento alert when it's far away", async ({ page, con
 
   await expect(page.getByText(/Suas férias vencem em \d+ dias\./)).toHaveCount(0);
 });
+
+test("colaborador sees their own vacation requests, including the reviewer's note on a recusado one", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    feriasData: {
+      requests: [
+        {
+          id: "vr-1",
+          startDate: "2026-07-10",
+          endDate: "2026-07-24",
+          days: 15,
+          status: "aprovado",
+          reviewNote: null,
+        },
+        {
+          id: "vr-2",
+          startDate: "2026-01-05",
+          endDate: "2026-01-09",
+          days: 5,
+          status: "recusado",
+          reviewNote: "Período coincide com o fechamento mensal do financeiro.",
+        },
+      ],
+      hireDate: HIRE_DATE,
+      history: [],
+    },
+  });
+
+  await page.goto("/ferias");
+
+  await expect(page.getByText("10/07/2026 — 24/07/2026")).toBeVisible();
+  await expect(page.getByText("15 dia(s)")).toBeVisible();
+  await expect(page.getByText("Aprovado")).toBeVisible();
+
+  await expect(page.getByText("05/01/2026 — 09/01/2026")).toBeVisible();
+  await expect(page.getByText("Recusado")).toBeVisible();
+  await expect(
+    page.getByText("Período coincide com o fechamento mensal do financeiro."),
+  ).toBeVisible();
+});
+
+test("shows a message when there are no vacation requests yet", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    feriasData: { requests: [], hireDate: HIRE_DATE, history: [] },
+  });
+
+  await page.goto("/ferias");
+
+  await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toBeVisible();
+});
