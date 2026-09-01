@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, mockApi } from "./test-session";
+import { addSessionCookie, getRecordedRequests, mockApi, seedResponse } from "./test-session";
 
 function todaySaoPauloMonthDay(): { day: number; month: number } {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -166,4 +166,96 @@ test("shows a mural post's UTC calendar day, not a day shifted by local timezone
   await expect(page.getByText("Aviso importante")).toBeVisible();
   await expect(page.getByText("publicado em 01/10/2026")).toBeVisible();
   await expect(page.getByText("publicado em 30/09/2026")).toHaveCount(0);
+});
+
+test("shows the reaction button's count and reacted state", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    muralPosts: [
+      {
+        id: "post-1",
+        glyph: "🎉",
+        title: "Boas-vindas!",
+        body: "Texto.",
+        reactionCount: 4,
+        reacted: false,
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+      {
+        id: "post-2",
+        glyph: "📣",
+        title: "Aviso",
+        body: "Texto 2.",
+        reactionCount: 1,
+        reacted: true,
+        createdAt: "2026-08-21T12:00:00.000Z",
+      },
+    ],
+    birthdays: [],
+  });
+
+  await page.goto("/mural");
+
+  const unreacted = page.getByRole("button", { name: "♡ 4" });
+  const reacted = page.getByRole("button", { name: "♥ 1" });
+  await expect(unreacted).toBeVisible();
+  await expect(reacted).toBeVisible();
+  await expect(reacted).toHaveClass(/reactionButtonActive/);
+  await expect(unreacted).not.toHaveClass(/reactionButtonActive/);
+});
+
+test("clicking the reaction button toggles it via the API and reflects the new state", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    muralPosts: [
+      {
+        id: "post-1",
+        glyph: "🎉",
+        title: "Boas-vindas!",
+        body: "Texto.",
+        reactionCount: 4,
+        reacted: false,
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+    birthdays: [],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/mural/posts/post-1/react",
+    response: { reactionCount: 5, reacted: true },
+  });
+
+  await page.goto("/mural");
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/mural/posts",
+    response: [
+      {
+        id: "post-1",
+        glyph: "🎉",
+        title: "Boas-vindas!",
+        body: "Texto.",
+        reactionCount: 5,
+        reacted: true,
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.getByRole("button", { name: "♡ 4" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/mural/posts/post-1/react");
+    })
+    .toBeTruthy();
+
+  await expect(page.getByRole("button", { name: "♥ 5" })).toBeVisible();
 });

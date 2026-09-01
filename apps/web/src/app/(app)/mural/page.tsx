@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { toggleMuralReaction } from "./actions";
 import styles from "./mural.module.css";
 
 type MuralPost = {
@@ -226,6 +227,19 @@ async function ColaboradorView() {
                   </div>
                 </div>
                 <p className={styles.body}>{post.body}</p>
+                <form action={toggleMuralReaction}>
+                  <input type="hidden" name="postId" value={post.id} />
+                  <button
+                    type="submit"
+                    className={
+                      post.reacted
+                        ? `${styles.reactionButton} ${styles.reactionButtonActive}`
+                        : styles.reactionButton
+                    }
+                  >
+                    {post.reacted ? "♥" : "♡"} {post.reactionCount}
+                  </button>
+                </form>
               </li>
             ))}
           </ul>
