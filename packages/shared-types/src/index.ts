@@ -60,3 +60,5 @@ export type {
   ForgotPasswordInput,
   ResetPasswordInput,
 } from "./password-auth";
+export { PAGAMENTO_CATEGORIAS, SendPagamentoSchema } from "./notifications";
+export type { PagamentoCategoria, SendPagamentoInput } from "./notifications";
