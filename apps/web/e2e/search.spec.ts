@@ -61,3 +61,12 @@ test("colaborador can find Histórico and Folha via search", async ({ page, cont
   await page.getByPlaceholder("Buscar telas...").fill("folha");
   await expect(page.getByRole("button", { name: "Folha de Ponto" })).toBeVisible();
 });
+
+test("colaborador can find Banco de Horas via search", async ({ page, context }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("banco");
+  await expect(page.getByRole("button", { name: "Banco de Horas" })).toBeVisible();
+});
