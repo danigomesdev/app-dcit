@@ -79,13 +79,17 @@ function formatMonthLabel(dateStr: string): string {
 
 export default async function BancoDeHorasPage({ searchParams }: PageProps<"/banco-de-horas">) {
   const session = await getSession();
-  if (!session || session.role === "colaborador") {
-    return (
-      <EmptyState title="Sem permissão" description="Esta página é restrita a gestores e RH." />
-    );
+  if (!session) {
+    return <EmptyState title="Sem permissão" description="Faça login para continuar." />;
   }
+  if (session.role === "colaborador") {
+    return <ColaboradorView searchParams={await searchParams} />;
+  }
+  return <TeamView searchParams={await searchParams} />;
+}
 
-  const { start: startParam } = await searchParams;
+async function TeamView({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+  const { start: startParam } = searchParams;
   const today = todaySaoPauloDateOnly();
   const currentMonthStart = firstDayOfMonth(today);
   const requestedStart =
@@ -145,4 +149,13 @@ export default async function BancoDeHorasPage({ searchParams }: PageProps<"/ban
       </ul>
     </div>
   );
+}
+
+async function ColaboradorView({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  void searchParams;
+  return <EmptyState title="Sem permissão" description="Esta página é restrita a gestores e RH." />;
 }
