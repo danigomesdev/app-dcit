@@ -32,3 +32,28 @@ export async function submitAdmissionDocument(formData: FormData) {
   }
   revalidatePath("/documentos");
 }
+
+export async function submitCertification(formData: FormData) {
+  const name = formData.get("name");
+  const institution = formData.get("institution");
+  const validUntil = formData.get("validUntil");
+  if (
+    typeof name !== "string" ||
+    name.trim().length === 0 ||
+    typeof institution !== "string" ||
+    institution.trim().length === 0 ||
+    typeof validUntil !== "string" ||
+    !/^\d{2}\/\d{2}\/\d{4}$/.test(validUntil)
+  ) {
+    throw new Error("Preencha nome, instituição e uma data válida (DD/MM/AAAA).");
+  }
+  const res = await apiFetch("/documentos/certificacoes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: name.trim(), institution: institution.trim(), validUntil }),
+  });
+  if (!res.ok) {
+    throw new Error(`/documentos/certificacoes responded with ${res.status}`);
+  }
+  revalidatePath("/documentos");
+}

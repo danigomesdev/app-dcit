@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
-import { submitAdmissionDocument } from "./actions";
+import { submitAdmissionDocument, submitCertification } from "./actions";
 import { AtestadoPhotoButton } from "./atestado-photo-button";
 import styles from "./documentos.module.css";
 import { PhotoUploadField } from "./photo-upload-field";
@@ -214,6 +214,13 @@ type AdmissionDocumentRecord = {
   submittedAt: string;
 };
 
+type CertificationRecord = {
+  id: string;
+  name: string;
+  institution: string;
+  validUntil: string;
+};
+
 async function ColaboradorView({
   searchParams,
 }: {
@@ -222,8 +229,9 @@ async function ColaboradorView({
   const params = await searchParams;
   const categoria = resolveCategoria(typeof params.categoria === "string" ? params.categoria : undefined);
 
-  const [admissionDocuments] = await Promise.all([
+  const [admissionDocuments, certifications] = await Promise.all([
     apiFetchJson<AdmissionDocumentRecord[]>("/documentos/admissionais"),
+    apiFetchJson<CertificationRecord[]>("/documentos/certificacoes"),
   ]);
 
   return (
@@ -248,6 +256,9 @@ async function ColaboradorView({
 
       {categoria === "admissionais" ? (
         <AdmissionaisSection documents={admissionDocuments} />
+      ) : null}
+      {categoria === "certificacoes" ? (
+        <CertificacoesSection certifications={certifications} />
       ) : null}
     </div>
   );
@@ -287,6 +298,53 @@ function AdmissionaisSection({ documents }: { documents: AdmissionDocumentRecord
                 >
                   {STATUS_LABEL[document.status]}
                 </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function CertificacoesSection({ certifications }: { certifications: CertificationRecord[] }) {
+  return (
+    <div className={styles.section}>
+      <h2 className={styles.sectionTitle}>Adicionar certificação</h2>
+      <form className={styles.form} action={submitCertification}>
+        <label htmlFor="name">Nome</label>
+        <input id="name" name="name" type="text" className={styles.textInput} required />
+        <label htmlFor="institution">Instituição</label>
+        <input id="institution" name="institution" type="text" className={styles.textInput} required />
+        <label htmlFor="validUntil">Válida até (DD/MM/AAAA)</label>
+        <input
+          id="validUntil"
+          name="validUntil"
+          type="text"
+          placeholder="DD/MM/AAAA"
+          pattern="\d{2}/\d{2}/\d{4}"
+          className={styles.textInput}
+          required
+        />
+        <button type="submit" className={styles.submitButton}>
+          Salvar
+        </button>
+      </form>
+
+      <h2 className={styles.sectionTitle}>Minhas certificações</h2>
+      {certifications.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhuma certificação cadastrada ainda.</p>
+      ) : (
+        <ul className={styles.list}>
+          {certifications.map((certification) => (
+            <li key={certification.id} className={styles.item}>
+              <div className={styles.itemHeader}>
+                <div className={styles.itemInfo}>
+                  <span className={styles.itemName}>{certification.name}</span>
+                  <span className={styles.itemDetail}>
+                    {certification.institution} · válida até {formatDate(certification.validUntil)}
+                  </span>
+                </div>
               </div>
             </li>
           ))}

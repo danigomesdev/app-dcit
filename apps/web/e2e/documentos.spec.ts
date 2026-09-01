@@ -348,3 +348,61 @@ test("rejects an unsupported file type with an inline error", async ({ page, con
     page.getByText("Formato não suportado — use JPEG, PNG ou WEBP.")
   ).toBeVisible();
 });
+
+test("colaborador sees their own certifications and can submit a new one", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    myAdmissionDocuments: [],
+    myCertifications: [
+      { id: "cert-1", name: "AWS Certified", institution: "Amazon", validUntil: "2028-10-10T00:00:00.000Z" },
+    ],
+    myAtestados: [],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/documentos/certificacoes",
+    status: 201,
+    response: { id: "cert-new", name: "Scrum Master", institution: "Scrum.org", validUntil: "2027-05-01T00:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=certificacoes");
+
+  await expect(page.getByText("AWS Certified")).toBeVisible();
+  await expect(page.getByText("Amazon · válida até 10/10/2028")).toBeVisible();
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/documentos/certificacoes",
+    response: [
+      { id: "cert-new", name: "Scrum Master", institution: "Scrum.org", validUntil: "2027-05-01T00:00:00.000Z" },
+      { id: "cert-1", name: "AWS Certified", institution: "Amazon", validUntil: "2028-10-10T00:00:00.000Z" },
+    ],
+  });
+
+  await page.getByLabel("Nome").fill("Scrum Master");
+  await page.getByLabel("Instituição").fill("Scrum.org");
+  await page.getByLabel("Válida até (DD/MM/AAAA)").fill("01/05/2027");
+  await page.getByRole("button", { name: "Salvar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/documentos/certificacoes")?.body;
+    })
+    .toEqual({ name: "Scrum Master", institution: "Scrum.org", validUntil: "01/05/2027" });
+
+  await expect(page.getByText("Scrum Master")).toBeVisible();
+});
+
+test("shows a message when there are no certifications yet", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=certificacoes");
+
+  await expect(page.getByText("Nenhuma certificação cadastrada ainda.")).toBeVisible();
+});
