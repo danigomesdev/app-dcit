@@ -3,8 +3,10 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { submitAdmissionDocument } from "./actions";
 import { AtestadoPhotoButton } from "./atestado-photo-button";
 import styles from "./documentos.module.css";
+import { PhotoUploadField } from "./photo-upload-field";
 
 type DocumentStatus = "enviado" | "em_analise" | "aprovado" | "recusado";
 
@@ -52,15 +54,17 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
-export default async function DocumentosPage() {
+export default async function DocumentosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await getSession();
   if (!session) {
     return <EmptyState title="Sem permissão" description="Faça login para continuar." />;
   }
   if (session.role === "colaborador") {
-    return (
-      <EmptyState title="Sem permissão" description="Esta página é restrita a gestores e RH." />
-    );
+    return <ColaboradorView searchParams={searchParams} />;
   }
   return <TeamView session={session} />;
 }
@@ -186,6 +190,108 @@ async function TeamView({ session }: { session: Session }) {
           </ul>
         )}
       </section>
+    </div>
+  );
+}
+
+type Categoria = "admissionais" | "atestados" | "certificacoes";
+
+const CATEGORIA_LABEL: Record<Categoria, string> = {
+  admissionais: "Admissionais",
+  atestados: "Atestados",
+  certificacoes: "Certificações",
+};
+
+function resolveCategoria(value: string | undefined): Categoria {
+  return value === "admissionais" || value === "certificacoes" ? value : "atestados";
+}
+
+type AdmissionDocumentRecord = {
+  id: string;
+  title: string;
+  photoUri: string | null;
+  status: DocumentStatus;
+  submittedAt: string;
+};
+
+async function ColaboradorView({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const categoria = resolveCategoria(typeof params.categoria === "string" ? params.categoria : undefined);
+
+  const [admissionDocuments] = await Promise.all([
+    apiFetchJson<AdmissionDocumentRecord[]>("/documentos/admissionais"),
+  ]);
+
+  return (
+    <div className={styles.page}>
+      <h1 className={styles.heading}>Documentos</h1>
+
+      <div className={styles.categoryTabs}>
+        {(["admissionais", "atestados", "certificacoes"] as const).map((option) => (
+          <a
+            key={option}
+            className={
+              categoria === option
+                ? `${styles.categoryTab} ${styles.categoryTabActive}`
+                : styles.categoryTab
+            }
+            href={`/documentos?categoria=${option}`}
+          >
+            {CATEGORIA_LABEL[option]}
+          </a>
+        ))}
+      </div>
+
+      {categoria === "admissionais" ? (
+        <AdmissionaisSection documents={admissionDocuments} />
+      ) : null}
+    </div>
+  );
+}
+
+function AdmissionaisSection({ documents }: { documents: AdmissionDocumentRecord[] }) {
+  return (
+    <div className={styles.section}>
+      <h2 className={styles.sectionTitle}>Enviar documento admissional</h2>
+      <form className={styles.form} action={submitAdmissionDocument}>
+        <label htmlFor="title">Título</label>
+        <input id="title" name="title" type="text" className={styles.textInput} required />
+        <PhotoUploadField name="photo" label="Foto (opcional)" />
+        <button type="submit" className={styles.submitButton}>
+          Enviar
+        </button>
+      </form>
+
+      <h2 className={styles.sectionTitle}>Meus documentos admissionais</h2>
+      {documents.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhum documento admissional enviado ainda.</p>
+      ) : (
+        <ul className={styles.list}>
+          {documents.map((document) => (
+            <li key={document.id} className={styles.item}>
+              <div className={styles.itemHeader}>
+                <div className={styles.itemInfo}>
+                  <span className={styles.itemName}>{document.title}</span>
+                  <span className={styles.itemDetail}>
+                    Enviado em {formatDate(document.submittedAt)}
+                  </span>
+                </div>
+                <span
+                  className={`${styles.status} ${
+                    document.status === "aprovado" ? styles.statusAprovado : ""
+                  }`}
+                >
+                  {STATUS_LABEL[document.status]}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

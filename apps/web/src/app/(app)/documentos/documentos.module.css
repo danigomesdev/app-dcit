@@ -156,3 +156,77 @@
 .dialogClose:hover {
   background: var(--color-background-selected);
 }
+
+.categoryTabs {
+  display: flex;
+  gap: 8px;
+}
+
+.categoryTab {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-background-element);
+}
+
+.categoryTab:hover {
+  color: var(--color-text);
+}
+
+.categoryTabActive,
+.categoryTabActive:hover {
+  background: var(--color-text);
+  color: var(--color-background);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 480px;
+}
+
+.textInput {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background-element);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.submitButton {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.photoField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fileInput {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.photoFieldError {
+  font-size: 13px;
+  color: #f87171;
+}
+
+.photoPreview {
+  max-width: 240px;
+  max-height: 240px;
+  border-radius: 8px;
+  object-fit: cover;
+}

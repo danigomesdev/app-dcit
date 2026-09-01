@@ -1,16 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, mockApi, seedResponse } from "./test-session";
-
-test("colaborador sees a permission message instead of the documents list", async ({
-  page,
-  context,
-}) => {
-  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
-  await page.goto("/documentos");
-
-  await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
-});
+import { addSessionCookie, getRecordedRequests, mockApi, seedResponse } from "./test-session";
 
 test("rh sees clinical detail; gestor sees the same atestado without it", async ({
   page,
@@ -212,4 +202,94 @@ test("shows a proper label instead of the raw status for an admissionais documen
   await expect(page.getByText("Fábio Colaborador")).toBeVisible();
   await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
   await expect(page.getByText("enviado", { exact: true })).toHaveCount(0);
+});
+
+test("colaborador sees category tabs, with Atestados active by default", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos");
+
+  const admissionais = page.getByRole("link", { name: "Admissionais" });
+  const atestados = page.getByRole("link", { name: "Atestados" });
+  const certificacoes = page.getByRole("link", { name: "Certificações" });
+  await expect(admissionais).toBeVisible();
+  await expect(atestados).toBeVisible();
+  await expect(certificacoes).toBeVisible();
+  await expect(atestados).toHaveClass(/categoryTabActive/);
+
+  await admissionais.click();
+  await expect(page).toHaveURL(/categoria=admissionais/);
+  await expect(admissionais).toHaveClass(/categoryTabActive/);
+  await expect(atestados).not.toHaveClass(/categoryTabActive/);
+});
+
+test("colaborador sees their own admissionais documents and can submit a new one without a photo", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    myAdmissionDocuments: [
+      {
+        id: "adm-1",
+        title: "Comprovante de residência",
+        photoUri: null,
+        status: "enviado",
+        submittedAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+    myCertifications: [],
+    myAtestados: [],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/documentos/admissionais",
+    status: 201,
+    response: { id: "adm-new", title: "RG", photoUri: null, status: "enviado", submittedAt: "2026-08-31T12:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await expect(page.getByText("Comprovante de residência")).toBeVisible();
+  await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/documentos/admissionais",
+    response: [
+      { id: "adm-new", title: "RG", photoUri: null, status: "enviado", submittedAt: "2026-08-31T12:00:00.000Z" },
+      { id: "adm-1", title: "Comprovante de residência", photoUri: null, status: "enviado", submittedAt: "2026-08-20T12:00:00.000Z" },
+    ],
+  });
+
+  await page.getByLabel("Título").fill("RG");
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/documentos/admissionais")?.body;
+    })
+    .toEqual({ title: "RG" });
+
+  await expect(page.getByText("RG", { exact: true })).toBeVisible();
+});
+
+test("shows a message when there are no admissionais documents yet", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await expect(page.getByText("Nenhum documento admissional enviado ainda.")).toBeVisible();
 });

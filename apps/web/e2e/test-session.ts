@@ -59,6 +59,9 @@ export async function mockApi(
     deslocamentos?: unknown[];
     admissionDocuments?: unknown[];
     certifications?: unknown[];
+    myAdmissionDocuments?: unknown[];
+    myCertifications?: unknown[];
+    myAtestados?: unknown[];
     jornadaAlerts?: unknown[];
     convencoes?: unknown[];
     bancoDeHorasEquipe?: unknown[];
@@ -152,6 +155,21 @@ export async function mockApi(
   if (data.certifications) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/documentos/certificacoes/equipe", response: data.certifications },
+    });
+  }
+  if (data.myAdmissionDocuments) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/documentos/admissionais", response: data.myAdmissionDocuments },
+    });
+  }
+  if (data.myCertifications) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/documentos/certificacoes", response: data.myCertifications },
+    });
+  }
+  if (data.myAtestados) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/atestados/mine", response: data.myAtestados },
     });
   }
   if (data.jornadaAlerts) {
