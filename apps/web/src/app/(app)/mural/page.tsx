@@ -34,8 +34,13 @@ const MONTH_LABEL = [
   "dezembro",
 ];
 
+// API DateTime fields arrive as full ISO instant strings (Prisma DateTime ->
+// JSON) — timeZone: "UTC" here is not cosmetic: without it, a UTC-midnight
+// value shifts to the previous local day (the exact bug the Férias/
+// Documentos sub-projects' reviews caught and fixed in their own
+// formatDate).
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("pt-BR");
+  return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 export default async function MuralPage() {
@@ -49,6 +54,10 @@ export default async function MuralPage() {
     );
   }
 
+  return <TeamView />;
+}
+
+async function TeamView() {
   const [posts, birthdays] = await Promise.all([
     apiFetchJson<MuralPost[]>("/mural/posts"),
     apiFetchJson<Birthday[]>("/mural/birthdays"),
