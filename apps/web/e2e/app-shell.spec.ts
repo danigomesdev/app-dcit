@@ -54,6 +54,7 @@ test("colaborador sees a curated, grouped sidebar instead of the gestor/rh menu"
   await expect(page.getByRole("link", { name: "Banco de Horas" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Férias" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Documentos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Mural" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Folha de Ponto" })).toHaveCount(0);
 
