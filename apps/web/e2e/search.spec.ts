@@ -80,3 +80,13 @@ test("colaborador can find Férias via search", async ({ page, context }) => {
 
   await expect(page.getByRole("button", { name: "Férias" })).toBeVisible();
 });
+
+test("colaborador can find Documentos via search", async ({ page, context }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByPlaceholder("Buscar telas...").fill("documentos");
+
+  await expect(page.getByRole("button", { name: "Documentos" })).toBeVisible();
+});

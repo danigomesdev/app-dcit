@@ -15,7 +15,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { href: "/colaboradores", label: "Colaboradores", roles: ["gestor", "rh"] },
   { href: "/escala", label: "Plantão", roles: ["gestor", "rh"] },
   { href: "/aprovacoes", label: "Aprovações", roles: ["gestor", "rh"] },
-  { href: "/documentos", label: "Documentos", roles: ["gestor", "rh"] },
+  { href: "/documentos", label: "Documentos", roles: ["gestor", "rh", "colaborador"] },
   { href: "/mural", label: "Mural", roles: ["gestor", "rh"] },
   { href: "/beneficios", label: "Benefícios", roles: ["gestor", "rh"] },
   { href: "/onboarding", label: "Onboarding", roles: ["gestor", "rh"] },
@@ -56,4 +56,5 @@ export const COLABORADOR_SIDEBAR: SidebarEntry[] = [
   },
   { href: "/banco-de-horas", label: "Banco de Horas" },
   { href: "/ferias", label: "Férias" },
+  { href: "/documentos", label: "Documentos" },
 ];
