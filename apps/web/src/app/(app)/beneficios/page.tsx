@@ -24,6 +24,19 @@ function formatCurrency(value: number): string {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function groupByEmployee(balances: Balance[]): { userId: string; userName: string; balances: Balance[] }[] {
+  const groups = new Map<string, { userId: string; userName: string; balances: Balance[] }>();
+  for (const balance of balances) {
+    const existing = groups.get(balance.userId);
+    if (existing) {
+      existing.balances.push(balance);
+    } else {
+      groups.set(balance.userId, { userId: balance.userId, userName: balance.userName, balances: [balance] });
+    }
+  }
+  return [...groups.values()].sort((a, b) => a.userName.localeCompare(b.userName, "pt-BR"));
+}
+
 export default async function BeneficiosPage() {
   const session = await getSession();
   if (!session || session.role === "colaborador") {
@@ -49,29 +62,55 @@ export default async function BeneficiosPage() {
     );
   }
 
+  const employeeGroups = groupByEmployee(balances);
+
   return (
     <div className={styles.page}>
       <h1 className={styles.heading}>Benefícios</h1>
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Saldos por colaborador</h2>
-        {balances.length === 0 ? (
+        {employeeGroups.length === 0 ? (
           <p className={styles.sectionEmpty}>Nenhum saldo cadastrado.</p>
         ) : (
-          <ul className={styles.list}>
-            {balances.map((balance) => (
-              <li key={balance.id} className={styles.item}>
-                <div className={styles.itemInfo}>
-                  <span className={styles.itemName}>{balance.userName}</span>
-                  <span className={styles.itemDetail}>{balance.label}</span>
-                </div>
-                <span className={styles.itemBalance}>
-                  {formatCurrency(balance.balance)} · crédito mensal{" "}
-                  {formatCurrency(balance.monthlyCredit)}
-                </span>
-              </li>
+          <div className={styles.employeeList}>
+            {employeeGroups.map((group) => (
+              <details key={group.userId} className={styles.employeeGroup}>
+                <summary className={styles.employeeSummary}>
+                  <span className={styles.itemName}>{group.userName}</span>
+                  <span className={styles.employeeCount}>
+                    {group.balances.length}{" "}
+                    {group.balances.length === 1 ? "benefício" : "benefícios"}
+                  </span>
+                  <svg
+                    className={styles.employeeChevron}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M6 9l6 6 6-6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </summary>
+                <ul className={styles.list}>
+                  {group.balances.map((balance) => (
+                    <li key={balance.id} className={styles.item}>
+                      <span className={styles.itemDetail}>{balance.label}</span>
+                      <span className={styles.itemBalance}>
+                        {formatCurrency(balance.balance)} · crédito mensal{" "}
+                        {formatCurrency(balance.monthlyCredit)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
