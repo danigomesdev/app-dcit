@@ -764,6 +764,8 @@ In `ColaboradorView`, change the post `<li>` body from:
               </li>
 ```
 
+**This exact two-line snippet also appears verbatim in `TeamView` (added in Task 2) — `TeamView`'s version sits right after a `<span className={styles.reactionCount}>` block that `ColaboradorView` never had, so if your editor needs a unique anchor, include a few lines of leading context (the `<div className={styles.itemInfo}>...</div>` closing right before it, with no `reactionCount` span in between) to confirm you're inside `ColaboradorView`, not `TeamView`. `TeamView` must remain byte-for-byte unchanged from Task 2.**
+
 to:
 
 ```tsx
