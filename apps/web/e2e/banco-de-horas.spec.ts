@@ -39,7 +39,7 @@ test("colaborador sees their own saldo, DSR, and daily breakdown for the current
   await expect(row).toContainText("Diferença: -1h 00min");
 });
 
-test("colaborador's period tabs switch between mês atual, anterior and últimos 3 meses", async ({
+test("colaborador's period tabs switch between mês atual, anterior and últimos 3 meses, keeping the saldo aligned to calendar months", async ({
   page,
   context,
   request,
@@ -64,12 +64,52 @@ test("colaborador's period tabs switch between mês atual, anterior and últimos
   await expect(atual).toBeVisible();
   await expect(anterior).toBeVisible();
   await expect(tresMeses).toBeVisible();
+  // "Mês atual" is the default period, so it starts out visually active.
+  await expect(atual).toHaveClass(/periodTabActive/);
+
+  const getMinhasQueries = async () => {
+    const recorded = await getRecordedRequests(request);
+    return recorded
+      .filter((r) => r.method === "GET" && r.path === "/banco-de-horas/minhas")
+      .map((r) => r.query);
+  };
 
   await tresMeses.click();
   await expect(page).toHaveURL(/periodo=3meses/);
+  await expect(tresMeses).toHaveClass(/periodTabActive/);
+  await expect(atual).not.toHaveClass(/periodTabActive/);
 
   await anterior.click();
   await expect(page).toHaveURL(/periodo=anterior/);
+  await expect(anterior).toHaveClass(/periodTabActive/);
+  await expect(tresMeses).not.toHaveClass(/periodTabActive/);
+
+  // Wait for all three GET /banco-de-horas/minhas requests (initial load +
+  // the two tab clicks) to land, then check the calendar-alignment
+  // invariant on their recorded start/end query params: the saldo must
+  // always be a fixed calendar-month window, never a rolling window that
+  // happens to slide with "today".
+  await expect.poll(async () => (await getMinhasQueries()).length).toBe(3);
+  const [atualQuery, tresMesesQuery, anteriorQuery] = await getMinhasQueries();
+
+  // Every period's start is the 1st of a month, not an arbitrary rolling
+  // cutoff N days back from today.
+  expect(atualQuery.start.endsWith("-01")).toBe(true);
+  expect(tresMesesQuery.start.endsWith("-01")).toBe(true);
+  expect(anteriorQuery.start.endsWith("-01")).toBe(true);
+
+  // "Mês anterior" never crosses into a second calendar month — a rolling
+  // 30-day window from today would fail this on most days of the month.
+  expect(anteriorQuery.end.slice(0, 7)).toBe(anteriorQuery.start.slice(0, 7));
+
+  // Each period starts strictly earlier than the next, and "3 meses" starts
+  // two calendar months before "mês atual" — i.e. before "mês anterior".
+  expect(anteriorQuery.start < atualQuery.start).toBe(true);
+  expect(tresMesesQuery.start < anteriorQuery.start).toBe(true);
+
+  // "3 meses" ends today, same as "mês atual" — only its start reaches back
+  // further, confirming it's still anchored to "today", not open-ended.
+  expect(tresMesesQuery.end).toBe(atualQuery.end);
 });
 
 test("shows the team's banco de horas for a gestor, including a missing salário as —", async ({
@@ -239,7 +279,7 @@ test("shows a message when there are no compensation requests yet", async ({
   await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toBeVisible();
 });
 
-test("submitting the compensation form posts the reason to the API", async ({
+test("submitting the compensation form posts the reason to the API and refreshes Minhas solicitações with the new item", async ({
   page,
   context,
   request,
@@ -263,6 +303,27 @@ test("submitting the compensation form posts the reason to the API", async ({
   });
 
   await page.goto("/banco-de-horas");
+  await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toBeVisible();
+
+  // Re-seed the GET *before* submitting, so it's already in place when the
+  // form's server action (requestCompensation) calls revalidatePath and the
+  // page re-fetches "Minhas solicitações" as part of that same round trip —
+  // this is what proves revalidatePath actually refreshes the list, not
+  // just that the POST body was correct.
+  await seedResponse(request, {
+    method: "GET",
+    path: "/solicitacoes/compensacoes",
+    response: [
+      {
+        id: "cp-new",
+        reason: "Compensar plantão de sábado",
+        status: "pendente",
+        reviewNote: null,
+        createdAt: "2026-08-31T12:00:00.000Z",
+      },
+    ],
+  });
+
   await page.getByLabel("Motivo").fill("Compensar plantão de sábado");
   await page.getByRole("button", { name: "Enviar solicitação" }).click();
 
@@ -274,4 +335,8 @@ test("submitting the compensation form posts the reason to the API", async ({
       )?.body;
     })
     .toEqual({ reason: "Compensar plantão de sábado" });
+
+  await expect(page.getByText("Compensar plantão de sábado")).toBeVisible();
+  await expect(page.getByText("Pendente")).toBeVisible();
+  await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toHaveCount(0);
 });

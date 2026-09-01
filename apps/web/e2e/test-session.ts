@@ -187,7 +187,7 @@ export async function mockApi(
 
 export async function getRecordedRequests(
   request: APIRequestContext
-): Promise<Array<{ method: string; path: string; body: unknown }>> {
+): Promise<Array<{ method: string; path: string; query: Record<string, string>; body: unknown }>> {
   const res = await request.get(`${FAKE_API_URL}/__requests`);
   return res.json();
 }

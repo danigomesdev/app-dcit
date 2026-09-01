@@ -61,7 +61,12 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, recordedRequests);
   }
 
-  recordedRequests.push({ method: req.method, path: url.pathname, body });
+  recordedRequests.push({
+    method: req.method,
+    path: url.pathname,
+    query: Object.fromEntries(url.searchParams),
+    body,
+  });
 
   const seedEntry = seeded[seedKey(req.method, url.pathname)];
   if (seedEntry) {

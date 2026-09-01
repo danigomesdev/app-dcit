@@ -102,12 +102,15 @@ function formatMonthLabel(dateStr: string): string {
   });
 }
 
+// Deliberately unsigned (no +/- sign), unlike formatSignedMinutes above:
+// expectedMinutes/workedMinutes are counts, never negative.
 function formatMinutes(totalMinutes: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
 }
 
+// Same UTC-formatting reasoning as formatMonthLabel above.
 function formatDayLabel(dateStr: string): string {
   return new Date(`${dateStr}T00:00:00.000Z`).toLocaleDateString("pt-BR", {
     day: "2-digit",
@@ -268,17 +271,21 @@ async function ColaboradorView({
         </div>
       </div>
 
-      <ul className={styles.list}>
-        {summary.days.map((day) => (
-          <li key={day.date} className={styles.item}>
-            <span className={styles.itemName}>{formatDayLabel(day.date)}</span>
-            <span className={styles.itemDetail}>
-              Previsto: {formatMinutes(day.expectedMinutes)} · Trabalhado:{" "}
-              {formatMinutes(day.workedMinutes)} · Diferença: {formatSignedMinutes(day.diffMinutes)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {summary.days.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhum dia registrado neste período.</p>
+      ) : (
+        <ul className={styles.list}>
+          {summary.days.map((day) => (
+            <li key={day.date} className={styles.item}>
+              <span className={styles.itemName}>{formatDayLabel(day.date)}</span>
+              <span className={styles.itemDetail}>
+                Previsto: {formatMinutes(day.expectedMinutes)} · Trabalhado:{" "}
+                {formatMinutes(day.workedMinutes)} · Diferença: {formatSignedMinutes(day.diffMinutes)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <h2 className={styles.sectionTitle}>Solicitar compensação</h2>
       <form className={styles.form} action={requestCompensation}>
