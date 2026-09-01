@@ -2,11 +2,111 @@ import { test, expect } from "@playwright/test";
 
 import { addSessionCookie, mockApi } from "./test-session";
 
-test("colaborador sees a permission message instead of the mural", async ({ page, context }) => {
+function todaySaoPauloMonthDay(): { day: number; month: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return { day: get("day"), month: get("month") };
+}
+
+function pad(n: number): string {
+  return n.toString().padStart(2, "0");
+}
+
+test("colaborador sees today's and this month's birthdays, but not a birthday from another month", async ({
+  page,
+  context,
+  request,
+}) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  const today = todaySaoPauloMonthDay();
+  const monthDay = (today.day % 28) + 1; // always different from today.day, valid in every month
+  const otherMonth = (today.month % 12) + 1; // always different from today.month
+  await mockApi(request, {
+    muralPosts: [],
+    birthdays: [
+      { name: "Diana Colaboradora", day: today.day, month: today.month },
+      { name: "Marcos Colega", day: monthDay, month: today.month },
+      { name: "Outro Mês", day: 10, month: otherMonth },
+    ],
+  });
+
   await page.goto("/mural");
 
-  await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
+  await expect(page.getByText("Aniversariante(s) de hoje: Diana Colaboradora")).toBeVisible();
+  await expect(
+    page.getByText(`Também fazem aniversário este mês: Marcos Colega (${pad(monthDay)}/${pad(today.month)})`),
+  ).toBeVisible();
+  await expect(page.getByText("Outro Mês")).toHaveCount(0);
+});
+
+test("shows a message when there are no birthdays this month", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  const today = todaySaoPauloMonthDay();
+  const otherMonth = (today.month % 12) + 1;
+  await mockApi(request, {
+    muralPosts: [
+      {
+        id: "post-1",
+        glyph: "🎉",
+        title: "Boas-vindas!",
+        body: "Texto.",
+        reactionCount: 0,
+        reacted: false,
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+    birthdays: [{ name: "Outro Mês", day: 10, month: otherMonth }],
+  });
+
+  await page.goto("/mural");
+
+  await expect(page.getByText("Nenhum aniversariante este mês.")).toBeVisible();
+});
+
+test("colaborador sees mural posts with title, body and publish date", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    muralPosts: [
+      {
+        id: "post-1",
+        glyph: "🎉",
+        title: "Boas-vindas!",
+        body: "Damos as boas-vindas ao novo time de suporte.",
+        reactionCount: 4,
+        reacted: false,
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+    birthdays: [],
+  });
+
+  await page.goto("/mural");
+
+  await expect(page.getByRole("heading", { name: "Mural" })).toBeVisible();
+  await expect(page.getByText("Boas-vindas!")).toBeVisible();
+  await expect(page.getByText("Damos as boas-vindas ao novo time de suporte.")).toBeVisible();
+  await expect(page.getByText("publicado em 20/08/2026")).toBeVisible();
+});
+
+test("shows a message when there are no posts yet", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    muralPosts: [],
+    birthdays: [{ name: "Diana Colaboradora", day: 1, month: 1 }],
+  });
+
+  await page.goto("/mural");
+
+  await expect(page.getByText("Nenhum comunicado publicado ainda.")).toBeVisible();
 });
 
 test("lists mural posts with reaction counts and upcoming birthdays for a gestor", async ({

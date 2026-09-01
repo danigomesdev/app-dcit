@@ -94,3 +94,16 @@
   font-size: 14px;
   color: var(--color-text);
 }
+
+.birthdayToday {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-background-selected);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.birthdayMonth {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
