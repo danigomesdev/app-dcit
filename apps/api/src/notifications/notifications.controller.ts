@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { z } from 'zod';
 import { PAGAMENTO_CATEGORIAS, SendPagamentoSchema } from '@ponto-dcit/shared-types';
 import { NotificationsService } from './notifications.service';
 import { AuthGuard } from '../auth/auth-guard';
@@ -18,6 +19,11 @@ import { Roles } from '../auth/roles.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type AuthenticatedRequest = Request & { user: AuthenticatedUser };
+
+const PagamentoStatusQuerySchema = z.object({
+  start: z.string().date(),
+  end: z.string().date(),
+});
 
 @Controller('notifications')
 export class NotificationsController {
@@ -40,16 +46,22 @@ export class NotificationsController {
   @Get('pagamentos/status/:category')
   pagamentoStatus(
     @Param('category') category: string,
-    @Query('start') start: string,
-    @Query('end') end: string,
+    @Query() query: unknown,
   ) {
     if (!(PAGAMENTO_CATEGORIAS as readonly string[]).includes(category)) {
       throw new BadRequestException('categoria inválida');
     }
+    const result = PagamentoStatusQuerySchema.safeParse(query);
+    if (!result.success) {
+      throw new BadRequestException(result.error.flatten());
+    }
+    if (result.data.start > result.data.end) {
+      throw new BadRequestException('O parâmetro start não pode ser posterior a end.');
+    }
     return this.notifications.pagamentoStatus(
       category as (typeof PAGAMENTO_CATEGORIAS)[number],
-      start,
-      end,
+      result.data.start,
+      result.data.end,
     );
   }
 
