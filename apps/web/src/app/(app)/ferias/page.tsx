@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { requestVacation } from "./actions";
 import styles from "./ferias.module.css";
 
 type VacationRequestRecord = {
@@ -147,6 +148,34 @@ export default async function FeriasPage() {
           </span>
         </div>
       ) : null}
+
+      <h2 className={styles.sectionTitle}>Solicitar férias</h2>
+      <form className={styles.form} action={requestVacation}>
+        <div className={styles.dateFields}>
+          <div className={styles.dateField}>
+            <label className={styles.dateFieldLabel} htmlFor="startDate">
+              Início
+            </label>
+            <input
+              className={styles.dateInput}
+              type="date"
+              id="startDate"
+              name="startDate"
+              min={today}
+              required
+            />
+          </div>
+          <div className={styles.dateField}>
+            <label className={styles.dateFieldLabel} htmlFor="endDate">
+              Fim
+            </label>
+            <input className={styles.dateInput} type="date" id="endDate" name="endDate" required />
+          </div>
+        </div>
+        <button type="submit" className={styles.submitButton}>
+          Enviar solicitação
+        </button>
+      </form>
 
       <h2 className={styles.sectionTitle}>Minhas solicitações</h2>
       {data.requests.length === 0 ? (

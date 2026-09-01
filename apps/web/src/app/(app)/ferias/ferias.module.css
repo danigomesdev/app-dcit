@@ -120,3 +120,46 @@
   color: var(--color-text);
   min-width: 44px;
 }
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dateFields {
+  display: flex;
+  gap: 12px;
+}
+
+.dateField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.dateFieldLabel {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.dateInput {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background-element);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.submitButton {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-weight: 600;
+  cursor: pointer;
+}

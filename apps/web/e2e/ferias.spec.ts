@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, mockApi } from "./test-session";
+import { addSessionCookie, getRecordedRequests, mockApi, seedResponse } from "./test-session";
 
 // Local helpers mirroring apps/web/src/app/(app)/ferias/page.tsx's own
 // date-only cycle math, used to compute the expected período
@@ -208,4 +208,70 @@ test("shows a message when there's no vacation history yet", async ({ page, cont
   await page.goto("/ferias");
 
   await expect(page.getByText("Nenhum período de férias registrado ainda.")).toBeVisible();
+});
+
+test("submitting the vacation form posts start/end/days to the API and refreshes Minhas solicitações with the new item", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    feriasData: { requests: [], hireDate: HIRE_DATE, history: [] },
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/solicitacoes/ferias",
+    status: 201,
+    response: {
+      id: "vr-new",
+      startDate: "2026-12-15",
+      endDate: "2027-01-05",
+      days: 22,
+      status: "pendente",
+      reviewNote: null,
+    },
+  });
+
+  await page.goto("/ferias");
+  await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toBeVisible();
+
+  // Re-seed the GET *before* submitting, so it's already in place when the
+  // form's server action (requestVacation) calls revalidatePath and the
+  // page re-fetches as part of that same round trip — this is what proves
+  // revalidatePath actually refreshes the list, not just that the POST
+  // body was correct.
+  await seedResponse(request, {
+    method: "GET",
+    path: "/solicitacoes/ferias",
+    response: {
+      requests: [
+        {
+          id: "vr-new",
+          startDate: "2026-12-15",
+          endDate: "2027-01-05",
+          days: 22,
+          status: "pendente",
+          reviewNote: null,
+        },
+      ],
+      hireDate: HIRE_DATE,
+      history: [],
+    },
+  });
+
+  await page.getByLabel("Início").fill("2026-12-15");
+  await page.getByLabel("Fim").fill("2027-01-05");
+  await page.getByRole("button", { name: "Enviar solicitação" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/solicitacoes/ferias")?.body;
+    })
+    .toEqual({ startDate: "2026-12-15", endDate: "2027-01-05", days: 22 });
+
+  await expect(page.getByText("15/12/2026 — 05/01/2027")).toBeVisible();
+  await expect(page.getByText("22 dia(s)")).toBeVisible();
+  await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toHaveCount(0);
 });
