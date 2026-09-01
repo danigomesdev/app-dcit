@@ -69,13 +69,21 @@ test("groups a colaborador's balances behind their name, collapsed until clicked
 
   await page.goto("/beneficios");
 
-  await expect(page.getByText("Diana Colaboradora")).toBeVisible();
+  const toggle = page.getByRole("button", { name: /Diana Colaboradora/ });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByText("2 benefícios")).toBeVisible();
   await expect(page.getByText("Vale-refeição")).toHaveCount(0);
   await expect(page.getByText("Plano de saúde")).toHaveCount(0);
 
-  await page.getByText("Diana Colaboradora").click();
+  await toggle.click();
 
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Vale-refeição")).toBeVisible();
   await expect(page.getByText("Plano de saúde")).toBeVisible();
+
+  await toggle.click();
+
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByText("Vale-refeição")).toHaveCount(0);
 });

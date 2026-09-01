@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { EmployeeBenefitsGroup } from "./employee-benefits-group";
 import styles from "./beneficios.module.css";
 
 type Balance = {
@@ -19,10 +20,6 @@ type Partner = {
   category: string;
   discount: string;
 };
-
-function formatCurrency(value: number): string {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function groupByEmployee(balances: Balance[]): { userId: string; userName: string; balances: Balance[] }[] {
   const groups = new Map<string, { userId: string; userName: string; balances: Balance[] }>();
@@ -75,40 +72,11 @@ export default async function BeneficiosPage() {
         ) : (
           <div className={styles.employeeList}>
             {employeeGroups.map((group) => (
-              <details key={group.userId} className={styles.employeeGroup}>
-                <summary className={styles.employeeSummary}>
-                  <span className={styles.itemName}>{group.userName}</span>
-                  <span className={styles.employeeCount}>
-                    {group.balances.length}{" "}
-                    {group.balances.length === 1 ? "benefício" : "benefícios"}
-                  </span>
-                  <svg
-                    className={styles.employeeChevron}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M6 9l6 6 6-6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </summary>
-                <ul className={styles.list}>
-                  {group.balances.map((balance) => (
-                    <li key={balance.id} className={styles.item}>
-                      <span className={styles.itemDetail}>{balance.label}</span>
-                      <span className={styles.itemBalance}>
-                        {formatCurrency(balance.balance)} · crédito mensal{" "}
-                        {formatCurrency(balance.monthlyCredit)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
+              <EmployeeBenefitsGroup
+                key={group.userId}
+                userName={group.userName}
+                balances={group.balances}
+              />
             ))}
           </div>
         )}
