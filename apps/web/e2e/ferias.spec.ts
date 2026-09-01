@@ -79,7 +79,7 @@ test("colaborador sees the illustrative saldo, período aquisitivo and venciment
   const today = todaySaoPauloDateOnly();
   const cycle = currentCycle(HIRE_DATE, today);
 
-  await expect(page.getByRole("heading", { name: "Férias" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Férias", exact: true, level: 1 })).toBeVisible();
   await expect(page.getByText("22 dias disponíveis")).toBeVisible();
   await expect(
     page.getByText(
@@ -174,4 +174,38 @@ test("shows a message when there are no vacation requests yet", async ({
   await page.goto("/ferias");
 
   await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toBeVisible();
+});
+
+test("colaborador sees their vacation history", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    feriasData: {
+      requests: [],
+      hireDate: HIRE_DATE,
+      history: [
+        { id: "vh-1", year: 2025, startDate: "2025-06-15", endDate: "2025-06-29", daysTaken: 15 },
+        { id: "vh-2", year: 2024, startDate: "2024-01-10", endDate: "2024-02-09", daysTaken: 30 },
+      ],
+    },
+  });
+
+  await page.goto("/ferias");
+
+  // Check for the history section heading
+  await expect(page.getByRole("heading", { name: "Histórico de férias" })).toBeVisible();
+  // Check for the 2025 entry with its full date range
+  await expect(page.getByText("15/06/2025 — 29/06/2025 · 15 dias")).toBeVisible();
+  // Check for the 2024 entry with its full date range
+  await expect(page.getByText("10/01/2024 — 09/02/2024 · 30 dias")).toBeVisible();
+});
+
+test("shows a message when there's no vacation history yet", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    feriasData: { requests: [], hireDate: HIRE_DATE, history: [] },
+  });
+
+  await page.goto("/ferias");
+
+  await expect(page.getByText("Nenhum período de férias registrado ainda.")).toBeVisible();
 });

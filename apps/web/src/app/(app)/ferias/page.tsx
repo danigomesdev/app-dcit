@@ -175,6 +175,22 @@ export default async function FeriasPage() {
           ))}
         </ul>
       )}
+
+      <h2 className={styles.sectionTitle}>Histórico de férias</h2>
+      {data.history.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhum período de férias registrado ainda.</p>
+      ) : (
+        <ul className={styles.list}>
+          {data.history.map((entry) => (
+            <li key={entry.id} className={styles.item}>
+              <span className={styles.historyYear}>{entry.year}</span>
+              <span className={styles.itemDetail}>
+                {formatDate(entry.startDate)} — {formatDate(entry.endDate)} · {entry.daysTaken} dias
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

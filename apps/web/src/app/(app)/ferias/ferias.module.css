@@ -114,3 +114,9 @@
   color: var(--color-text-secondary);
   font-size: 14px;
 }
+
+.historyYear {
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 44px;
+}
