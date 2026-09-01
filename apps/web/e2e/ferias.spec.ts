@@ -11,8 +11,19 @@ function pad(n: number): string {
   return n.toString().padStart(2, "0");
 }
 
-function toDateOnly(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+// São-Paulo-aware "today", mirroring the page's own todaySaoPauloDateOnly —
+// deliberately not a timezone-naive `new Date()` read, since the test
+// runner's local timezone isn't guaranteed to be America/Sao_Paulo and the
+// page always renders "today" anchored to that timezone.
+function todaySaoPauloDateOnly(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 function addYearsToDateOnly(dateStr: string, years: number): string {
@@ -65,7 +76,7 @@ test("colaborador sees the illustrative saldo, período aquisitivo and venciment
 
   await page.goto("/ferias");
 
-  const today = toDateOnly(new Date());
+  const today = todaySaoPauloDateOnly();
   const cycle = currentCycle(HIRE_DATE, today);
 
   await expect(page.getByRole("heading", { name: "Férias" })).toBeVisible();
