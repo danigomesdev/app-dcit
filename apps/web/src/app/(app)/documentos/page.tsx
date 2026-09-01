@@ -1,9 +1,19 @@
+import type { Session } from "@/lib/session";
 import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
 import { AtestadoPhotoButton } from "./atestado-photo-button";
 import styles from "./documentos.module.css";
+
+type DocumentStatus = "enviado" | "em_analise" | "aprovado" | "recusado";
+
+const STATUS_LABEL: Record<DocumentStatus, string> = {
+  enviado: "Enviado",
+  em_analise: "Em análise",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
+};
 
 type Atestado = {
   id: string;
@@ -12,7 +22,7 @@ type Atestado = {
   crm: string | null;
   medico: string | null;
   dias: number | null;
-  status: "enviado" | "em_analise" | "aprovado" | "recusado";
+  status: DocumentStatus;
   createdAt: string;
 };
 
@@ -21,7 +31,7 @@ type AdmissionDocument = {
   userId: string;
   userName: string;
   title: string;
-  status: string;
+  status: DocumentStatus;
   submittedAt: string;
 };
 
@@ -34,28 +44,28 @@ type CertificationDoc = {
   validUntil: string;
 };
 
-const STATUS_LABEL: Record<Atestado["status"], string> = {
-  enviado: "Enviado",
-  em_analise: "Em análise",
-  aprovado: "Aprovado",
-  recusado: "Recusado",
-};
-
+// API DateTime fields arrive as full ISO instant strings (Prisma DateTime ->
+// JSON) — timeZone: "UTC" here is not cosmetic: without it, a UTC-midnight
+// value shifts to the previous local day (the exact bug the Férias sub-
+// project's final review caught and fixed in its own formatDate).
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("pt-BR");
+  return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 export default async function DocumentosPage() {
   const session = await getSession();
-  if (!session || session.role === "colaborador") {
+  if (!session) {
+    return <EmptyState title="Sem permissão" description="Faça login para continuar." />;
+  }
+  if (session.role === "colaborador") {
     return (
-      <EmptyState
-        title="Sem permissão"
-        description="Esta página é restrita a gestores e RH."
-      />
+      <EmptyState title="Sem permissão" description="Esta página é restrita a gestores e RH." />
     );
   }
+  return <TeamView session={session} />;
+}
 
+async function TeamView({ session }: { session: Session }) {
   const [atestados, admissionDocuments, certifications] = await Promise.all([
     apiFetchJson<Atestado[]>("/atestados/team"),
     apiFetchJson<AdmissionDocument[]>("/documentos/admissionais/equipe"),
@@ -80,54 +90,54 @@ export default async function DocumentosPage() {
         {atestados.length === 0 ? (
           <p className={styles.sectionEmpty}>Nenhum atestado enviado ainda.</p>
         ) : (
-      <ul className={styles.list}>
-        {atestados.map((atestado) => {
-          // cid/crm/medico only arrive non-null for an RH viewer — the API
-          // masks them server-side for gestor (see AtestadosService.listTeam).
-          const hasClinicalDetail = atestado.cid || atestado.crm || atestado.medico;
+          <ul className={styles.list}>
+            {atestados.map((atestado) => {
+              // cid/crm/medico only arrive non-null for an RH viewer — the API
+              // masks them server-side for gestor (see AtestadosService.listTeam).
+              const hasClinicalDetail = atestado.cid || atestado.crm || atestado.medico;
 
-          return (
-            <li key={atestado.id} className={styles.item}>
-              <div className={styles.itemHeader}>
-                <div className={styles.itemInfo}>
-                  <span className={styles.itemName}>{atestado.userName}</span>
-                  <span className={styles.itemDetail}>
-                    {atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"} ·
-                    enviado em {formatDate(atestado.createdAt)}
-                  </span>
-                </div>
-                <span
-                  className={`${styles.status} ${
-                    atestado.status === "aprovado" ? styles.statusAprovado : ""
-                  }`}
-                >
-                  {STATUS_LABEL[atestado.status]}
-                </span>
-              </div>
-              {hasClinicalDetail ? (
-                <div className={styles.clinical}>
-                  {atestado.cid ? (
-                    <span>
-                      <strong>CID:</strong> {atestado.cid}
+              return (
+                <li key={atestado.id} className={styles.item}>
+                  <div className={styles.itemHeader}>
+                    <div className={styles.itemInfo}>
+                      <span className={styles.itemName}>{atestado.userName}</span>
+                      <span className={styles.itemDetail}>
+                        {atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"} ·
+                        enviado em {formatDate(atestado.createdAt)}
+                      </span>
+                    </div>
+                    <span
+                      className={`${styles.status} ${
+                        atestado.status === "aprovado" ? styles.statusAprovado : ""
+                      }`}
+                    >
+                      {STATUS_LABEL[atestado.status]}
                     </span>
+                  </div>
+                  {hasClinicalDetail ? (
+                    <div className={styles.clinical}>
+                      {atestado.cid ? (
+                        <span>
+                          <strong>CID:</strong> {atestado.cid}
+                        </span>
+                      ) : null}
+                      {atestado.medico ? (
+                        <span>
+                          <strong>Médico:</strong> {atestado.medico}
+                        </span>
+                      ) : null}
+                      {atestado.crm ? (
+                        <span>
+                          <strong>CRM:</strong> {atestado.crm}
+                        </span>
+                      ) : null}
+                    </div>
                   ) : null}
-                  {atestado.medico ? (
-                    <span>
-                      <strong>Médico:</strong> {atestado.medico}
-                    </span>
-                  ) : null}
-                  {atestado.crm ? (
-                    <span>
-                      <strong>CRM:</strong> {atestado.crm}
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-              {session.role === "rh" ? <AtestadoPhotoButton id={atestado.id} /> : null}
-            </li>
-          );
-        })}
-      </ul>
+                  {session.role === "rh" ? <AtestadoPhotoButton id={atestado.id} /> : null}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </section>
 
@@ -146,7 +156,7 @@ export default async function DocumentosPage() {
                       {document.title} · enviado em {formatDate(document.submittedAt)}
                     </span>
                   </div>
-                  <span className={styles.status}>{document.status}</span>
+                  <span className={styles.status}>{STATUS_LABEL[document.status]}</span>
                 </div>
               </li>
             ))}

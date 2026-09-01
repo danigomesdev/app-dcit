@@ -153,3 +153,29 @@ test("lists admission documents and certifications submitted by the team", async
   await expect(page.getByRole("heading", { name: "Certificações" })).toBeVisible();
   await expect(page.getByText("Elias Colaborador")).toBeVisible();
 });
+
+test("shows a proper label instead of the raw status for an admissionais document", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request, {
+    admissionDocuments: [
+      {
+        id: "adm-2",
+        userId: "user-3",
+        userName: "Fábio Colaborador",
+        title: "RG",
+        status: "enviado",
+        submittedAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/documentos");
+
+  await expect(page.getByText("Fábio Colaborador")).toBeVisible();
+  await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
+  await expect(page.getByText("enviado", { exact: true })).toHaveCount(0);
+});
