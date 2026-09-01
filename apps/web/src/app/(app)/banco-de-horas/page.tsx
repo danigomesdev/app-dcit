@@ -13,6 +13,16 @@ type TeamSummary = {
   overtimeValueBRL: number | null;
 };
 
+type DailySummary = { date: string; expectedMinutes: number; workedMinutes: number; diffMinutes: number };
+type MinhaSummary = {
+  days: DailySummary[];
+  balanceMinutes: number;
+  dsrMinutes: number;
+  hourlyRateBRL: number | null;
+  overtimeValueBRL: number | null;
+};
+type Periodo = "atual" | "anterior" | "3meses";
+
 // Duplicated (not imported from a shared package) — these are two tiny pure
 // functions, not worth a new shared-types entry; the same trade-off already
 // made for CARGOS/NIVEIS in colaborador-form-fields.tsx.
@@ -76,6 +86,43 @@ function formatMonthLabel(dateStr: string): string {
     timeZone: "UTC",
   });
 }
+
+function formatMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
+}
+
+function formatDayLabel(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00.000Z`).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+function resolvePeriodo(value: string | undefined): Periodo {
+  return value === "anterior" || value === "3meses" ? value : "atual";
+}
+
+function periodoRange(periodo: Periodo): { start: string; end: string } {
+  const today = todaySaoPauloDateOnly();
+  const currentMonthStart = firstDayOfMonth(today);
+  if (periodo === "atual") {
+    return { start: currentMonthStart, end: today };
+  }
+  if (periodo === "anterior") {
+    const start = addMonths(currentMonthStart, -1);
+    return { start, end: lastDayOfMonth(start) };
+  }
+  return { start: addMonths(currentMonthStart, -2), end: today };
+}
+
+const PERIODO_LABEL: Record<Periodo, string> = {
+  atual: "Mês atual",
+  anterior: "Mês anterior",
+  "3meses": "Últimos 3 meses",
+};
 
 export default async function BancoDeHorasPage({ searchParams }: PageProps<"/banco-de-horas">) {
   const session = await getSession();
@@ -156,6 +203,66 @@ async function ColaboradorView({
 }: {
   searchParams: Record<string, string | string[] | undefined>;
 }) {
-  void searchParams;
-  return <EmptyState title="Sem permissão" description="Esta página é restrita a gestores e RH." />;
+  const periodoParam = searchParams.periodo;
+  const periodo = resolvePeriodo(typeof periodoParam === "string" ? periodoParam : undefined);
+  const { start, end } = periodoRange(periodo);
+
+  const summary = await apiFetchJson<MinhaSummary>(
+    `/banco-de-horas/minhas?start=${start}&end=${end}`,
+  );
+
+  return (
+    <div className={styles.page}>
+      <h1 className={styles.heading}>Banco de Horas</h1>
+
+      <div className={styles.periodTabs}>
+        {(["atual", "anterior", "3meses"] as const).map((option) => (
+          <a
+            key={option}
+            className={
+              periodo === option ? `${styles.periodTab} ${styles.periodTabActive}` : styles.periodTab
+            }
+            href={`/banco-de-horas?periodo=${option}`}
+          >
+            {PERIODO_LABEL[option]}
+          </a>
+        ))}
+      </div>
+
+      <div className={styles.summaryCard}>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Saldo</span>
+          <span className={styles.summaryValue}>{formatSignedMinutes(summary.balanceMinutes)}</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>DSR estimado</span>
+          <span className={styles.summaryValue}>{formatSignedMinutes(summary.dsrMinutes)}</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Valor-hora</span>
+          <span className={styles.summaryValue}>
+            {summary.hourlyRateBRL === null ? "—" : formatBRL(summary.hourlyRateBRL)}
+          </span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Extras em R$</span>
+          <span className={styles.summaryValue}>
+            {summary.overtimeValueBRL === null ? "—" : formatBRL(summary.overtimeValueBRL)}
+          </span>
+        </div>
+      </div>
+
+      <ul className={styles.list}>
+        {summary.days.map((day) => (
+          <li key={day.date} className={styles.item}>
+            <span className={styles.itemName}>{formatDayLabel(day.date)}</span>
+            <span className={styles.itemDetail}>
+              Previsto: {formatMinutes(day.expectedMinutes)} · Trabalhado:{" "}
+              {formatMinutes(day.workedMinutes)} · Diferença: {formatSignedMinutes(day.diffMinutes)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }

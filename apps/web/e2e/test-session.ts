@@ -63,6 +63,8 @@ export async function mockApi(
     convencoes?: unknown[];
     bancoDeHorasEquipe?: unknown[];
     holerites?: unknown[];
+    bancoDeHorasMinhas?: unknown;
+    myCompensations?: unknown[];
   } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
@@ -169,6 +171,16 @@ export async function mockApi(
   if (data.holerites) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/documentos/holerites/equipe", response: data.holerites },
+    });
+  }
+  if (data.bancoDeHorasMinhas) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/banco-de-horas/minhas", response: data.bancoDeHorasMinhas },
+    });
+  }
+  if (data.myCompensations) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/solicitacoes/compensacoes", response: data.myCompensations },
     });
   }
 }

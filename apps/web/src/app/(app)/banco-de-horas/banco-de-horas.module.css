@@ -56,3 +56,53 @@
   font-size: 14px;
   color: var(--color-text-secondary);
 }
+
+.periodTabs {
+  display: flex;
+  gap: 8px;
+}
+
+.periodTab {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-background-element);
+}
+
+.periodTab:hover {
+  color: var(--color-text);
+}
+
+.periodTabActive,
+.periodTabActive:hover {
+  background: var(--color-text);
+  color: var(--color-background);
+}
+
+.summaryCard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--color-background-element);
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summaryLabel {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.summaryValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+}

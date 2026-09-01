@@ -2,14 +2,74 @@ import { test, expect } from "@playwright/test";
 
 import { addSessionCookie, mockApi } from "./test-session";
 
-test("colaborador sees a permission message instead of the team's banco de horas", async ({
+test("colaborador sees their own saldo, DSR, and daily breakdown for the current month", async ({
   page,
   context,
+  request,
 }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    bancoDeHorasMinhas: {
+      days: [
+        { date: "2026-08-01", expectedMinutes: 480, workedMinutes: 480, diffMinutes: 0 },
+        { date: "2026-08-02", expectedMinutes: 480, workedMinutes: 420, diffMinutes: -60 },
+      ],
+      // -75 (summary) deliberately differs from any per-day diffMinutes
+      // (0, -60) so the two "-1h Xmin"-shaped strings can't collide under
+      // Playwright's strict-mode text matching.
+      balanceMinutes: -75,
+      dsrMinutes: 0,
+      hourlyRateBRL: 45.45,
+      overtimeValueBRL: null,
+    },
+    myCompensations: [],
+  });
+
   await page.goto("/banco-de-horas");
 
-  await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Banco de Horas" })).toBeVisible();
+  await expect(page.getByText("-1h 15min")).toBeVisible();
+  await expect(page.getByText(/R\$\s?45,45/)).toBeVisible();
+
+  // Both days share "Previsto: 8h 00min" (same expectedMinutes) — scope to
+  // one row via its unique date label instead of asserting on page-wide text.
+  const row = page.locator("li", { hasText: "02/08" });
+  await expect(row).toContainText("Previsto: 8h 00min");
+  await expect(row).toContainText("Trabalhado: 7h 00min");
+  await expect(row).toContainText("Diferença: -1h 00min");
+});
+
+test("colaborador's period tabs switch between mês atual, anterior and últimos 3 meses", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    bancoDeHorasMinhas: {
+      days: [],
+      balanceMinutes: 0,
+      dsrMinutes: 0,
+      hourlyRateBRL: null,
+      overtimeValueBRL: null,
+    },
+    myCompensations: [],
+  });
+
+  await page.goto("/banco-de-horas");
+
+  const atual = page.getByRole("link", { name: "Mês atual" });
+  const anterior = page.getByRole("link", { name: "Mês anterior" });
+  const tresMeses = page.getByRole("link", { name: "Últimos 3 meses" });
+  await expect(atual).toBeVisible();
+  await expect(anterior).toBeVisible();
+  await expect(tresMeses).toBeVisible();
+
+  await tresMeses.click();
+  await expect(page).toHaveURL(/periodo=3meses/);
+
+  await anterior.click();
+  await expect(page).toHaveURL(/periodo=anterior/);
 });
 
 test("shows the team's banco de horas for a gestor, including a missing salário as —", async ({
