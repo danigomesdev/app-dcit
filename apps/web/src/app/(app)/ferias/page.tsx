@@ -74,7 +74,7 @@ const STATUS_LABEL: Record<VacationRequestRecord["status"], string> = {
 // date-only strings instead of Date objects.
 function currentVacationCycle(hireDate: string, today: string): VacationCycle {
   let n = 0;
-  while (addYearsToDateOnly(hireDate, n + 2) <= today) {
+  while (addYearsToDateOnly(hireDate, n + 2) <= today && n < 100) {
     n++;
   }
   return {
@@ -91,16 +91,13 @@ function daysUntil(dateStr: string, today: string): number {
   return Math.ceil((target - from) / msPerDay);
 }
 
-// Date-only values are stored as UTC midnight — format in UTC so the
-// displayed date never shifts by one due to São Paulo being behind UTC
-// (same reasoning as formatMonthLabel/formatDayLabel in banco-de-horas's
-// page.tsx). Only "what day is it right now" (todaySaoPauloDateOnly above)
-// needs the America/Sao_Paulo timezone; formatting an already-resolved
-// date-only string does not.
-function formatDate(dateStr: string): string {
-  return new Date(`${dateStr}T00:00:00.000Z`).toLocaleDateString("pt-BR", {
-    timeZone: "UTC",
-  });
+// API DateTime fields (hireDate, startDate, endDate) arrive as full ISO
+// instant strings (Prisma DateTime -> JSON), not date-only — same
+// handling as aprovacoes/page.tsx's formatDateOnly. new Date(value) parses
+// a full ISO string directly, and also correctly parses a bare
+// "YYYY-MM-DD" as UTC midnight, so this is robust to either shape.
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 export default async function FeriasPage() {
@@ -116,7 +113,10 @@ export default async function FeriasPage() {
 
   const data = await apiFetchJson<FeriasData>("/solicitacoes/ferias");
   const today = todaySaoPauloDateOnly();
-  const cycle = currentVacationCycle(data.hireDate ?? FALLBACK_HIRE_DATE, today);
+  // hireDate arrives as a full ISO instant string (or null) — normalize to
+  // date-only before feeding it into the date-only cycle math below.
+  const hireDateOnly = (data.hireDate ?? FALLBACK_HIRE_DATE).slice(0, 10);
+  const cycle = currentVacationCycle(hireDateOnly, today);
   const diasParaVencimento = daysUntil(cycle.vencimento, today);
 
   return (
@@ -169,7 +169,14 @@ export default async function FeriasPage() {
             <label className={styles.dateFieldLabel} htmlFor="endDate">
               Fim
             </label>
-            <input className={styles.dateInput} type="date" id="endDate" name="endDate" required />
+            <input
+              className={styles.dateInput}
+              type="date"
+              id="endDate"
+              name="endDate"
+              min={today}
+              required
+            />
           </div>
         </div>
         <button type="submit" className={styles.submitButton}>

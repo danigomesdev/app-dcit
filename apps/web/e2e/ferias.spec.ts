@@ -48,8 +48,18 @@ function formatDateBR(dateStr: string): string {
 
 // A fixed, always-in-the-past hireDate — stable regardless of when the
 // test suite runs, since currentCycle() walks it forward to whichever
-// cycle contains "today".
+// cycle contains "today". Kept as a bare YYYY-MM-DD value because that's
+// the internal date-only representation the page's own cycle math (and
+// this file's mirrored currentCycle helper) computes with.
 const HIRE_DATE = "2020-03-10";
+
+// What the API actually sends over the wire: hireDate is a Prisma
+// DateTime column, serialized as a full ISO instant string, not a bare
+// date. Use this (not HIRE_DATE) whenever seeding feriasData/mockApi
+// responses, so the fixtures match reality instead of the bug that let
+// this ship — HIRE_DATE itself stays bare for the test's own expected-
+// value math above.
+const HIRE_DATE_ISO = `${HIRE_DATE}T00:00:00.000Z`;
 
 test("gestor and rh see a permission message instead of the vacation page", async ({
   page,
@@ -71,7 +81,7 @@ test("colaborador sees the illustrative saldo, período aquisitivo and venciment
 }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await mockApi(request, {
-    feriasData: { requests: [], hireDate: HIRE_DATE, history: [] },
+    feriasData: { requests: [], hireDate: HIRE_DATE_ISO, history: [] },
   });
 
   await page.goto("/ferias");
@@ -95,7 +105,7 @@ test("shows the vencimento alert when it's within 90 days", async ({ page, conte
   target.setDate(target.getDate() + 30);
   const hireDate = `${target.getFullYear() - 2}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
   await mockApi(request, {
-    feriasData: { requests: [], hireDate, history: [] },
+    feriasData: { requests: [], hireDate: `${hireDate}T00:00:00.000Z`, history: [] },
   });
 
   await page.goto("/ferias");
@@ -109,7 +119,7 @@ test("does not show the vencimento alert when it's far away", async ({ page, con
   target.setDate(target.getDate() + 400);
   const hireDate = `${target.getFullYear() - 2}-${pad(target.getMonth() + 1)}-${pad(target.getDate())}`;
   await mockApi(request, {
-    feriasData: { requests: [], hireDate, history: [] },
+    feriasData: { requests: [], hireDate: `${hireDate}T00:00:00.000Z`, history: [] },
   });
 
   await page.goto("/ferias");
@@ -128,22 +138,22 @@ test("colaborador sees their own vacation requests, including the reviewer's not
       requests: [
         {
           id: "vr-1",
-          startDate: "2026-07-10",
-          endDate: "2026-07-24",
+          startDate: "2026-07-10T00:00:00.000Z",
+          endDate: "2026-07-24T00:00:00.000Z",
           days: 15,
           status: "aprovado",
           reviewNote: null,
         },
         {
           id: "vr-2",
-          startDate: "2026-01-05",
-          endDate: "2026-01-09",
+          startDate: "2026-01-05T00:00:00.000Z",
+          endDate: "2026-01-09T00:00:00.000Z",
           days: 5,
           status: "recusado",
           reviewNote: "Período coincide com o fechamento mensal do financeiro.",
         },
       ],
-      hireDate: HIRE_DATE,
+      hireDate: HIRE_DATE_ISO,
       history: [],
     },
   });
@@ -168,7 +178,7 @@ test("shows a message when there are no vacation requests yet", async ({
 }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await mockApi(request, {
-    feriasData: { requests: [], hireDate: HIRE_DATE, history: [] },
+    feriasData: { requests: [], hireDate: HIRE_DATE_ISO, history: [] },
   });
 
   await page.goto("/ferias");
@@ -181,10 +191,22 @@ test("colaborador sees their vacation history", async ({ page, context, request 
   await mockApi(request, {
     feriasData: {
       requests: [],
-      hireDate: HIRE_DATE,
+      hireDate: HIRE_DATE_ISO,
       history: [
-        { id: "vh-1", year: 2025, startDate: "2025-06-15", endDate: "2025-06-29", daysTaken: 15 },
-        { id: "vh-2", year: 2024, startDate: "2024-01-10", endDate: "2024-02-09", daysTaken: 30 },
+        {
+          id: "vh-1",
+          year: 2025,
+          startDate: "2025-06-15T00:00:00.000Z",
+          endDate: "2025-06-29T00:00:00.000Z",
+          daysTaken: 15,
+        },
+        {
+          id: "vh-2",
+          year: 2024,
+          startDate: "2024-01-10T00:00:00.000Z",
+          endDate: "2024-02-09T00:00:00.000Z",
+          daysTaken: 30,
+        },
       ],
     },
   });
@@ -202,7 +224,7 @@ test("colaborador sees their vacation history", async ({ page, context, request 
 test("shows a message when there's no vacation history yet", async ({ page, context, request }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await mockApi(request, {
-    feriasData: { requests: [], hireDate: HIRE_DATE, history: [] },
+    feriasData: { requests: [], hireDate: HIRE_DATE_ISO, history: [] },
   });
 
   await page.goto("/ferias");
@@ -217,7 +239,7 @@ test("submitting the vacation form posts start/end/days to the API and refreshes
 }) => {
   await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await mockApi(request, {
-    feriasData: { requests: [], hireDate: HIRE_DATE, history: [] },
+    feriasData: { requests: [], hireDate: HIRE_DATE_ISO, history: [] },
   });
   await seedResponse(request, {
     method: "POST",
@@ -225,8 +247,8 @@ test("submitting the vacation form posts start/end/days to the API and refreshes
     status: 201,
     response: {
       id: "vr-new",
-      startDate: "2026-12-15",
-      endDate: "2027-01-05",
+      startDate: "2026-12-15T00:00:00.000Z",
+      endDate: "2027-01-05T00:00:00.000Z",
       days: 22,
       status: "pendente",
       reviewNote: null,
@@ -248,14 +270,14 @@ test("submitting the vacation form posts start/end/days to the API and refreshes
       requests: [
         {
           id: "vr-new",
-          startDate: "2026-12-15",
-          endDate: "2027-01-05",
+          startDate: "2026-12-15T00:00:00.000Z",
+          endDate: "2027-01-05T00:00:00.000Z",
           days: 22,
           status: "pendente",
           reviewNote: null,
         },
       ],
-      hireDate: HIRE_DATE,
+      hireDate: HIRE_DATE_ISO,
       history: [],
     },
   });
@@ -273,5 +295,6 @@ test("submitting the vacation form posts start/end/days to the API and refreshes
 
   await expect(page.getByText("15/12/2026 — 05/01/2027")).toBeVisible();
   await expect(page.getByText("22 dia(s)")).toBeVisible();
+  await expect(page.getByText("Pendente")).toBeVisible();
   await expect(page.getByText("Nenhuma solicitação registrada ainda.")).toHaveCount(0);
 });
