@@ -15,6 +15,7 @@ import { PushModule } from './push/push.module';
 import { AlertasModule } from './alertas/alertas.module';
 import { ConvencoesModule } from './convencoes/convencoes.module';
 import { BancoDeHorasModule } from './banco-de-horas/banco-de-horas.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -35,6 +36,7 @@ import { AppService } from './app.service';
     AlertasModule,
     ConvencoesModule,
     BancoDeHorasModule,
+    NotificationsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

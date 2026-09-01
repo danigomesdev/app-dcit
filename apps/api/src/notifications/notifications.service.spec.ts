@@ -1,0 +1,160 @@
+process.env.DATABASE_URL = 'file:./test.db';
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { NotificationsService } from './notifications.service';
+import { PrismaService } from '../prisma/prisma.service';
+
+describe('NotificationsService', () => {
+  let service: NotificationsService;
+  let prisma: PrismaService;
+
+  beforeAll(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [NotificationsService, PrismaService],
+    }).compile();
+
+    service = module.get(NotificationsService);
+    prisma = module.get(PrismaService);
+    await prisma.onModuleInit();
+  });
+
+  afterEach(async () => {
+    await prisma.notification.deleteMany();
+  });
+
+  afterAll(async () => {
+    await prisma.onModuleDestroy();
+  });
+
+  describe('sendPagamento', () => {
+    it('creates one Notification per userId with the category message', async () => {
+      await service.sendPagamento('vale_transporte', ['user-1', 'user-2']);
+
+      const notifications = await prisma.notification.findMany({
+        orderBy: { userId: 'asc' },
+      });
+      expect(notifications).toHaveLength(2);
+      expect(notifications[0]).toMatchObject({
+        userId: 'user-1',
+        type: 'pagamento',
+        category: 'vale_transporte',
+        message: 'Seu vale-transporte foi depositado.',
+      });
+      expect(notifications[1]).toMatchObject({
+        userId: 'user-2',
+        type: 'pagamento',
+        category: 'vale_transporte',
+      });
+    });
+  });
+
+  describe('pagamentoStatus', () => {
+    it('returns only notifications within the date range', async () => {
+      await prisma.notification.create({
+        data: {
+          userId: 'user-1',
+          type: 'pagamento',
+          category: 'salario',
+          message: 'Seu salário foi depositado.',
+          createdAt: new Date('2026-09-05T12:00:00.000Z'),
+        },
+      });
+      await prisma.notification.create({
+        data: {
+          userId: 'user-2',
+          type: 'pagamento',
+          category: 'salario',
+          message: 'Seu salário foi depositado.',
+          createdAt: new Date('2026-08-05T12:00:00.000Z'), // outside the range below
+        },
+      });
+
+      const status = await service.pagamentoStatus('salario', '2026-09-01', '2026-09-30');
+
+      expect(status).toEqual([{ userId: 'user-1', sentAt: '2026-09-05T12:00:00.000Z' }]);
+    });
+
+    it('keeps only the most recent sentAt when a userId was notified twice', async () => {
+      await prisma.notification.create({
+        data: {
+          userId: 'user-1',
+          type: 'pagamento',
+          category: 'salario',
+          message: 'Seu salário foi depositado.',
+          createdAt: new Date('2026-09-05T12:00:00.000Z'),
+        },
+      });
+      await prisma.notification.create({
+        data: {
+          userId: 'user-1',
+          type: 'pagamento',
+          category: 'salario',
+          message: 'Seu salário foi depositado.',
+          createdAt: new Date('2026-09-10T12:00:00.000Z'),
+        },
+      });
+
+      const status = await service.pagamentoStatus('salario', '2026-09-01', '2026-09-30');
+
+      expect(status).toEqual([{ userId: 'user-1', sentAt: '2026-09-10T12:00:00.000Z' }]);
+    });
+
+    it('does not mix categories', async () => {
+      await prisma.notification.create({
+        data: {
+          userId: 'user-1',
+          type: 'pagamento',
+          category: 'vale_alimentacao',
+          message: 'Seu vale-alimentação foi depositado.',
+          createdAt: new Date('2026-09-05T12:00:00.000Z'),
+        },
+      });
+
+      const status = await service.pagamentoStatus('salario', '2026-09-01', '2026-09-30');
+
+      expect(status).toEqual([]);
+    });
+  });
+
+  describe('listMine', () => {
+    it('returns only the given userId\'s notifications, newest first', async () => {
+      await prisma.notification.create({
+        data: { userId: 'user-1', type: 'pagamento', message: 'Primeira', createdAt: new Date('2026-09-01T00:00:00.000Z') },
+      });
+      await prisma.notification.create({
+        data: { userId: 'user-1', type: 'pagamento', message: 'Segunda', createdAt: new Date('2026-09-02T00:00:00.000Z') },
+      });
+      await prisma.notification.create({
+        data: { userId: 'user-2', type: 'pagamento', message: 'De outro usuário' },
+      });
+
+      const mine = await service.listMine('user-1');
+
+      expect(mine.map((n) => n.message)).toEqual(['Segunda', 'Primeira']);
+    });
+  });
+
+  describe('markRead', () => {
+    it('sets readAt on the caller\'s own notification', async () => {
+      const created = await prisma.notification.create({
+        data: { userId: 'user-1', type: 'pagamento', message: 'Teste' },
+      });
+
+      await service.markRead(created.id, 'user-1');
+
+      const updated = await prisma.notification.findUniqueOrThrow({ where: { id: created.id } });
+      expect(updated.readAt).not.toBeNull();
+    });
+
+    it('does not mark another user\'s notification as read', async () => {
+      const created = await prisma.notification.create({
+        data: { userId: 'user-1', type: 'pagamento', message: 'Teste' },
+      });
+
+      await service.markRead(created.id, 'user-2');
+
+      const untouched = await prisma.notification.findUniqueOrThrow({ where: { id: created.id } });
+      expect(untouched.readAt).toBeNull();
+    });
+  });
+});
