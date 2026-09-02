@@ -9,6 +9,7 @@
 // See node_modules/next/dist/docs/01-app/03-api-reference/01-directives/use-server.md.
 export const OPTIONAL_FIELDS = [
   "cargo",
+  "team",
   "nivel",
   "convencaoId",
   "salarioMensal",

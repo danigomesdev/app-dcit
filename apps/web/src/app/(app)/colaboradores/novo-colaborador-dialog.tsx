@@ -10,6 +10,7 @@ const EMPTY_DEFAULTS: ColaboradorFormDefaults = {
   name: "",
   role: "colaborador",
   cargo: null,
+  team: null,
   nivel: null,
   convencaoId: null,
   salarioMensal: null,

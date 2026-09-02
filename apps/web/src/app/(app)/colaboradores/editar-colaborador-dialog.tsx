@@ -11,6 +11,7 @@ type Employee = {
   name: string;
   role: "colaborador" | "gestor" | "rh";
   cargo: string | null;
+  team: string | null;
   nivel: string | null;
   convencaoId: string | null;
   salarioMensal: number | null;
@@ -63,6 +64,7 @@ export function EditarColaboradorDialog({
     name: employee.name,
     role: employee.role ?? "colaborador",
     cargo: employee.cargo ?? null,
+    team: employee.team ?? null,
     nivel: employee.nivel ?? null,
     convencaoId: employee.convencaoId ?? null,
     salarioMensal: employee.salarioMensal ?? null,

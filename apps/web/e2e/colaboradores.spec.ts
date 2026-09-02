@@ -159,6 +159,7 @@ test("opens the dialog and creates a new colaborador with the API", async ({
       enderecoCidade: null,
       enderecoEstado: "RJ",
       enderecoCep: null,
+      team: null,
     });
 });
 
@@ -206,6 +207,7 @@ test("selecting a convenção and filling a salário includes both in the create
       enderecoCidade: null,
       enderecoEstado: null,
       enderecoCep: null,
+      team: null,
     });
 });
 
@@ -459,5 +461,34 @@ test("opens the edit dialog prefilled and saves personal data", async ({
       enderecoCidade: null,
       enderecoEstado: null,
       enderecoCep: null,
+      team: null,
     });
+});
+
+test("fills and submits the Time field in the create payload", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { employees: [] });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "+ Novo colaborador" }).click();
+
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.getByLabel("Nome").fill("Igor Time");
+  await page.getByLabel("Data de admissão").fill("2026-05-01");
+  await page.getByLabel("Time").fill("SGN360");
+  await page.getByRole("button", { name: "Cadastrar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      const body = recorded.find((r) => r.method === "POST" && r.path === "/employees")?.body as
+        | { team?: string }
+        | undefined;
+      return body?.team;
+    })
+    .toBe("SGN360");
 });
