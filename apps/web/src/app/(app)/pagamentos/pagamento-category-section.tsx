@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 
+import { sendPagamento } from "./actions";
 import styles from "./pagamentos.module.css";
 
 type Colaborador = { userId: string; name: string; role: string; team: string | null };
@@ -12,6 +13,7 @@ function formatSentAt(iso: string): string {
 }
 
 export function PagamentoCategorySection({
+  category,
   label,
   colaboradores,
   status,
@@ -24,6 +26,7 @@ export function PagamentoCategorySection({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const sentAtByUserId = useMemo(() => new Map(status.map((s) => [s.userId, s.sentAt])), [status]);
 
@@ -41,6 +44,12 @@ export function PagamentoCategorySection({
       return matchesSearch && matchesTeam;
     });
   }, [colaboradores, search, teamFilter]);
+
+  function handleSend(userIds: string[]) {
+    startTransition(async () => {
+      await sendPagamento(category, userIds);
+    });
+  }
 
   return (
     <div className={styles.categoryGroup}>
@@ -84,6 +93,14 @@ export function PagamentoCategorySection({
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className={styles.sendAllButton}
+              disabled={isPending || filtered.length === 0}
+              onClick={() => handleSend(filtered.map((c) => c.userId))}
+            >
+              Enviar para todos ({filtered.length})
+            </button>
           </div>
 
           {filtered.length === 0 ? (
@@ -101,6 +118,14 @@ export function PagamentoCategorySection({
                         {sentAt ? `Enviado em ${formatSentAt(sentAt)}` : "Não enviado"}
                       </span>
                     </div>
+                    <button
+                      type="button"
+                      className={styles.sendButton}
+                      disabled={isPending}
+                      onClick={() => handleSend([colaborador.userId])}
+                    >
+                      {sentAt ? "Reenviar" : "Enviar"}
+                    </button>
                   </li>
                 );
               })}
