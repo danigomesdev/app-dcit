@@ -205,6 +205,10 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 400, { message: "Código inválido ou expirado." });
   }
 
+  if (req.method === "GET" && /^\/notifications\/pagamentos\/status\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 200, []);
+  }
+
   sendJson(res, 404, { error: `no fake-api handler for ${req.method} ${url.pathname}` });
 });
 

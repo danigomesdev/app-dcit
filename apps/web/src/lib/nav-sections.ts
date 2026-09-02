@@ -18,6 +18,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { href: "/documentos", label: "Documentos", roles: ["gestor", "rh", "colaborador"] },
   { href: "/mural", label: "Mural", roles: ["gestor", "rh", "colaborador"] },
   { href: "/beneficios", label: "Benefícios", roles: ["gestor", "rh"] },
+  { href: "/pagamentos", label: "Pagamentos", roles: ["rh"] },
   { href: "/onboarding", label: "Onboarding", roles: ["gestor", "rh"] },
   { href: "/operacional", label: "Operacional", roles: ["gestor", "rh"] },
   { href: "/alertas", label: "Alertas", roles: ["gestor", "rh"] },
