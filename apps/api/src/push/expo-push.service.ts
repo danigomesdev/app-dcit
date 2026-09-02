@@ -6,6 +6,7 @@ const EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send';
 export type PushMessage = {
   title: string;
   body: string;
+  data?: Record<string, unknown>;
 };
 
 // Best-effort notification delivery: a failed push (bad token, Expo API
@@ -35,6 +36,7 @@ export class ExpoPushService {
             to: t.token,
             title: message.title,
             body: message.body,
+            ...(message.data ? { data: message.data } : {}),
           })),
         ),
       });

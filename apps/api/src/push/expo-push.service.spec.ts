@@ -69,6 +69,43 @@ describe('ExpoPushService', () => {
     ]);
   });
 
+  it('includes data in the payload when provided', async () => {
+    await prisma.pushToken.deleteMany({ where: { userId: 'expo-user-a' } });
+    await prisma.pushToken.create({
+      data: { userId: 'expo-user-a', token: 'ExponentPushToken[data]' },
+    });
+
+    await service.sendToUser('expo-user-a', {
+      title: 'Pagamento',
+      body: 'Depositado',
+      data: { notificationId: 'notif-1', link: null },
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(init.body as string) as unknown[];
+    expect(payload).toEqual([
+      {
+        to: 'ExponentPushToken[data]',
+        title: 'Pagamento',
+        body: 'Depositado',
+        data: { notificationId: 'notif-1', link: null },
+      },
+    ]);
+  });
+
+  it('omits data from the payload when not provided', async () => {
+    await prisma.pushToken.deleteMany({ where: { userId: 'expo-user-a' } });
+    await prisma.pushToken.create({
+      data: { userId: 'expo-user-a', token: 'ExponentPushToken[nodata]' },
+    });
+
+    await service.sendToUser('expo-user-a', { title: 'Oi', body: 'Teste' });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const payload = JSON.parse(init.body as string) as unknown[];
+    expect(payload[0]).not.toHaveProperty('data');
+  });
+
   it('swallows errors from a failed push request', async () => {
     await prisma.pushToken.create({
       data: { userId: 'expo-user-b', token: 'ExponentPushToken[three]' },
