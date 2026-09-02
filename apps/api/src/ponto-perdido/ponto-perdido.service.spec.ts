@@ -9,6 +9,7 @@ import { ExpoPushService } from '../push/expo-push.service';
 describe('PontoPerdidoService', () => {
   let service: PontoPerdidoService;
   let prisma: PrismaService;
+  let notifications: NotificationsService;
   const sendToUser = jest.fn();
 
   // now = 2026-09-02T09:00:00.000Z -> São Paulo date is still 2026-09-02
@@ -43,6 +44,7 @@ describe('PontoPerdidoService', () => {
 
     service = module.get(PontoPerdidoService);
     prisma = module.get(PrismaService);
+    notifications = module.get(NotificationsService);
     await prisma.onModuleInit();
     await cleanup();
   });
@@ -208,6 +210,32 @@ describe('PontoPerdidoService', () => {
     ).toHaveLength(0);
   });
 
+  it('does not flag an absence covered by a pending (enviado, not yet approved) atestado', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-pp-f2',
+        name: 'Fernanda PP',
+        role: 'colaborador',
+        hireDate: new Date('2024-01-01'),
+      },
+    });
+    await prisma.atestado.create({
+      data: {
+        userId: 'user-pp-f2',
+        userName: 'Fernanda PP',
+        status: 'enviado',
+        dias: 3,
+        createdAt: new Date('2026-08-31T13:00:00.000Z'), // covers 2026-08-31 through 2026-09-02
+      },
+    });
+
+    await service.run(NOW);
+
+    expect(
+      await prisma.notification.findMany({ where: { userId: 'user-pp-f2' } }),
+    ).toHaveLength(0);
+  });
+
   it('skips the whole scan on a weekend target day', async () => {
     await prisma.employee.create({
       data: {
@@ -277,5 +305,89 @@ describe('PontoPerdidoService', () => {
     await expect(service.run(NOW)).resolves.toBeUndefined();
 
     spy.mockRestore();
+  });
+
+  it('continues notifying the remaining employees when one sendPontoPerdido call fails mid-scan', async () => {
+    await prisma.employee.create({
+      data: {
+        userId: 'user-pp-k',
+        name: 'Karina PP',
+        role: 'colaborador',
+        hireDate: new Date('2024-01-01'),
+      },
+    });
+    await prisma.employee.create({
+      data: {
+        userId: 'user-pp-l',
+        name: 'Lucas PP',
+        role: 'colaborador',
+        hireDate: new Date('2024-01-01'),
+      },
+    });
+
+    const original = notifications.sendPontoPerdido.bind(
+      notifications,
+    ) as NotificationsService['sendPontoPerdido'];
+    const spy = jest
+      .spyOn(notifications, 'sendPontoPerdido')
+      .mockImplementation((tipo, employeeUserId, employeeName, dateOnly) => {
+        if (employeeUserId === 'user-pp-k') {
+          return Promise.reject(new Error('push failure'));
+        }
+        return original(tipo, employeeUserId, employeeName, dateOnly);
+      });
+
+    await expect(service.run(NOW)).resolves.toBeUndefined();
+
+    const karinaNotifications = await prisma.notification.findMany({
+      where: { userId: 'user-pp-k' },
+    });
+    const lucasNotifications = await prisma.notification.findMany({
+      where: { userId: 'user-pp-l' },
+    });
+    expect(karinaNotifications).toHaveLength(0);
+    expect(lucasNotifications.length).toBeGreaterThan(0);
+
+    spy.mockRestore();
+  });
+
+  it('aborts all notifications for the day when absences exceed 50% of scanned employees (likely holiday or outage)', async () => {
+    const absentIds = ['user-pp-m1', 'user-pp-m2', 'user-pp-m3'];
+    const closedIds = ['user-pp-m4', 'user-pp-m5'];
+
+    for (const userId of absentIds) {
+      await prisma.employee.create({
+        data: {
+          userId,
+          name: `Absent ${userId}`,
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+    }
+    for (const userId of closedIds) {
+      await prisma.employee.create({
+        data: {
+          userId,
+          name: `Closed ${userId}`,
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      await prisma.timeEntry.create({
+        data: { userId, clockedAt: new Date('2026-09-01T12:00:00.000Z') },
+      });
+      await prisma.timeEntry.create({
+        data: { userId, clockedAt: new Date('2026-09-01T20:00:00.000Z') },
+      });
+    }
+
+    await service.run(NOW);
+
+    const allIds = [...absentIds, ...closedIds];
+    const createdNotifications = await prisma.notification.findMany({
+      where: { userId: { in: allIds } },
+    });
+    expect(createdNotifications).toHaveLength(0);
   });
 });

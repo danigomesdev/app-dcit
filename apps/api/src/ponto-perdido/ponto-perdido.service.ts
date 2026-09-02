@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import {
+  NotificationsService,
+  PontoPerdidoTipo,
+} from '../notifications/notifications.service';
 import { dateOnlyInSaoPaulo, isWeekend } from '../common/sao-paulo-time';
 
 @Injectable()
@@ -98,10 +101,20 @@ export class PontoPerdidoService {
       // Mesma lógica de cobertura de período que TimeEntriesService.listTeamToday
       // já usa (periodStart/periodEnd calculados a partir de createdAt + dias),
       // só que checando o dia alvo em vez de hoje.
+      // Inclui 'enviado' (ainda não aprovado pelo RH) além de 'aprovado':
+      // diferente de TimeEntriesService.listTeamToday (onde isso é um painel
+      // ao vivo, "aprovado" é o critério certo), aqui a checagem é retroativa
+      // — o cenário real é "ficou doente ontem, só enviou o atestado hoje de
+      // manhã", e a aprovação do RH é assíncrona, então mesmo um atestado
+      // enviado no mesmo dia provavelmente ainda está pendente quando este
+      // job roda. Falso negativo aqui (marcar um atestado depois recusado
+      // como cobertura) é bem menos custoso que notificar todo gestor/rh
+      // "fulano não registrou nenhum ponto" sobre alguém que só está com o
+      // atestado ainda em análise.
       const atestados = await this.prisma.atestado.findMany({
         where: {
           userId: { in: userIds },
-          status: 'aprovado',
+          status: { in: ['aprovado', 'enviado'] },
           dias: { not: null },
         },
       });
@@ -120,6 +133,10 @@ export class PontoPerdidoService {
         }
       }
 
+      const flagged: Array<{
+        tipo: PontoPerdidoTipo;
+        employee: (typeof employees)[number];
+      }> = [];
       for (const employee of employees) {
         const count = countByUserId.get(employee.userId) ?? 0;
 
@@ -129,24 +146,52 @@ export class PontoPerdidoService {
             onAtestado.has(employee.userId)
           )
             continue;
-          await this.notifications.sendPontoPerdido(
-            'ausencia',
-            employee.userId,
-            employee.name,
-            targetDateSP,
-          );
+          flagged.push({ tipo: 'ausencia', employee });
         } else if (count % 2 === 1) {
-          await this.notifications.sendPontoPerdido(
-            'saida_esquecida',
-            employee.userId,
-            employee.name,
-            targetDateSP,
-          );
+          flagged.push({ tipo: 'saida_esquecida', employee });
         }
         // count par e >= 2: dia fechado corretamente, nada a fazer.
       }
+
+      // Guarda contra falso positivo em massa (feriado nacional/municipal sem
+      // cadastro no sistema, ou o próprio sistema de ponto fora do ar no dia)
+      // — nenhum desses casos é "muita gente faltou de verdade" e nenhum
+      // deveria disparar uma notificação por pessoa. Amostra mínima de 5
+      // funcionários pra não disparar em times pequenos onde 2-3 ausências
+      // reais no mesmo dia são plausíveis e não indício de problema sistêmico.
+      const MIN_SAMPLE_SIZE = 5;
+      const ABSENCE_ABORT_RATIO = 0.5;
+      const absenceCount = flagged.filter((f) => f.tipo === 'ausencia').length;
+      if (
+        employees.length >= MIN_SAMPLE_SIZE &&
+        absenceCount / employees.length > ABSENCE_ABORT_RATIO
+      ) {
+        this.logger.error(
+          `Ponto perdido: ${absenceCount}/${employees.length} funcionários sem nenhum registro em ${targetDateSP} — abortando notificações deste dia (provável feriado ou falha do sistema de ponto, não ausências reais).`,
+        );
+        return;
+      }
+
+      for (const { tipo, employee } of flagged) {
+        try {
+          await this.notifications.sendPontoPerdido(
+            tipo,
+            employee.userId,
+            employee.name,
+            targetDateSP,
+          );
+        } catch (error) {
+          this.logger.error(
+            `Falha ao notificar ponto perdido de ${employee.userId} em ${targetDateSP}: ${String(error)}`,
+          );
+        }
+      }
+
+      this.logger.log(
+        `Ponto perdido: varredura de ${targetDateSP} concluída — ${employees.length} funcionário(s) verificado(s), ${flagged.length} notificado(s).`,
+      );
     } catch (error) {
-      this.logger.warn(
+      this.logger.error(
         `Falha ao rodar detecção de ponto perdido: ${String(error)}`,
       );
     }
