@@ -11,6 +11,7 @@ type Employee = {
   name: string;
   role: "colaborador" | "gestor" | "rh";
   cargo: string | null;
+  team: string | null;
   nivel: string | null;
   convencaoId: string | null;
   salarioMensal: number | null;

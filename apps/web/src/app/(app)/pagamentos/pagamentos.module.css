@@ -1,0 +1,158 @@
+.page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.categories {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.categoryGroup {
+  border-radius: 8px;
+  background: var(--color-background-element);
+  overflow: hidden;
+}
+
+.categoryHeader {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text);
+}
+
+.categoryLabel {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.categoryChevron {
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.categoryChevronOpen {
+  transform: rotate(180deg);
+}
+
+.categoryBody {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterInput {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.filterSelect {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.sendAllButton {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sendAllButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sectionEmpty {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.error {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-background);
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.itemName {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.itemDetail {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.sendButton {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: transparent;
+  color: var(--color-text);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

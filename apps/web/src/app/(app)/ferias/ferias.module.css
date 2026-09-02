@@ -1,0 +1,165 @@
+.page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.balanceCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--color-background-element);
+}
+
+.balanceValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.balanceDetail {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.alertBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+  font-size: 14px;
+}
+
+.alertBanner svg {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--color-background-element);
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.itemName {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.itemDetail {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.itemNote {
+  font-size: 13px;
+  color: #f87171;
+}
+
+.status {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-background-selected);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.statusAprovado {
+  background: rgba(74, 222, 128, 0.18);
+  color: #4ade80;
+}
+
+.statusRecusado {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+}
+
+.sectionEmpty {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.historyYear {
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 44px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dateFields {
+  display: flex;
+  gap: 12px;
+}
+
+.dateField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.dateFieldLabel {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.dateInput {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background-element);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.submitButton {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-weight: 600;
+  cursor: pointer;
+}

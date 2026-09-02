@@ -1,16 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { addSessionCookie, mockApi, seedResponse } from "./test-session";
-
-test("colaborador sees a permission message instead of the documents list", async ({
-  page,
-  context,
-}) => {
-  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
-  await page.goto("/documentos");
-
-  await expect(page.getByRole("heading", { name: "Sem permissão" })).toBeVisible();
-});
+import { addSessionCookie, getRecordedRequests, mockApi, seedResponse } from "./test-session";
 
 test("rh sees clinical detail; gestor sees the same atestado without it", async ({
   page,
@@ -152,4 +142,417 @@ test("lists admission documents and certifications submitted by the team", async
   await expect(page.getByText("Diana Colaboradora")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Certificações" })).toBeVisible();
   await expect(page.getByText("Elias Colaborador")).toBeVisible();
+});
+
+test("shows a certification's UTC calendar day, not a day shifted by local timezone", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  // validUntil is a date-only value stored as UTC midnight (same reasoning
+  // as banco-de-horas/page.tsx's formatMonthLabel/formatDayLabel and
+  // aprovacoes/page.tsx's formatDateOnly). Without formatDate's explicit
+  // timeZone: "UTC", this UTC-midnight instant would render in the server's
+  // ambient timezone (America/Sao_Paulo, UTC-3) as September 30th instead
+  // of October 1st — a regression the noon-UTC fixtures used elsewhere in
+  // this file wouldn't catch, since noon UTC never crosses a day boundary
+  // in UTC-3.
+  await mockApi(request, {
+    certifications: [
+      {
+        id: "cert-2",
+        userId: "user-4",
+        userName: "Gabriela Colaboradora",
+        name: "PMP",
+        institution: "PMI",
+        validUntil: "2026-10-01T00:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/documentos");
+
+  await expect(page.getByText("Gabriela Colaboradora")).toBeVisible();
+  await expect(page.getByText("válida até 01/10/2026")).toBeVisible();
+  await expect(page.getByText("válida até 30/09/2026")).toHaveCount(0);
+});
+
+test("shows a proper label instead of the raw status for an admissionais document", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request, {
+    admissionDocuments: [
+      {
+        id: "adm-2",
+        userId: "user-3",
+        userName: "Fábio Colaborador",
+        title: "RG",
+        status: "enviado",
+        submittedAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+  });
+
+  await page.goto("/documentos");
+
+  await expect(page.getByText("Fábio Colaborador")).toBeVisible();
+  await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
+  await expect(page.getByText("enviado", { exact: true })).toHaveCount(0);
+});
+
+test("colaborador sees category tabs, with Atestados active by default", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos");
+
+  const admissionais = page.getByRole("link", { name: "Admissionais" });
+  const atestados = page.getByRole("link", { name: "Atestados" });
+  const certificacoes = page.getByRole("link", { name: "Certificações" });
+  await expect(admissionais).toBeVisible();
+  await expect(atestados).toBeVisible();
+  await expect(certificacoes).toBeVisible();
+  await expect(atestados).toHaveClass(/categoryTabActive/);
+
+  await admissionais.click();
+  await expect(page).toHaveURL(/categoria=admissionais/);
+  await expect(admissionais).toHaveClass(/categoryTabActive/);
+  await expect(atestados).not.toHaveClass(/categoryTabActive/);
+});
+
+test("colaborador sees their own admissionais documents and can submit a new one without a photo", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    myAdmissionDocuments: [
+      {
+        id: "adm-1",
+        title: "Comprovante de residência",
+        photoUri: null,
+        status: "enviado",
+        submittedAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+    myCertifications: [],
+    myAtestados: [],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/documentos/admissionais",
+    status: 201,
+    response: { id: "adm-new", title: "RG", photoUri: null, status: "enviado", submittedAt: "2026-08-31T12:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await expect(page.getByText("Comprovante de residência")).toBeVisible();
+  await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/documentos/admissionais",
+    response: [
+      { id: "adm-new", title: "RG", photoUri: null, status: "enviado", submittedAt: "2026-08-31T12:00:00.000Z" },
+      { id: "adm-1", title: "Comprovante de residência", photoUri: null, status: "enviado", submittedAt: "2026-08-20T12:00:00.000Z" },
+    ],
+  });
+
+  await page.getByLabel("Título").fill("RG");
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/documentos/admissionais")?.body;
+    })
+    .toEqual({ title: "RG" });
+
+  await expect(page.getByText("RG", { exact: true })).toBeVisible();
+});
+
+test("shows a message when there are no admissionais documents yet", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await expect(page.getByText("Nenhum documento admissional enviado ainda.")).toBeVisible();
+});
+
+test("submitting the admissionais form with a photo sends it as photoUri", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/documentos/admissionais",
+    status: 201,
+    response: {
+      id: "adm-photo",
+      title: "CNH",
+      photoUri: "data:image/jpeg;base64,ZmFrZQ==",
+      status: "enviado",
+      submittedAt: "2026-08-31T12:00:00.000Z",
+    },
+  });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await page.getByLabel("Título").fill("CNH");
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "doc.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("fake-jpeg-bytes"),
+  });
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/documentos/admissionais")?.body;
+    })
+    .toEqual({ title: "CNH", photoUri: expect.stringMatching(/^data:image\/jpeg;base64,/) });
+});
+
+test("rejects an unsupported file type with an inline error", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=admissionais");
+
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "doc.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("not an image"),
+  });
+
+  await expect(
+    page.getByText("Formato não suportado — use JPEG, PNG ou WEBP.")
+  ).toBeVisible();
+});
+
+test("colaborador sees their own certifications and can submit a new one", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    myAdmissionDocuments: [],
+    myCertifications: [
+      { id: "cert-1", name: "AWS Certified", institution: "Amazon", validUntil: "2028-10-10T00:00:00.000Z" },
+    ],
+    myAtestados: [],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/documentos/certificacoes",
+    status: 201,
+    response: { id: "cert-new", name: "Scrum Master", institution: "Scrum.org", validUntil: "2027-05-01T00:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=certificacoes");
+
+  await expect(page.getByText("AWS Certified")).toBeVisible();
+  await expect(page.getByText("Amazon · válida até 10/10/2028")).toBeVisible();
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/documentos/certificacoes",
+    response: [
+      { id: "cert-new", name: "Scrum Master", institution: "Scrum.org", validUntil: "2027-05-01T00:00:00.000Z" },
+      { id: "cert-1", name: "AWS Certified", institution: "Amazon", validUntil: "2028-10-10T00:00:00.000Z" },
+    ],
+  });
+
+  await page.getByLabel("Nome").fill("Scrum Master");
+  await page.getByLabel("Instituição").fill("Scrum.org");
+  await page.getByLabel("Válida até (DD/MM/AAAA)").fill("01/05/2027");
+  await page.getByRole("button", { name: "Salvar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/documentos/certificacoes")?.body;
+    })
+    .toEqual({ name: "Scrum Master", institution: "Scrum.org", validUntil: "01/05/2027" });
+
+  await expect(page.getByText("Scrum Master")).toBeVisible();
+});
+
+test("shows a message when there are no certifications yet", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=certificacoes");
+
+  await expect(page.getByText("Nenhuma certificação cadastrada ainda.")).toBeVisible();
+});
+
+test("colaborador sees their own atestados and can submit one manually, without a photo", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    myAdmissionDocuments: [],
+    myCertifications: [],
+    myAtestados: [
+      {
+        id: "at-1",
+        cid: "J11",
+        crm: "CRM-MG 12345",
+        medico: "Dr. Teste",
+        dias: 2,
+        status: "recusado",
+        reviewNote: "Faltou assinatura do médico.",
+        createdAt: "2026-08-20T12:00:00.000Z",
+      },
+    ],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados",
+    status: 201,
+    response: { id: "at-new", cid: "A01", crm: "CRM-SP 999", medico: "Dra. Nova", dias: 3, status: "enviado", reviewNote: null, createdAt: "2026-08-31T12:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  await expect(page.getByText("2 dia(s)")).toBeVisible();
+  await expect(page.getByText("Recusado")).toBeVisible();
+  await expect(page.getByText("Faltou assinatura do médico.")).toBeVisible();
+
+  await seedResponse(request, {
+    method: "GET",
+    path: "/atestados/mine",
+    response: [
+      { id: "at-new", cid: "A01", crm: "CRM-SP 999", medico: "Dra. Nova", dias: 3, status: "enviado", reviewNote: null, createdAt: "2026-08-31T12:00:00.000Z" },
+      { id: "at-1", cid: "J11", crm: "CRM-MG 12345", medico: "Dr. Teste", dias: 2, status: "recusado", reviewNote: "Faltou assinatura do médico.", createdAt: "2026-08-20T12:00:00.000Z" },
+    ],
+  });
+
+  await page.getByLabel("CID").fill("A01");
+  await page.getByLabel("CRM do médico").fill("CRM-SP 999");
+  await page.getByLabel("Nome do médico").fill("Dra. Nova");
+  await page.getByLabel("Quantidade de dias").fill("3");
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/atestados")?.body;
+    })
+    .toEqual({ cid: "A01", crm: "CRM-SP 999", medico: "Dra. Nova", dias: 3 });
+
+  await expect(page.getByText("3 dia(s)")).toBeVisible();
+});
+
+test("shows a message when there are no atestados yet", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  await expect(page.getByText("Nenhum atestado enviado ainda.")).toBeVisible();
+});
+
+test("picking a photo runs OCR and pre-fills CID/CRM/médico/dias, which stay editable", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados/ocr",
+    response: { cid: "B34", crm: "CRM-RJ 111", medico: "Dr. OCR", dias: 5 },
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados",
+    status: 201,
+    response: { id: "at-ocr", cid: "B34", crm: "CRM-RJ 111", medico: "Editado", dias: 5, status: "enviado", reviewNote: null, createdAt: "2026-08-31T12:00:00.000Z" },
+  });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: "atestado.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("fake-jpeg-bytes"),
+  });
+
+  await expect(page.getByText("Dados preenchidos automaticamente — confira antes de enviar.")).toBeVisible();
+  await expect(page.getByLabel("CID")).toHaveValue("B34");
+  await expect(page.getByLabel("CRM do médico")).toHaveValue("CRM-RJ 111");
+  await expect(page.getByLabel("Nome do médico")).toHaveValue("Dr. OCR");
+  await expect(page.getByLabel("Quantidade de dias")).toHaveValue("5");
+
+  // OCR-filled fields stay editable — prove it by changing one before submit.
+  await page.getByLabel("Nome do médico").fill("Editado");
+  await page.getByRole("button", { name: "Enviar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/atestados")?.body;
+    })
+    .toEqual({
+      cid: "B34",
+      crm: "CRM-RJ 111",
+      medico: "Editado",
+      dias: 5,
+      photoDataUrl: expect.stringMatching(/^data:image\/jpeg;base64,/),
+    });
+});
+
+test("shows a manual-entry message when OCR can't read the photo", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { myAdmissionDocuments: [], myCertifications: [], myAtestados: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/atestados/ocr",
+    status: 500,
+    response: {},
+  });
+
+  await page.goto("/documentos?categoria=atestados");
+
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: "atestado.jpg",
+    mimeType: "image/jpeg",
+    buffer: Buffer.from("fake-jpeg-bytes"),
+  });
+
+  await expect(
+    page.getByText("Não foi possível ler automaticamente — preencha os dados abaixo manualmente."),
+  ).toBeVisible();
+  await expect(page.getByLabel("CID")).toHaveValue("");
 });

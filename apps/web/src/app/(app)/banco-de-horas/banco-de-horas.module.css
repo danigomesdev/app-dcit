@@ -56,3 +56,111 @@
   font-size: 14px;
   color: var(--color-text-secondary);
 }
+
+.periodTabs {
+  display: flex;
+  gap: 8px;
+}
+
+.periodTab {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-background-element);
+}
+
+.periodTab:hover {
+  color: var(--color-text);
+}
+
+.periodTabActive,
+.periodTabActive:hover {
+  background: var(--color-text);
+  color: var(--color-background);
+}
+
+.summaryCard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  border-radius: 12px;
+  background: var(--color-background-element);
+}
+
+.summaryItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summaryLabel {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.summaryValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.textarea {
+  min-height: 80px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background-element);
+  color: var(--color-text);
+  font: inherit;
+  resize: vertical;
+}
+
+.submitButton {
+  align-self: flex-start;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-text);
+  color: var(--color-background);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.status {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--color-background-selected);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.statusAprovado {
+  background: rgba(74, 222, 128, 0.18);
+  color: #4ade80;
+}
+
+.statusRecusado {
+  background: rgba(248, 113, 113, 0.18);
+  color: #f87171;
+}
+
+.sectionEmpty {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

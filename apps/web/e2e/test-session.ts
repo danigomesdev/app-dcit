@@ -59,10 +59,17 @@ export async function mockApi(
     deslocamentos?: unknown[];
     admissionDocuments?: unknown[];
     certifications?: unknown[];
+    myAdmissionDocuments?: unknown[];
+    myCertifications?: unknown[];
+    myAtestados?: unknown[];
     jornadaAlerts?: unknown[];
     convencoes?: unknown[];
     bancoDeHorasEquipe?: unknown[];
     holerites?: unknown[];
+    bancoDeHorasMinhas?: unknown;
+    myCompensations?: unknown[];
+    feriasData?: unknown;
+    notifications?: unknown[];
   } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
@@ -151,6 +158,21 @@ export async function mockApi(
       data: { path: "/documentos/certificacoes/equipe", response: data.certifications },
     });
   }
+  if (data.myAdmissionDocuments) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/documentos/admissionais", response: data.myAdmissionDocuments },
+    });
+  }
+  if (data.myCertifications) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/documentos/certificacoes", response: data.myCertifications },
+    });
+  }
+  if (data.myAtestados) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/atestados/mine", response: data.myAtestados },
+    });
+  }
   if (data.jornadaAlerts) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/alertas", response: data.jornadaAlerts },
@@ -171,11 +193,31 @@ export async function mockApi(
       data: { path: "/documentos/holerites/equipe", response: data.holerites },
     });
   }
+  if (data.bancoDeHorasMinhas) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/banco-de-horas/minhas", response: data.bancoDeHorasMinhas },
+    });
+  }
+  if (data.myCompensations) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/solicitacoes/compensacoes", response: data.myCompensations },
+    });
+  }
+  if (data.feriasData) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/solicitacoes/ferias", response: data.feriasData },
+    });
+  }
+  if (data.notifications) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/notifications/mine", response: data.notifications },
+    });
+  }
 }
 
 export async function getRecordedRequests(
   request: APIRequestContext
-): Promise<Array<{ method: string; path: string; body: unknown }>> {
+): Promise<Array<{ method: string; path: string; query: Record<string, string>; body: unknown }>> {
   const res = await request.get(`${FAKE_API_URL}/__requests`);
   return res.json();
 }

@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { requestCompensation } from "./actions";
 import styles from "./banco-de-horas.module.css";
 
 type TeamSummary = {
@@ -11,6 +12,30 @@ type TeamSummary = {
   dsrMinutes: number;
   hourlyRateBRL: number | null;
   overtimeValueBRL: number | null;
+};
+
+type DailySummary = { date: string; expectedMinutes: number; workedMinutes: number; diffMinutes: number };
+type MinhaSummary = {
+  days: DailySummary[];
+  balanceMinutes: number;
+  dsrMinutes: number;
+  hourlyRateBRL: number | null;
+  overtimeValueBRL: number | null;
+};
+type Periodo = "atual" | "anterior" | "3meses";
+
+type CompensationRequest = {
+  id: string;
+  reason: string;
+  status: "pendente" | "aprovado" | "recusado";
+  reviewNote: string | null;
+  createdAt: string;
+};
+
+const COMPENSATION_STATUS_LABEL: Record<CompensationRequest["status"], string> = {
+  pendente: "Pendente",
+  aprovado: "Aprovado",
+  recusado: "Recusado",
 };
 
 // Duplicated (not imported from a shared package) — these are two tiny pure
@@ -77,15 +102,59 @@ function formatMonthLabel(dateStr: string): string {
   });
 }
 
+// Deliberately unsigned (no +/- sign), unlike formatSignedMinutes above:
+// expectedMinutes/workedMinutes are counts, never negative.
+function formatMinutes(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
+}
+
+// Same UTC-formatting reasoning as formatMonthLabel above.
+function formatDayLabel(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00.000Z`).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+function resolvePeriodo(value: string | undefined): Periodo {
+  return value === "anterior" || value === "3meses" ? value : "atual";
+}
+
+function periodoRange(periodo: Periodo): { start: string; end: string } {
+  const today = todaySaoPauloDateOnly();
+  const currentMonthStart = firstDayOfMonth(today);
+  if (periodo === "atual") {
+    return { start: currentMonthStart, end: today };
+  }
+  if (periodo === "anterior") {
+    const start = addMonths(currentMonthStart, -1);
+    return { start, end: lastDayOfMonth(start) };
+  }
+  return { start: addMonths(currentMonthStart, -2), end: today };
+}
+
+const PERIODO_LABEL: Record<Periodo, string> = {
+  atual: "Mês atual",
+  anterior: "Mês anterior",
+  "3meses": "Últimos 3 meses",
+};
+
 export default async function BancoDeHorasPage({ searchParams }: PageProps<"/banco-de-horas">) {
   const session = await getSession();
-  if (!session || session.role === "colaborador") {
-    return (
-      <EmptyState title="Sem permissão" description="Esta página é restrita a gestores e RH." />
-    );
+  if (!session) {
+    return <EmptyState title="Sem permissão" description="Faça login para continuar." />;
   }
+  if (session.role === "colaborador") {
+    return <ColaboradorView searchParams={await searchParams} />;
+  }
+  return <TeamView searchParams={await searchParams} />;
+}
 
-  const { start: startParam } = await searchParams;
+async function TeamView({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+  const { start: startParam } = searchParams;
   const today = todaySaoPauloDateOnly();
   const currentMonthStart = firstDayOfMonth(today);
   const requestedStart =
@@ -143,6 +212,112 @@ export default async function BancoDeHorasPage({ searchParams }: PageProps<"/ban
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+async function ColaboradorView({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
+  const periodoParam = searchParams.periodo;
+  const periodo = resolvePeriodo(typeof periodoParam === "string" ? periodoParam : undefined);
+  const { start, end } = periodoRange(periodo);
+
+  const [summary, minhasSolicitacoes] = await Promise.all([
+    apiFetchJson<MinhaSummary>(`/banco-de-horas/minhas?start=${start}&end=${end}`),
+    apiFetchJson<CompensationRequest[]>("/solicitacoes/compensacoes"),
+  ]);
+
+  return (
+    <div className={styles.page}>
+      <h1 className={styles.heading}>Banco de Horas</h1>
+
+      <div className={styles.periodTabs}>
+        {(["atual", "anterior", "3meses"] as const).map((option) => (
+          <a
+            key={option}
+            className={
+              periodo === option ? `${styles.periodTab} ${styles.periodTabActive}` : styles.periodTab
+            }
+            href={`/banco-de-horas?periodo=${option}`}
+          >
+            {PERIODO_LABEL[option]}
+          </a>
+        ))}
+      </div>
+
+      <div className={styles.summaryCard}>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Saldo</span>
+          <span className={styles.summaryValue}>{formatSignedMinutes(summary.balanceMinutes)}</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>DSR estimado</span>
+          <span className={styles.summaryValue}>{formatSignedMinutes(summary.dsrMinutes)}</span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Valor-hora</span>
+          <span className={styles.summaryValue}>
+            {summary.hourlyRateBRL === null ? "—" : formatBRL(summary.hourlyRateBRL)}
+          </span>
+        </div>
+        <div className={styles.summaryItem}>
+          <span className={styles.summaryLabel}>Extras em R$</span>
+          <span className={styles.summaryValue}>
+            {summary.overtimeValueBRL === null ? "—" : formatBRL(summary.overtimeValueBRL)}
+          </span>
+        </div>
+      </div>
+
+      {summary.days.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhum dia registrado neste período.</p>
+      ) : (
+        <ul className={styles.list}>
+          {summary.days.map((day) => (
+            <li key={day.date} className={styles.item}>
+              <span className={styles.itemName}>{formatDayLabel(day.date)}</span>
+              <span className={styles.itemDetail}>
+                Previsto: {formatMinutes(day.expectedMinutes)} · Trabalhado:{" "}
+                {formatMinutes(day.workedMinutes)} · Diferença: {formatSignedMinutes(day.diffMinutes)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <h2 className={styles.sectionTitle}>Solicitar compensação</h2>
+      <form className={styles.form} action={requestCompensation}>
+        <label htmlFor="reason">Motivo</label>
+        <textarea id="reason" name="reason" className={styles.textarea} required />
+        <button type="submit" className={styles.submitButton}>
+          Enviar solicitação
+        </button>
+      </form>
+
+      <h2 className={styles.sectionTitle}>Minhas solicitações</h2>
+      {minhasSolicitacoes.length === 0 ? (
+        <p className={styles.sectionEmpty}>Nenhuma solicitação registrada ainda.</p>
+      ) : (
+        <ul className={styles.list}>
+          {minhasSolicitacoes.map((solicitacao) => (
+            <li key={solicitacao.id} className={styles.item}>
+              <span className={styles.itemDetail}>
+                {solicitacao.reason}
+                {solicitacao.reviewNote ? ` · ${solicitacao.reviewNote}` : ""}
+              </span>
+              <span
+                className={`${styles.status} ${
+                  solicitacao.status === "aprovado" ? styles.statusAprovado : ""
+                } ${solicitacao.status === "recusado" ? styles.statusRecusado : ""}`}
+              >
+                {COMPENSATION_STATUS_LABEL[solicitacao.status]}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

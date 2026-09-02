@@ -1,0 +1,12 @@
+.page {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 640px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}

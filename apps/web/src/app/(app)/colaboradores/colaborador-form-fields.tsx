@@ -72,6 +72,7 @@ export type ColaboradorFormDefaults = {
   name: string;
   role: "colaborador" | "gestor" | "rh";
   cargo: string | null;
+  team: string | null;
   nivel: string | null;
   convencaoId: string | null;
   salarioMensal: number | null;
@@ -231,6 +232,15 @@ export function ColaboradorFormFields({
           type="text"
           name="rg"
           defaultValue={defaults.rg ?? ""}
+          className={styles.fieldInput}
+        />
+      </label>
+      <label className={styles.field}>
+        <span className={styles.fieldLabel}>Time</span>
+        <input
+          type="text"
+          name="team"
+          defaultValue={defaults.team ?? ""}
           className={styles.fieldInput}
         />
       </label>
