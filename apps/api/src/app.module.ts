@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
@@ -16,11 +17,13 @@ import { AlertasModule } from './alertas/alertas.module';
 import { ConvencoesModule } from './convencoes/convencoes.module';
 import { BancoDeHorasModule } from './banco-de-horas/banco-de-horas.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PontoPerdidoModule } from './ponto-perdido/ponto-perdido.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
   imports: [
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     TimeEntriesModule,
@@ -37,6 +40,7 @@ import { AppService } from './app.service';
     ConvencoesModule,
     BancoDeHorasModule,
     NotificationsModule,
+    PontoPerdidoModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
