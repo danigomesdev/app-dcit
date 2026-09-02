@@ -10,7 +10,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useNotificationContext } from "@/context/notification-context";
 import { usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing } from "@/constants/theme";
+import { Colors, Spacing } from "@/constants/theme";
 import { fetchJornadaAlerts, type JornadaAlertRecord } from "@/lib/alertas-api";
 import { currentVacationCycle, daysUntil, formatDate } from "@/lib/ferias";
 import { getSessionToken } from "@/lib/session";
@@ -154,7 +154,11 @@ export default function NotificacoesScreen() {
                 <Pressable
                   key={notification.id}
                   onPress={() => handlePress(notification)}
-                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}
+                  style={[
+                    styles.row,
+                    notification.readAt === null && styles.rowUnread,
+                    { backgroundColor: theme.backgroundElement },
+                  ]}
                 >
                   <View style={styles.rowContent}>
                     <ThemedText type="smallBold">{notification.message}</ThemedText>
@@ -212,6 +216,14 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     borderRadius: 14,
     padding: Spacing.three,
+  },
+  // Same accent hex in both themes (see constants/theme.ts), so this is
+  // safe to bake into the static StyleSheet rather than read from
+  // useTheme() — matches the tone === "accent" precedent used for notice
+  // icons below.
+  rowUnread: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.light.accent,
   },
   rowContent: {
     flex: 1,

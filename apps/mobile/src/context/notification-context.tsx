@@ -15,6 +15,7 @@ type NotificationContextValue = {
   items: NotificationRecord[];
   unreadCount: number;
   refresh: () => Promise<NotificationRecord[]>;
+  reset: () => void;
   handlePress: (notification: NotificationRecord) => void;
 };
 
@@ -31,6 +32,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (!fetched) return [];
     setItems(fetched);
     return fetched;
+  }, []);
+
+  const reset = useCallback(() => {
+    setItems([]);
   }, []);
 
   useEffect(() => {
@@ -62,7 +67,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const unreadCount = items.filter((n) => n.readAt === null).length;
 
   return (
-    <NotificationContext.Provider value={{ items, unreadCount, refresh, handlePress }}>
+    <NotificationContext.Provider value={{ items, unreadCount, refresh, reset, handlePress }}>
       {children}
     </NotificationContext.Provider>
   );

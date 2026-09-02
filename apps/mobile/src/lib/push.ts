@@ -80,9 +80,11 @@ export function configureNotificationHandler(): void {
 /**
  * Best-effort: covers both a tap while the app is backgrounded (the
  * response listener fires) and a cold start where the tap is what
- * launched the app (getLastNotificationResponseAsync catches that case,
- * which the listener alone would miss). Returns a no-op cleanup on any
- * setup failure so callers can always call the returned function.
+ * launched the app (getLastNotificationResponse catches that case, which
+ * the listener alone would miss). The sticky native value is cleared right
+ * after being consumed so a later app launch doesn't re-fire the same tap.
+ * Returns a no-op cleanup on any setup failure so callers can always call
+ * the returned function.
  */
 export function addNotificationTapListener(onTap: (data: unknown) => void): () => void {
   try {
@@ -90,9 +92,11 @@ export function addNotificationTapListener(onTap: (data: unknown) => void): () =
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       onTap(response.notification.request.content.data);
     });
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response) onTap(response.notification.request.content.data);
-    });
+    const response = Notifications.getLastNotificationResponse();
+    if (response) {
+      onTap(response.notification.request.content.data);
+      Notifications.clearLastNotificationResponse();
+    }
     return () => subscription.remove();
   } catch {
     return () => {};

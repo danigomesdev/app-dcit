@@ -19,9 +19,11 @@ import { API_URL } from "@/constants/api";
 import { Spacing } from "@/constants/theme";
 import { getSessionToken, saveSessionToken } from "@/lib/session";
 import { registerForPushNotifications } from "@/lib/push";
+import { useNotificationContext } from "@/context/notification-context";
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { refresh: refreshNotifications } = useNotificationContext();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -43,6 +45,7 @@ export default function LoginScreen() {
       getSessionToken().then((token) => {
         if (cancelled) return;
         if (token) {
+          void refreshNotifications();
           router.replace("/(tabs)");
           return;
         }
@@ -51,7 +54,7 @@ export default function LoginScreen() {
       return () => {
         cancelled = true;
       };
-    }, [router]),
+    }, [router, refreshNotifications]),
   );
 
   // SSO stays fully working in code — just without a UI entry point
@@ -82,6 +85,7 @@ export default function LoginScreen() {
 
     await saveSessionToken(token);
     registerForPushNotifications(token);
+    void refreshNotifications();
     router.replace("/(tabs)");
   }
 
@@ -104,6 +108,7 @@ export default function LoginScreen() {
       const data = (await response.json()) as { token: string };
       await saveSessionToken(data.token);
       registerForPushNotifications(data.token);
+      void refreshNotifications();
       router.replace("/(tabs)");
     } catch {
       setError("Não foi possível entrar. Verifique sua conexão.");

@@ -1,16 +1,16 @@
 const mockSetNotificationHandler = jest.fn();
 const mockAddNotificationResponseReceivedListener = jest.fn();
-const mockGetLastNotificationResponseAsync = jest.fn();
+const mockGetLastNotificationResponse = jest.fn();
+const mockClearLastNotificationResponse = jest.fn();
 
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: (...args: unknown[]) => mockSetNotificationHandler(...args),
   addNotificationResponseReceivedListener: (...args: unknown[]) =>
     mockAddNotificationResponseReceivedListener(...args),
-  getLastNotificationResponseAsync: (...args: unknown[]) =>
-    mockGetLastNotificationResponseAsync(...args),
+  getLastNotificationResponse: (...args: unknown[]) => mockGetLastNotificationResponse(...args),
+  clearLastNotificationResponse: (...args: unknown[]) => mockClearLastNotificationResponse(...args),
 }));
 
-import { waitFor } from "@testing-library/react-native";
 import { configureNotificationHandler, addNotificationTapListener } from "@/lib/push";
 
 describe("configureNotificationHandler", () => {
@@ -27,7 +27,8 @@ describe("configureNotificationHandler", () => {
 describe("addNotificationTapListener", () => {
   beforeEach(() => {
     mockAddNotificationResponseReceivedListener.mockReset().mockReturnValue({ remove: jest.fn() });
-    mockGetLastNotificationResponseAsync.mockReset().mockResolvedValue(null);
+    mockGetLastNotificationResponse.mockReset().mockReturnValue(null);
+    mockClearLastNotificationResponse.mockReset();
   });
 
   it("calls onTap with the tapped notification's data", () => {
@@ -42,17 +43,26 @@ describe("addNotificationTapListener", () => {
     expect(onTap).toHaveBeenCalledWith({ notificationId: "n1", link: "/historico" });
   });
 
-  it("checks for a cold-start tap via getLastNotificationResponseAsync", async () => {
-    mockGetLastNotificationResponseAsync.mockResolvedValue({
+  it("checks for a cold-start tap via getLastNotificationResponse and clears the sticky value", () => {
+    mockGetLastNotificationResponse.mockReturnValue({
       notification: { request: { content: { data: { notificationId: "n2", link: null } } } },
     });
     const onTap = jest.fn();
 
     addNotificationTapListener(onTap);
 
-    await waitFor(() => {
-      expect(onTap).toHaveBeenCalledWith({ notificationId: "n2", link: null });
-    });
+    expect(onTap).toHaveBeenCalledWith({ notificationId: "n2", link: null });
+    expect(mockClearLastNotificationResponse).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not clear the sticky value when there is no cold-start tap", () => {
+    mockGetLastNotificationResponse.mockReturnValue(null);
+    const onTap = jest.fn();
+
+    addNotificationTapListener(onTap);
+
+    expect(onTap).not.toHaveBeenCalled();
+    expect(mockClearLastNotificationResponse).not.toHaveBeenCalled();
   });
 
   it("returns a cleanup function that removes the listener subscription", () => {

@@ -59,6 +59,34 @@ describe("login screen", () => {
     });
   });
 
+  it("refreshes notifications after a successful login", async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation(async (url: string) => {
+      if (url.includes("/auth/password-login")) {
+        return { ok: true, json: async () => ({ token: "abc123", role: "colaborador", name: "Ana" }) };
+      }
+      return { ok: true, json: async () => [] };
+    });
+
+    renderRouter("src/app", { initialUrl: "/login" });
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Email")).toBeTruthy();
+    });
+    fireEvent.changeText(screen.getByPlaceholderText("Email"), "colaborador@dev.local");
+    fireEvent.changeText(screen.getByPlaceholderText("Senha"), "dev12345");
+    fireEvent.press(screen.getByText("Entrar"));
+
+    await waitFor(async () => {
+      expect(screen).toHavePathname("/");
+    });
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/notifications/mine"),
+        expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer abc123" }) }),
+      );
+    });
+  });
+
   it("shows an inline error and stays on the login screen for wrong credentials", async () => {
     (globalThis.fetch as jest.Mock).mockImplementation(async (url: string) => {
       if (url.includes("/auth/password-login")) {

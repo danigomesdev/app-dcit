@@ -92,6 +92,73 @@ describe("perfil screen", () => {
     expect(await getSessionToken()).toBeNull();
   });
 
+  it("clears the notification inbox on logout so a new login doesn't briefly show a stale badge", async () => {
+    await saveSessionToken(fakeJwt({ sub: "colaborador-1", role: "colaborador", name: "Ana" }));
+
+    let resolveSecondFetch: (() => void) | undefined;
+    (globalThis.fetch as jest.Mock) = jest.fn().mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/notifications/mine")) {
+        if (!resolveSecondFetch) {
+          // First fetch (before logout): resolve immediately with one unread item.
+          return Promise.resolve({
+            ok: true,
+            json: async () => [
+              {
+                id: "n1",
+                type: "pagamento",
+                category: "salario",
+                message: "Seu salário foi depositado.",
+                link: null,
+                createdAt: "2026-09-02T21:00:00.000Z",
+                readAt: null,
+              },
+            ],
+          });
+        }
+        // Second fetch (after re-login): stays pending until the test
+        // resolves it, so we can observe state in the window between
+        // logout's reset() and the next refresh() settling.
+        return new Promise((resolve) => {
+          resolveSecondFetch = () => resolve({ ok: true, json: async () => [] });
+        });
+      }
+      if (typeof url === "string" && url.includes("/auth/password-login")) {
+        return Promise.resolve({ ok: true, json: async () => ({ token: "user-b-token" }) });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    renderRouter("src/app", { initialUrl: "/" });
+    await waitFor(() => {
+      expect(screen.getByText("1")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText("Abrir perfil"));
+    await waitFor(() => {
+      expect(screen).toHavePathname("/perfil");
+    });
+    // Mark that the next /notifications/mine call should stay pending.
+    resolveSecondFetch = () => {};
+
+    fireEvent.press(screen.getByText("Sair da conta"));
+    await waitFor(() => {
+      expect(screen).toHavePathname("/login");
+    });
+
+    fireEvent.changeText(screen.getByPlaceholderText("Email"), "outro@dev.local");
+    fireEvent.changeText(screen.getByPlaceholderText("Senha"), "dev12345");
+    fireEvent.press(screen.getByText("Entrar"));
+
+    await waitFor(() => {
+      expect(screen).toHavePathname("/");
+    });
+    // The old user's unread badge must not still be showing while the new
+    // user's notifications fetch is still in flight — proof that logout's
+    // reset() actually cleared items rather than leaving it stale until the
+    // next refresh() resolves.
+    expect(screen.queryByText("1")).toBeNull();
+  });
+
   it("navigates to onboarding, benefícios and operacional from the menu", async () => {
     await saveSessionToken(fakeJwt({ sub: "colaborador-1", role: "colaborador", name: "Ana" }));
 

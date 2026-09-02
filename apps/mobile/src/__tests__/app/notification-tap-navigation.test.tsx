@@ -4,7 +4,8 @@ jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationResponseReceivedListener: (...args: unknown[]) =>
     mockAddNotificationResponseReceivedListener(...args),
-  getLastNotificationResponseAsync: jest.fn().mockResolvedValue(null),
+  getLastNotificationResponse: jest.fn().mockReturnValue(null),
+  clearLastNotificationResponse: jest.fn(),
 }));
 
 import { renderRouter, screen, waitFor } from "expo-router/testing-library";

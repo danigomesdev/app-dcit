@@ -11,6 +11,7 @@ import { Spacing } from "@/constants/theme";
 import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
 import { unregisterPushNotifications } from "@/lib/push";
 import { clearSessionToken, getSessionToken } from "@/lib/session";
+import { useNotificationContext } from "@/context/notification-context";
 
 const ROLE_LABEL: Record<SessionClaims["role"], string> = {
   colaborador: "Colaborador",
@@ -21,6 +22,7 @@ const ROLE_LABEL: Record<SessionClaims["role"], string> = {
 export default function PerfilScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const { reset: resetNotifications } = useNotificationContext();
   const [claims, setClaims] = useState<SessionClaims | null>(null);
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function PerfilScreen() {
       }
     }
     await clearSessionToken();
+    resetNotifications();
     router.replace("/login");
   }
 
