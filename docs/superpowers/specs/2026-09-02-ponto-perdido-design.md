@@ -152,9 +152,20 @@ export class PontoPerdidoService {
       endOfTarget.setUTCDate(endOfTarget.getUTCDate() + 1);
       const targetDateMidnightUTC = new Date(`${targetDateSP}T00:00:00.000Z`);
 
-      const employees = await this.prisma.employee.findMany({
-        where: { deletedAt: null, hireDate: { lte: endOfTarget } },
+      // hireDate não filtra na query: é armazenado como meia-noite UTC do dia
+      // de contratação (mesma convenção de "new Date('YYYY-MM-DD')" usada em
+      // EmployeesService), enquanto endOfTarget é meia-noite de São Paulo (UTC
+      // 03:00) — comparar os dois direto na query bateria as convenções
+      // erradas (ex: hireDate = 2026-09-02T00:00:00Z passaria como "<=" um
+      // endOfTarget de 2026-09-02T03:00:00Z mesmo tendo sido contratado no dia
+      // seguinte ao alvo). Normaliza os dois lados pra data-only em São Paulo
+      // antes de comparar como string, sem essa ambiguidade.
+      const allActiveEmployees = await this.prisma.employee.findMany({
+        where: { deletedAt: null },
       });
+      const employees = allActiveEmployees.filter(
+        (e) => dateOnlyInSaoPaulo(e.hireDate) <= targetDateSP,
+      );
       const userIds = employees.map((e) => e.userId);
 
       const entries = await this.prisma.timeEntry.findMany({
