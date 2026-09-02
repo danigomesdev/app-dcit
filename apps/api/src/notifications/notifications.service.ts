@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ExpoPushService } from '../push/expo-push.service';
 import { PagamentoCategoria } from '@ponto-dcit/shared-types';
 
 const PAGAMENTO_MESSAGE: Record<PagamentoCategoria, string> = {
@@ -11,18 +12,25 @@ const PAGAMENTO_MESSAGE: Record<PagamentoCategoria, string> = {
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly expoPush: ExpoPushService,
+  ) {}
 
   async sendPagamento(category: PagamentoCategoria, userIds: string[]) {
     const message = PAGAMENTO_MESSAGE[category];
-    await this.prisma.notification.createMany({
-      data: userIds.map((userId) => ({
-        userId,
-        type: 'pagamento',
-        category,
-        message,
-      })),
+    const created = await this.prisma.notification.createManyAndReturn({
+      data: userIds.map((userId) => ({ userId, type: 'pagamento', category, message })),
     });
+    await Promise.all(
+      created.map((n) =>
+        this.expoPush.sendToUser(n.userId, {
+          title: 'Ponto DCIT',
+          body: n.message,
+          data: { notificationId: n.id, link: n.link },
+        }),
+      ),
+    );
   }
 
   // start/end: "YYYY-MM-DD" strings computed by the caller (same pattern as

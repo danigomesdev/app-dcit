@@ -3,19 +3,29 @@ process.env.DATABASE_URL = 'file:./test.db';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ExpoPushService } from '../push/expo-push.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
   let prisma: PrismaService;
+  const sendToUser = jest.fn();
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationsService, PrismaService],
+      providers: [
+        NotificationsService,
+        PrismaService,
+        { provide: ExpoPushService, useValue: { sendToUser } },
+      ],
     }).compile();
 
     service = module.get(NotificationsService);
     prisma = module.get(PrismaService);
     await prisma.onModuleInit();
+  });
+
+  beforeEach(() => {
+    sendToUser.mockReset();
   });
 
   afterEach(async () => {
@@ -45,6 +55,23 @@ describe('NotificationsService', () => {
         type: 'pagamento',
         category: 'vale_transporte',
       });
+    });
+
+    it('sends a push to every recipient with the notification id and link in the data payload', async () => {
+      await service.sendPagamento('salario', ['user-1', 'user-2']);
+
+      expect(sendToUser).toHaveBeenCalledTimes(2);
+
+      const notifications = await prisma.notification.findMany({ orderBy: { userId: 'asc' } });
+      expect(notifications).toHaveLength(2);
+
+      for (const notification of notifications) {
+        expect(sendToUser).toHaveBeenCalledWith(notification.userId, {
+          title: 'Ponto DCIT',
+          body: 'Seu salário foi depositado.',
+          data: { notificationId: notification.id, link: null },
+        });
+      }
     });
   });
 
