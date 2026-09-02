@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 
@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/empty-state";
 import { ScreenHeader } from "@/components/screen-header";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useNotificationContext } from "@/context/notification-context";
 import { usePonto } from "@/context/ponto-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Spacing } from "@/constants/theme";
@@ -29,8 +30,24 @@ type Notice = {
 
 const VENCIMENTO_ALERT_THRESHOLD_DAYS = 90;
 
+function formatNotificationDate(iso: string): string {
+  // createdAt is a full ISO instant (Prisma DateTime -> JSON), not a
+  // date-only value — the real wall-clock time in São Paulo is what
+  // matters here, unlike the UTC-pinned date-only formatting used
+  // elsewhere on this screen (jornada alert dates).
+  return new Date(iso).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function NotificacoesScreen() {
   const theme = useTheme();
+  const { items, handlePress } = useNotificationContext();
   const { entries } = usePonto();
   const [hireDate, setHireDate] = useState<string | null>(null);
   const [pendingVacation, setPendingVacation] = useState(0);
@@ -120,7 +137,7 @@ export default function NotificacoesScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScreenHeader title="Notificações" />
-      {notices.length === 0 ? (
+      {items.length === 0 && notices.length === 0 ? (
         <EmptyState
           glyph="🔔"
           title="Tudo em dia"
@@ -128,21 +145,53 @@ export default function NotificacoesScreen() {
         />
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
-          {notices.map((notice) => (
-            <View key={notice.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
-              <Ionicons
-                name={notice.icon}
-                size={22}
-                color={notice.tone === "accent" ? theme.accent : theme.secondary}
-              />
-              <View style={styles.rowContent}>
-                <ThemedText type="smallBold">{notice.title}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {notice.description}
-                </ThemedText>
-              </View>
-            </View>
-          ))}
+          {items.length > 0 ? (
+            <>
+              <ThemedText type="smallBold" themeColor="textSecondary">
+                Notificações
+              </ThemedText>
+              {items.map((notification) => (
+                <Pressable
+                  key={notification.id}
+                  onPress={() => handlePress(notification)}
+                  style={[styles.row, { backgroundColor: theme.backgroundElement }]}
+                >
+                  <View style={styles.rowContent}>
+                    <ThemedText type="smallBold">{notification.message}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {formatNotificationDate(notification.createdAt)}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              ))}
+            </>
+          ) : null}
+          {notices.length > 0 ? (
+            <>
+              <ThemedText
+                type="smallBold"
+                themeColor="textSecondary"
+                style={items.length > 0 ? styles.sectionGap : undefined}
+              >
+                Avisos
+              </ThemedText>
+              {notices.map((notice) => (
+                <View key={notice.id} style={[styles.row, { backgroundColor: theme.backgroundElement }]}>
+                  <Ionicons
+                    name={notice.icon}
+                    size={22}
+                    color={notice.tone === "accent" ? theme.accent : theme.secondary}
+                  />
+                  <View style={styles.rowContent}>
+                    <ThemedText type="smallBold">{notice.title}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {notice.description}
+                    </ThemedText>
+                  </View>
+                </View>
+              ))}
+            </>
+          ) : null}
         </ScrollView>
       )}
     </ThemedView>
@@ -167,5 +216,8 @@ const styles = StyleSheet.create({
   rowContent: {
     flex: 1,
     gap: 2,
+  },
+  sectionGap: {
+    marginTop: Spacing.two,
   },
 });

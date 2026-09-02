@@ -59,4 +59,53 @@ describe("notificacoes screen", () => {
       expect(screen.getByText("Intervalo entre turnos não cumprido")).toBeTruthy();
     });
   });
+
+  it("shows server notifications above the computed notices, marks read and navigates on tap", async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation((url: string, init?: RequestInit) => {
+      if (typeof url === "string" && url.includes("/notifications/mine")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            {
+              id: "n1",
+              type: "pagamento",
+              category: "salario",
+              message: "Seu salário foi depositado.",
+              link: "/historico",
+              createdAt: "2026-09-02T21:00:00.000Z",
+              readAt: null,
+            },
+          ],
+        });
+      }
+      if (typeof url === "string" && url.includes("/notifications/n1/read") && init?.method === "POST") {
+        return Promise.resolve({ ok: true, json: async () => ({}) });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    renderRouter("src/app", { initialUrl: "/notificacoes" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Seu salário foi depositado.")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("Seu salário foi depositado."));
+
+    await waitFor(() => {
+      expect(screen).toHavePathname("/historico");
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/notifications/n1/read"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("shows the empty state only when there are neither server notifications nor computed notices", () => {
+    (globalThis.fetch as jest.Mock).mockImplementation(() => Promise.resolve({ ok: false }));
+
+    renderRouter("src/app", { initialUrl: "/notificacoes" });
+
+    expect(screen.getByText("Tudo em dia")).toBeTruthy();
+  });
 });
