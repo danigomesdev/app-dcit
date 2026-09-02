@@ -53,3 +53,48 @@ export async function unregisterPushNotifications(sessionToken: string): Promise
     // login on this device reassigns it via upsert.
   }
 }
+
+/**
+ * Best-effort: without an explicit handler, the current Expo SDK's default
+ * behavior is to NOT show a banner for a notification that arrives while
+ * the app is in the foreground — this makes that behavior explicit so a
+ * push received with the app open is actually visible.
+ */
+export function configureNotificationHandler(): void {
+  try {
+    const Notifications = loadNotifications();
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
+    });
+  } catch {
+    // Best-effort — without this, foreground pushes just don't show a
+    // banner; tapping one from outside the app still works normally.
+  }
+}
+
+/**
+ * Best-effort: covers both a tap while the app is backgrounded (the
+ * response listener fires) and a cold start where the tap is what
+ * launched the app (getLastNotificationResponseAsync catches that case,
+ * which the listener alone would miss). Returns a no-op cleanup on any
+ * setup failure so callers can always call the returned function.
+ */
+export function addNotificationTapListener(onTap: (data: unknown) => void): () => void {
+  try {
+    const Notifications = loadNotifications();
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      onTap(response.notification.request.content.data);
+    });
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) onTap(response.notification.request.content.data);
+    });
+    return () => subscription.remove();
+  } catch {
+    return () => {};
+  }
+}
