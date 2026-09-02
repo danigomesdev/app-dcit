@@ -33,7 +33,15 @@ export class NotificationsService {
       where: {
         type: 'pagamento',
         category,
-        createdAt: { gte: new Date(start), lte: new Date(`${end}T23:59:59.999Z`) },
+        // start/end are São Paulo date-only strings (UTC-3, no DST) — anchor
+        // both ends to São Paulo wall-clock, not bare UTC, so a notification
+        // sent late evening BRT (already "tomorrow" in UTC) isn't dropped
+        // just outside the window. Same convention as
+        // BancoDeHorasService.getSummary's queryStart.
+        createdAt: {
+          gte: new Date(`${start}T03:00:00.000Z`),
+          lte: new Date(`${end}T23:59:59.999-03:00`),
+        },
       },
       orderBy: { createdAt: 'desc' },
       select: { userId: true, createdAt: true },

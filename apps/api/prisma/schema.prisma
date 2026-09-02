@@ -82,6 +82,8 @@ model Notification {
                        // can reuse this table without a new migration.
   category  String?   // only set when type === "pagamento": one of PAGAMENTO_CATEGORIAS
   message   String    // final display text, generated server-side at send time
+  link      String?   // optional deep-link target for a notification bell to navigate to;
+                       // unused by this plan's own sendPagamento — reserved for future producers
   createdAt DateTime  @default(now())
   readAt    DateTime? // null = unread
 }

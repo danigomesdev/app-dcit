@@ -26,6 +26,27 @@ test("colaborador and gestor see a permission message; rh sees the categories", 
   await expect(page.getByRole("button", { name: "Vale Alimentação" })).toBeVisible();
 });
 
+test("requests the status endpoint with a start/end date range for the current month", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [{ userId: "user-1", name: "Diana Colaboradora", role: "colaborador", team: null }],
+  });
+
+  await page.goto("/pagamentos");
+
+  const recorded = await getRecordedRequests(request);
+  const status = recorded.find(
+    (r) => r.method === "GET" && r.path === "/notifications/pagamentos/status/salario"
+  );
+  expect(status?.query.start).toMatch(/^\d{4}-\d{2}-01$/);
+  expect(status?.query.end).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  expect(status?.query.start.slice(0, 7)).toEqual(status?.query.end.slice(0, 7));
+});
+
 test("expanding a category shows colaboradores with 'Não enviado' when there's no status yet", async ({
   page,
   context,

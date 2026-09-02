@@ -47,7 +47,15 @@ export default async function PagamentosPage() {
   }
 
   const employees = await apiFetchJson<EmployeeRecord[]>("/employees");
-  const colaboradores = employees.filter((e) => e.role === "colaborador");
+  // EmployeesService.list() has no `select`, so the API response carries
+  // every Employee column (passwordHash, cpf, salarioMensal, ...) even
+  // though EmployeeRecord only types 4 of them. PagamentoCategorySection is
+  // a Client Component, so whatever we pass it gets serialized into the
+  // page's flight payload sent to the browser — trim down to the fields it
+  // actually uses before crossing that boundary.
+  const colaboradores = employees
+    .filter((e) => e.role === "colaborador")
+    .map(({ userId, name, role, team }) => ({ userId, name, role, team }));
 
   const today = todaySaoPauloDateOnly();
   const start = firstDayOfMonth(today);

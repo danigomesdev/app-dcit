@@ -62,7 +62,10 @@ export function PagamentoCategorySection({
       <button
         type="button"
         className={styles.categoryHeader}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => {
+          setOpen((current) => !current);
+          setError(null);
+        }}
         aria-expanded={open}
       >
         <span className={styles.categoryLabel}>{label}</span>

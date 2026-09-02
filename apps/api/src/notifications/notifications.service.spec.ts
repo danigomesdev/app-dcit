@@ -99,6 +99,27 @@ describe('NotificationsService', () => {
       expect(status).toEqual([{ userId: 'user-1', sentAt: '2026-09-10T12:00:00.000Z' }]);
     });
 
+    it('includes a notification sent late evening São Paulo time on the last day of the range (already the next day in UTC)', async () => {
+      await prisma.notification.create({
+        data: {
+          userId: 'user-1',
+          type: 'pagamento',
+          category: 'salario',
+          message: 'Seu salário foi depositado.',
+          // 2026-09-30T23:30 in São Paulo (UTC-3) is 2026-10-01T02:30Z —
+          // outside a bare-UTC ['2026-09-01', '2026-09-30T23:59:59.999Z']
+          // window, but still squarely within the São-Paulo calendar range.
+          createdAt: new Date('2026-09-30T23:30:00.000-03:00'),
+        },
+      });
+
+      const status = await service.pagamentoStatus('salario', '2026-09-01', '2026-09-30');
+
+      expect(status).toEqual([
+        { userId: 'user-1', sentAt: new Date('2026-09-30T23:30:00.000-03:00').toISOString() },
+      ]);
+    });
+
     it('does not mix categories', async () => {
       await prisma.notification.create({
         data: {
