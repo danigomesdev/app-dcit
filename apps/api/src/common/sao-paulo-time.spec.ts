@@ -1,6 +1,7 @@
 import {
   dateOnlyInSaoPaulo,
   dayOfWeekFromDateOnly,
+  formatDateOnlyBR,
   isWeekend,
   minutesSinceMidnight,
   nowSaoPauloTimeOnly,
@@ -60,6 +61,12 @@ describe('sao-paulo-time', () => {
       expect(minutesSinceMidnight('09:00')).toBe(540);
       expect(minutesSinceMidnight('00:00')).toBe(0);
       expect(minutesSinceMidnight('23:59')).toBe(1439);
+    });
+  });
+
+  describe('formatDateOnlyBR', () => {
+    it('converts YYYY-MM-DD to DD/MM/AAAA', () => {
+      expect(formatDateOnlyBR('2026-09-01')).toBe('01/09/2026');
     });
   });
 });

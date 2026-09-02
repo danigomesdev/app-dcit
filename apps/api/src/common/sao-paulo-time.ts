@@ -50,3 +50,10 @@ export function minutesSinceMidnight(hhmm: string): number {
   const [hours, minutes] = hhmm.split(':').map(Number);
   return hours * 60 + minutes;
 }
+
+// "YYYY-MM-DD" -> "DD/MM/AAAA", pra mensagens voltadas a humano. Entrada já é
+// date-only (sem componente de hora) — sem necessidade de re-resolver fuso.
+export function formatDateOnlyBR(dateOnly: string): string {
+  const [year, month, day] = dateOnly.split('-');
+  return `${day}/${month}/${year}`;
+}

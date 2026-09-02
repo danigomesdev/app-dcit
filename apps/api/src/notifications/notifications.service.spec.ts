@@ -205,4 +205,124 @@ describe('NotificationsService', () => {
       expect(untouched.readAt).toBeNull();
     });
   });
+
+  describe('sendPontoPerdido', () => {
+    afterEach(async () => {
+      await prisma.employee.deleteMany({ where: { userId: { startsWith: 'user-ponto-perdido-' } } });
+    });
+
+    it('notifies the employee and every active gestor/rh, excluding the employee themself', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'user-ponto-perdido-colaborador',
+          name: 'Carla Colaboradora',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'user-ponto-perdido-gestor',
+          name: 'Gustavo Gestor',
+          role: 'gestor',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'user-ponto-perdido-rh',
+          name: 'Rita RH',
+          role: 'rh',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      // Deleted (inactive) gestor must never receive a broadcast copy.
+      await prisma.employee.create({
+        data: {
+          userId: 'user-ponto-perdido-gestor-inativo',
+          name: 'Gustavo Inativo',
+          role: 'gestor',
+          hireDate: new Date('2024-01-01'),
+          deletedAt: new Date('2026-01-01'),
+        },
+      });
+
+      await service.sendPontoPerdido(
+        'saida_esquecida',
+        'user-ponto-perdido-colaborador',
+        'Carla Colaboradora',
+        '2026-09-01',
+      );
+
+      const notifications = await prisma.notification.findMany({
+        where: { type: 'ponto_perdido' },
+        orderBy: { userId: 'asc' },
+      });
+      expect(notifications).toHaveLength(3);
+      expect(notifications.map((n) => n.userId).sort()).toEqual(
+        [
+          'user-ponto-perdido-colaborador',
+          'user-ponto-perdido-gestor',
+          'user-ponto-perdido-rh',
+        ].sort(),
+      );
+
+      const colaboradorNotif = notifications.find(
+        (n) => n.userId === 'user-ponto-perdido-colaborador',
+      )!;
+      expect(colaboradorNotif).toMatchObject({
+        type: 'ponto_perdido',
+        category: 'saida_esquecida',
+        message: 'Você esqueceu de bater o ponto de saída em 01/09/2026.',
+        link: '/historico',
+      });
+
+      const gestorNotif = notifications.find(
+        (n) => n.userId === 'user-ponto-perdido-gestor',
+      )!;
+      expect(gestorNotif).toMatchObject({
+        type: 'ponto_perdido',
+        category: 'saida_esquecida',
+        message: 'Carla Colaboradora esqueceu de bater o ponto de saída em 01/09/2026.',
+        link: null,
+      });
+
+      expect(sendToUser).toHaveBeenCalledTimes(3);
+      expect(sendToUser).toHaveBeenCalledWith(
+        'user-ponto-perdido-colaborador',
+        expect.objectContaining({
+          title: 'Ponto DCIT',
+          data: expect.objectContaining({ notificationId: colaboradorNotif.id, link: '/historico' }),
+        }),
+      );
+    });
+
+    it("excludes the flagged employee's own broadcast copy when they are also a gestor", async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'user-ponto-perdido-gestor-faltoso',
+          name: 'Gilberto Gestor',
+          role: 'gestor',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await service.sendPontoPerdido(
+        'ausencia',
+        'user-ponto-perdido-gestor-faltoso',
+        'Gilberto Gestor',
+        '2026-09-01',
+      );
+
+      const notifications = await prisma.notification.findMany({
+        where: { type: 'ponto_perdido' },
+      });
+      expect(notifications).toHaveLength(1);
+      expect(notifications[0]).toMatchObject({
+        userId: 'user-ponto-perdido-gestor-faltoso',
+        message: 'Não identificamos nenhum ponto registrado em 01/09/2026.',
+        link: '/historico',
+      });
+    });
+  });
 });

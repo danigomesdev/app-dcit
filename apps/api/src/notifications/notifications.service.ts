@@ -2,12 +2,25 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ExpoPushService } from '../push/expo-push.service';
 import { PagamentoCategoria } from '@ponto-dcit/shared-types';
+import { formatDateOnlyBR } from '../common/sao-paulo-time';
 
 const PAGAMENTO_MESSAGE: Record<PagamentoCategoria, string> = {
   salario: 'Seu salário foi depositado.',
   auxilio_home_office: 'Seu auxílio home office foi depositado.',
   vale_transporte: 'Seu vale-transporte foi depositado.',
   vale_alimentacao: 'Seu vale-alimentação foi depositado.',
+};
+
+export type PontoPerdidoTipo = 'saida_esquecida' | 'ausencia';
+
+const PONTO_PERDIDO_MESSAGE_COLABORADOR: Record<PontoPerdidoTipo, (dateBR: string) => string> = {
+  saida_esquecida: (dateBR) => `Você esqueceu de bater o ponto de saída em ${dateBR}.`,
+  ausencia: (dateBR) => `Não identificamos nenhum ponto registrado em ${dateBR}.`,
+};
+
+const PONTO_PERDIDO_MESSAGE_GESTOR: Record<PontoPerdidoTipo, (name: string, dateBR: string) => string> = {
+  saida_esquecida: (name, dateBR) => `${name} esqueceu de bater o ponto de saída em ${dateBR}.`,
+  ausencia: (name, dateBR) => `${name} não registrou nenhum ponto em ${dateBR}.`,
 };
 
 @Injectable()
@@ -80,5 +93,54 @@ export class NotificationsService {
       where: { id, userId },
       data: { readAt: new Date() },
     });
+  }
+
+  async sendPontoPerdido(
+    tipo: PontoPerdidoTipo,
+    employeeUserId: string,
+    employeeName: string,
+    dateOnly: string,
+  ): Promise<void> {
+    const dateBR = formatDateOnlyBR(dateOnly);
+    const managers = await this.prisma.employee.findMany({
+      where: {
+        role: { in: ['gestor', 'rh'] },
+        deletedAt: null,
+        userId: { not: employeeUserId },
+      },
+    });
+
+    const recipients = [
+      {
+        userId: employeeUserId,
+        message: PONTO_PERDIDO_MESSAGE_COLABORADOR[tipo](dateBR),
+        link: '/historico' as string | null,
+      },
+      ...managers.map((m) => ({
+        userId: m.userId,
+        message: PONTO_PERDIDO_MESSAGE_GESTOR[tipo](employeeName, dateBR),
+        link: null as string | null,
+      })),
+    ];
+
+    const created = await this.prisma.notification.createManyAndReturn({
+      data: recipients.map((r) => ({
+        userId: r.userId,
+        type: 'ponto_perdido',
+        category: tipo,
+        message: r.message,
+        link: r.link,
+      })),
+    });
+
+    void Promise.all(
+      created.map((n) =>
+        this.expoPush.sendToUser(n.userId, {
+          title: 'Ponto DCIT',
+          body: n.message,
+          data: { notificationId: n.id, link: n.link },
+        }),
+      ),
+    );
   }
 }

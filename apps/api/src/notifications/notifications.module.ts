@@ -8,5 +8,6 @@ import { PushModule } from '../push/push.module';
   imports: [AuthModule, PushModule],
   controllers: [NotificationsController],
   providers: [NotificationsService],
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}
