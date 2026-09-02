@@ -22,7 +22,7 @@ export class NotificationsService {
     const created = await this.prisma.notification.createManyAndReturn({
       data: userIds.map((userId) => ({ userId, type: 'pagamento', category, message })),
     });
-    await Promise.all(
+    void Promise.all(
       created.map((n) =>
         this.expoPush.sendToUser(n.userId, {
           title: 'Ponto DCIT',
