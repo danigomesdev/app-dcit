@@ -5,6 +5,8 @@ import { unregisterPushNotifications } from "@/lib/push";
 jest.mock("@/lib/push", () => ({
   registerForPushNotifications: jest.fn().mockResolvedValue(undefined),
   unregisterPushNotifications: jest.fn().mockResolvedValue(undefined),
+  configureNotificationHandler: jest.fn(),
+  addNotificationTapListener: jest.fn().mockReturnValue(() => {}),
 }));
 
 function fakeJwt(claims: Record<string, unknown>) {
