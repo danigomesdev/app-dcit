@@ -196,3 +196,80 @@ test("the bell is visible to colaborador, gestor, and rh", async ({ page, contex
   await page.goto("/");
   await expect(page.getByLabel("Notificações")).toBeVisible();
 });
+
+test("/notificacoes shows the full history, not just the last 10", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  const notifications = Array.from({ length: 11 }, (_, i) => ({
+    id: `n${i + 1}`,
+    type: "pagamento",
+    category: "salario",
+    message: `Notificação ${i + 1}`,
+    link: null,
+    createdAt: `2026-09-${String(11 - i).padStart(2, "0")}T12:00:00.000Z`,
+    readAt: "2026-09-01T00:00:00.000Z",
+  }));
+  await mockApi(request, { notifications });
+
+  await page.goto("/notificacoes");
+
+  // exact: true — same reasoning as the bell dropdown test above:
+  // "Notificação 1" is a literal substring of "Notificação 10"/"11", and
+  // Playwright's default substring match makes getByText("Notificação 1")
+  // resolve to all three <span> elements (strict-mode violation).
+  await expect(page.getByText("Notificação 1", { exact: true })).toBeVisible();
+  await expect(page.getByText("Notificação 11", { exact: true })).toBeVisible();
+});
+
+test("/notificacoes shows an empty message with no notifications", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { notifications: [] });
+
+  await page.goto("/notificacoes");
+
+  await expect(page.getByText("Nenhuma notificação.")).toBeVisible();
+});
+
+test("clicking a notification on /notificacoes marks it read in place", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, {
+    notifications: [
+      {
+        id: "n1",
+        type: "pagamento",
+        category: "salario",
+        message: "Seu salário foi depositado.",
+        link: null,
+        createdAt: "2026-09-01T12:00:00.000Z",
+        readAt: null,
+      },
+    ],
+  });
+
+  await page.goto("/notificacoes");
+  await page.getByText("Seu salário foi depositado.").click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/notifications/n1/read");
+    })
+    .toBeTruthy();
+});
+
+test("/notificacoes is reachable for colaborador, gestor, and rh with no permission gate", async ({
+  page,
+  context,
+  request,
+}) => {
+  await mockApi(request, { notifications: [] });
+
+  for (const claims of [
+    { sub: "colaborador-1", role: "colaborador", name: "Ana" },
+    { sub: "gestor-1", role: "gestor", name: "Bruno Gestor" },
+    { sub: "rh-1", role: "rh", name: "Carla RH" },
+  ]) {
+    await addSessionCookie(context, claims);
+    await page.goto("/notificacoes");
+    await expect(page.getByRole("heading", { name: "Notificações" })).toBeVisible();
+  }
+});

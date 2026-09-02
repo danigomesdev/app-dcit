@@ -26,6 +26,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { href: "/banco-de-horas", label: "Banco de Horas", roles: ["gestor", "rh", "colaborador"] },
   { href: "/ferias", label: "Férias", roles: ["colaborador"] },
   { href: "/holerites", label: "Holerites", roles: ["gestor", "rh"] },
+  { href: "/notificacoes", label: "Notificações", roles: ["colaborador", "gestor", "rh"] },
 ];
 
 export type SidebarLink = { href: string; label: string };
