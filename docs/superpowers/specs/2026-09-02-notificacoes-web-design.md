@@ -330,7 +330,7 @@ Reaproveita `.page`/`.heading` já estabelecidos em outras páginas simples do p
 { href: "/notificacoes", label: "Notificações", roles: ["colaborador", "gestor", "rh"] },
 ```
 
-Adicionado ao final de `NAV_SECTIONS` — torna a página buscável via Ctrl+K, mesmo não estando em nenhuma sidebar (o sino é a porta de entrada principal; `COLABORADOR_SIDEBAR` não ganha uma entrada nova, seguindo o mesmo raciocínio de outras páginas utilitárias que não fazem parte da navegação curada do colaborador).
+Adicionado ao final de `NAV_SECTIONS` — torna a página buscável via Ctrl+K. **Correção pós-implementação (achado da revisão final):** ao contrário do que esta seção originalmente afirmava, `NAV_SECTIONS` não é só um índice de busca — para gestor/RH, `NavLinks` usa exatamente essa lista como a própria sidebar (só colaborador tem uma sidebar curada, via `COLABORADOR_SIDEBAR`, que continua sem ganhar entrada nova). Na prática, gestor e RH passam a ver "Notificações" na sidebar deles; colaborador só tem o sino. Decisão (ruling do controlador na revisão final): manter como está — é inofensivo e até faz sentido: gestor/RH ainda não recebem notificações reais hoje, mas devem passar a receber assim que um produtor futuro (ex.: detecção automática de ponto perdido) os incluir, e a entrada na sidebar já preparada custa nada.
 
 ## 4. Mobile
 
