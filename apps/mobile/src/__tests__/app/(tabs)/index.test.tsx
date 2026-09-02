@@ -1,4 +1,5 @@
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
+import { AppState } from "react-native";
 import { clearSessionToken, saveSessionToken } from "@/lib/session";
 
 globalThis.fetch = jest.fn();
@@ -171,6 +172,74 @@ describe("HomeScreen", () => {
 
     await waitFor(() => {
       expect(screen).toHavePathname("/notificacoes");
+    });
+  });
+
+  it("shows an unread-count badge on the notifications icon when there are unread notifications", async () => {
+    (globalThis.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/notifications/mine")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [
+            {
+              id: "n1",
+              type: "pagamento",
+              category: "salario",
+              message: "Seu salário foi depositado.",
+              link: null,
+              createdAt: "2026-09-02T21:00:00.000Z",
+              readAt: null,
+            },
+            {
+              id: "n2",
+              type: "pagamento",
+              category: "salario",
+              message: "Antiga",
+              link: null,
+              createdAt: "2026-08-01T00:00:00.000Z",
+              readAt: "2026-08-02T00:00:00.000Z",
+            },
+          ],
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+
+    renderRouter("src/app", { initialUrl: "/" });
+
+    await waitFor(() => {
+      expect(screen.getByText("1")).toBeTruthy();
+    });
+  });
+
+  it("refetches notifications when the app returns to the foreground", async () => {
+    const fetchMock = jest.fn().mockImplementation((url: string) => {
+      if (typeof url === "string" && url.includes("/notifications/mine")) {
+        return Promise.resolve({ ok: true, json: async () => [] });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    globalThis.fetch = fetchMock;
+    const addEventListenerSpy = jest.spyOn(AppState, "addEventListener");
+
+    renderRouter("src/app", { initialUrl: "/" });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/notifications/mine"),
+        expect.anything(),
+      );
+    });
+    fetchMock.mockClear();
+
+    const [, listener] = addEventListenerSpy.mock.calls.find(([event]) => event === "change")!;
+    listener("active" as never);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/notifications/mine"),
+        expect.anything(),
+      );
     });
   });
 });

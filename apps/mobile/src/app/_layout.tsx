@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useColorScheme } from 'react-native';
 
 import { PontoProvider } from '@/context/ponto-context';
+import { NotificationProvider } from '@/context/notification-context';
 
 // Keeps login as the base of the stack for a cold, unauthenticated start;
 // login itself checks for a saved session on focus and redirects to
@@ -15,7 +16,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <PontoProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <NotificationProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </NotificationProvider>
       </PontoProvider>
     </ThemeProvider>
   );

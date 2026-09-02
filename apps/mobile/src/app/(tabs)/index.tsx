@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import NetInfo from "@react-native-community/netinfo";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -11,6 +11,7 @@ import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { TabBackground } from "@/components/tab-background";
 import { formatMinutes, summarizeDay, usePonto } from "@/context/ponto-context";
+import { useNotificationContext } from "@/context/notification-context";
 import { useTheme } from "@/hooks/use-theme";
 import { Elevation, Radius, Spacing } from "@/constants/theme";
 import { decodeSessionToken, type SessionClaims } from "@/lib/jwt";
@@ -45,10 +46,12 @@ function HeaderIconButton({
   icon,
   onPress,
   accessibilityLabel,
+  children,
 }: {
   icon: IconName;
   onPress?: () => void;
   accessibilityLabel?: string;
+  children?: ReactNode;
 }) {
   const theme = useTheme();
   return (
@@ -58,6 +61,7 @@ function HeaderIconButton({
       style={[styles.headerIcon, { backgroundColor: theme.backgroundElement }, Elevation.card]}
     >
       <Ionicons name={icon} size={20} color={theme.text} />
+      {children}
     </Pressable>
   );
 }
@@ -85,6 +89,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { entries, addEntry, markEntrySynced, hydrateEntries } = usePonto();
+  const { unreadCount } = useNotificationContext();
   const [error, setError] = useState<string | null>(null);
   const [hoursVisible, setHoursVisible] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
@@ -208,7 +213,13 @@ export default function HomeScreen() {
               icon="notifications-outline"
               accessibilityLabel="Notificações"
               onPress={() => router.push("/notificacoes")}
-            />
+            >
+              {unreadCount > 0 ? (
+                <View style={[styles.badge, { backgroundColor: theme.accent }]}>
+                  <Text style={styles.badgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                </View>
+              ) : null}
+            </HeaderIconButton>
           </View>
           <View style={styles.identity}>
             <Pressable
@@ -459,5 +470,21 @@ const styles = StyleSheet.create({
   },
   error: {
     color: "#F2531D",
+  },
+  badge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "700",
   },
 });
