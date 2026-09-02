@@ -69,6 +69,7 @@ export async function mockApi(
     bancoDeHorasMinhas?: unknown;
     myCompensations?: unknown[];
     feriasData?: unknown;
+    notifications?: unknown[];
   } = {}
 ) {
   await request.post(`${FAKE_API_URL}/__reset`);
@@ -205,6 +206,11 @@ export async function mockApi(
   if (data.feriasData) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/solicitacoes/ferias", response: data.feriasData },
+    });
+  }
+  if (data.notifications) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/notifications/mine", response: data.notifications },
     });
   }
 }

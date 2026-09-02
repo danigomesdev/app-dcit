@@ -185,6 +185,12 @@
   padding: 12px 24px;
 }
 
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .searchButton {
   appearance: none;
   display: flex;

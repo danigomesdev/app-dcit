@@ -209,6 +209,10 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, []);
   }
 
+  if (req.method === "GET" && url.pathname === "/notifications/mine") {
+    return sendJson(res, 200, []);
+  }
+
   sendJson(res, 404, { error: `no fake-api handler for ${req.method} ${url.pathname}` });
 });
 
