@@ -27,6 +27,7 @@ export function PagamentoCategorySection({
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   const sentAtByUserId = useMemo(() => new Map(status.map((s) => [s.userId, s.sentAt])), [status]);
 
@@ -47,7 +48,12 @@ export function PagamentoCategorySection({
 
   function handleSend(userIds: string[]) {
     startTransition(async () => {
-      await sendPagamento(category, userIds);
+      try {
+        await sendPagamento(category, userIds);
+        setError(null);
+      } catch {
+        setError("Não foi possível enviar. Tente novamente.");
+      }
     });
   }
 
@@ -102,6 +108,8 @@ export function PagamentoCategorySection({
               Enviar para todos ({filtered.length})
             </button>
           </div>
+
+          {error ? <p className={styles.error}>{error}</p> : null}
 
           {filtered.length === 0 ? (
             <p className={styles.sectionEmpty}>Nenhum colaborador encontrado.</p>

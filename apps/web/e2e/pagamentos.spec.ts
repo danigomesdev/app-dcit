@@ -213,3 +213,22 @@ test("'Enviar para todos' is disabled when the filtered list is empty", async ({
 
   await expect(page.getByRole("button", { name: /Enviar para todos/ })).toBeDisabled();
 });
+
+test("shows an inline error when the send fails", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, {
+    employees: [{ userId: "user-1", name: "Diana Colaboradora", role: "colaborador", team: null }],
+  });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/notifications/pagamentos",
+    status: 500,
+    response: { message: "Internal error" },
+  });
+
+  await page.goto("/pagamentos");
+  await page.getByRole("button", { name: "Salário" }).click();
+  await page.getByRole("button", { name: "Enviar", exact: true }).click();
+
+  await expect(page.getByText("Não foi possível enviar. Tente novamente.")).toBeVisible();
+});

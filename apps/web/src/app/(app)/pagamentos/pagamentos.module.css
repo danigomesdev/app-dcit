@@ -104,6 +104,11 @@
   font-size: 14px;
 }
 
+.error {
+  font-size: 13px;
+  color: var(--color-text);
+}
+
 .list {
   display: flex;
   flex-direction: column;
