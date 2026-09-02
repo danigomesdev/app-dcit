@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { NotificationList, useNotificationInbox, type NotificationRecord } from "./notification-list";
+import { useNotificationContext } from "./notification-context";
+import { NotificationList } from "./notification-list";
 import styles from "./notification-bell.module.css";
 
-export function NotificationBell({ notifications }: { notifications: NotificationRecord[] }) {
+export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const { items, unreadCount, handleClick } = useNotificationInbox(notifications);
+  const { items, unreadCount, handleClick } = useNotificationContext();
 
   return (
     <div className={styles.bell}>
@@ -42,13 +43,15 @@ export function NotificationBell({ notifications }: { notifications: Notificatio
       {open ? (
         <div className={styles.panel}>
           <div className={styles.panelHeader}>Notificações</div>
-          <NotificationList
-            notifications={items.slice(0, 10)}
-            onItemClick={(notification) => {
-              handleClick(notification);
-              setOpen(false);
-            }}
-          />
+          <div className={styles.panelListScroll}>
+            <NotificationList
+              notifications={items.slice(0, 10)}
+              onItemClick={(notification) => {
+                handleClick(notification);
+                setOpen(false);
+              }}
+            />
+          </div>
           <Link href="/notificacoes" className={styles.viewAll} onClick={() => setOpen(false)}>
             Ver todas
           </Link>

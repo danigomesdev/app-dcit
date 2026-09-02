@@ -57,6 +57,11 @@
   z-index: 10;
 }
 
+.panelListScroll {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
 .panelHeader {
   padding: 4px 8px 8px;
   margin-bottom: 4px;

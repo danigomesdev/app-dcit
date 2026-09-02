@@ -1,12 +1,9 @@
 "use client";
 
-import {
-  NotificationList,
-  useNotificationInbox,
-  type NotificationRecord,
-} from "@/components/notification-list";
+import { NotificationList } from "@/components/notification-list";
+import { useNotificationContext } from "@/components/notification-context";
 
-export function NotificationHistoryList({ notifications }: { notifications: NotificationRecord[] }) {
-  const { items, handleClick } = useNotificationInbox(notifications);
+export function NotificationHistoryList() {
+  const { items, handleClick } = useNotificationContext();
   return <NotificationList notifications={items} onItemClick={handleClick} />;
 }

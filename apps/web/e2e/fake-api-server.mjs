@@ -213,6 +213,10 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, []);
   }
 
+  if (req.method === "POST" && /^\/notifications\/[^/]+\/read$/.test(url.pathname)) {
+    return sendJson(res, 200, {});
+  }
+
   sendJson(res, 404, { error: `no fake-api handler for ${req.method} ${url.pathname}` });
 });
 
