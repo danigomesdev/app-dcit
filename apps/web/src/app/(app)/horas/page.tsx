@@ -65,12 +65,15 @@ export default async function HorasPage({
       <HorasChart data={resumo} />
 
       <div className={styles.formsRow}>
-        <LancarHorasForm employees={employees} />
+        <LancarHorasForm employees={employees.map(({ userId, name }) => ({ userId, name }))} />
         <div className={styles.section}>
           <h2 className={styles.sectionTitle}>Histórico</h2>
           <form className={styles.selector}>
             <label htmlFor="colaborador">Ver lançamentos de</label>
-            <HistoricoColaboradorSelect employees={employees} colaboradorId={colaboradorId ?? ""} />
+            <HistoricoColaboradorSelect
+              employees={employees.map(({ userId, name }) => ({ userId, name }))}
+              colaboradorId={colaboradorId ?? ""}
+            />
             <input type="hidden" name="periodo" value={periodo} />
           </form>
           {colaboradorId ? <HistoricoSection userId={colaboradorId} periodo={periodo} /> : null}
