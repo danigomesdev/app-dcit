@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import {
   COLABORADOR_SIDEBAR,
+  GESTOR_CAREER_GROUP,
   isSidebarGroup,
   NAV_SECTIONS,
   type NavRole,
@@ -98,6 +99,20 @@ export function NavLinks({ role }: { role: NavRole }) {
             </ul>
           ),
         )}
+      </nav>
+    );
+  }
+
+  if (role === "gestor") {
+    const flatEntries = NAV_SECTIONS.filter((section) => section.roles.includes("gestor"));
+    return (
+      <nav className={styles.navSections}>
+        <ul className={styles.nav}>
+          {flatEntries.map((link) => (
+            <NavLinkItem key={link.href} link={link} pathname={pathname} />
+          ))}
+        </ul>
+        <NavGroupItem group={GESTOR_CAREER_GROUP} pathname={pathname} />
       </nav>
     );
   }
