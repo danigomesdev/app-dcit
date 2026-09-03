@@ -8,6 +8,7 @@ type PromotabilidadeDetail = {
   mesesDeCasa: number;
   requisitosPendentes: number;
   metasPendentes: number;
+  metasPdiRegistradas: boolean;
   ultimaMediaAvaliacao: number | null;
 };
 
@@ -30,7 +31,8 @@ export function TrilhaSection({
   if (promotabilidade.mesesDeCasa < 3) pendencias.push("tempo mínimo de 3 meses no cargo ainda não atingido");
   if (promotabilidade.requisitosPendentes > 0)
     pendencias.push(`${promotabilidade.requisitosPendentes} requisito(s) de trilha pendente(s)`);
-  if (promotabilidade.metasPendentes > 0) pendencias.push(`${promotabilidade.metasPendentes} meta(s) de PDI pendente(s)`);
+  if (!promotabilidade.metasPdiRegistradas) pendencias.push("nenhuma meta de PDI cadastrada ainda");
+  else if (promotabilidade.metasPendentes > 0) pendencias.push(`${promotabilidade.metasPendentes} meta(s) de PDI pendente(s)`);
   if (promotabilidade.ultimaMediaAvaliacao === null) pendencias.push("nenhuma avaliação de desempenho registrada ainda");
   else if (promotabilidade.ultimaMediaAvaliacao < 4)
     pendencias.push(`média de avaliação (${promotabilidade.ultimaMediaAvaliacao.toFixed(2)}) abaixo de 4`);
@@ -68,7 +70,13 @@ export function TrilhaSection({
       )}
       <form action={createTrackRequirement} className={styles.form}>
         <input type="hidden" name="userId" value={userId} />
-        <input type="text" name="title" placeholder="Novo requisito (ex: Certificação AWS)" required />
+        <input
+          type="text"
+          name="title"
+          placeholder="Novo requisito (ex: Certificação AWS)"
+          required
+          className={styles.input}
+        />
         <button type="submit">Adicionar</button>
       </form>
     </div>

@@ -83,6 +83,7 @@ async function TrilhaTab({ userId }: { userId: string }) {
       mesesDeCasa: number;
       requisitosPendentes: number;
       metasPendentes: number;
+      metasPdiRegistradas: boolean;
       ultimaMediaAvaliacao: number | null;
     }>(`/carreira/promotabilidade/${userId}`),
   ]);
