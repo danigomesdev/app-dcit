@@ -1,5 +1,7 @@
 "use client";
 
+import styles from "./gestao-carreiras.module.css";
+
 type Employee = { userId: string; name: string };
 
 // Own Client Component for the same reason as StatusSelect: the auto-submit
@@ -18,6 +20,7 @@ export function ColaboradorSelect({
       name="userId"
       defaultValue={userId}
       onChange={(e) => e.currentTarget.form?.requestSubmit()}
+      className={styles.input}
     >
       <option value="" disabled>
         Selecione um colaborador
