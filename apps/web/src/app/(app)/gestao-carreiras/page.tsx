@@ -17,6 +17,12 @@ const TABS = [
   { value: "avaliacoes", label: "Avaliações de Desempenho" },
 ] as const;
 
+const ABA_TITLES: Record<string, string> = {
+  pdi: "PDI & Metas",
+  trilha: "Matriz de Promoção / Trilhas de Carreira",
+  avaliacoes: "Avaliações de Desempenho",
+};
+
 export default async function GestaoCarreirasPage({
   searchParams,
 }: {
@@ -35,7 +41,7 @@ export default async function GestaoCarreirasPage({
 
   return (
     <div className={styles.page}>
-      <h1>Gestão de Carreiras</h1>
+      <h1>{ABA_TITLES[aba] ?? "Gestão de Carreiras"}</h1>
       <form className={styles.selector}>
         <label htmlFor="userId">Colaborador</label>
         <ColaboradorSelect employees={employees} userId={userId ?? ""} />

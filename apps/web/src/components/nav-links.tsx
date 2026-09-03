@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import {
@@ -16,8 +16,32 @@ import {
 
 import styles from "./app-shell.module.css";
 
-function NavLinkItem({ link, pathname }: { link: SidebarLink; pathname: string }) {
-  const active = pathname === link.href;
+// A link's href may carry its own query string (the Gestão de Carreiras
+// children use `?aba=...`) — usePathname() never includes the query, so a
+// plain `pathname === link.href` comparison can never match those. This
+// checks the path plus only the query params the link itself specifies,
+// ignoring any others present in the current URL (e.g. `userId`) so the
+// active state survives picking a colaborador.
+function isLinkActive(link: SidebarLink, pathname: string, searchParams: URLSearchParams): boolean {
+  const [linkPath, linkQuery] = link.href.split("?");
+  if (pathname !== linkPath) return false;
+  if (!linkQuery) return true;
+  for (const [key, value] of new URLSearchParams(linkQuery)) {
+    if (searchParams.get(key) !== value) return false;
+  }
+  return true;
+}
+
+function NavLinkItem({
+  link,
+  pathname,
+  searchParams,
+}: {
+  link: SidebarLink;
+  pathname: string;
+  searchParams: URLSearchParams;
+}) {
+  const active = isLinkActive(link, pathname, searchParams);
   return (
     <li>
       <Link
@@ -31,8 +55,16 @@ function NavLinkItem({ link, pathname }: { link: SidebarLink; pathname: string }
   );
 }
 
-function NavGroupItem({ group, pathname }: { group: SidebarGroup; pathname: string }) {
-  const active = pathname === group.href;
+function NavGroupItem({
+  group,
+  pathname,
+  searchParams,
+}: {
+  group: SidebarGroup;
+  pathname: string;
+  searchParams: URLSearchParams;
+}) {
+  const active = isLinkActive(group, pathname, searchParams);
   // Always starts collapsed ("normal") — expanding is a deliberate click,
   // not something the current route decides for you. Auto-expanding
   // whenever the group's own page was active looked like it never actually
@@ -76,7 +108,7 @@ function NavGroupItem({ group, pathname }: { group: SidebarGroup; pathname: stri
       {open ? (
         <ul className={styles.navChildren}>
           {group.children.map((child) => (
-            <NavLinkItem key={child.href} link={child} pathname={pathname} />
+            <NavLinkItem key={child.href} link={child} pathname={pathname} searchParams={searchParams} />
           ))}
         </ul>
       ) : null}
@@ -86,16 +118,17 @@ function NavGroupItem({ group, pathname }: { group: SidebarGroup; pathname: stri
 
 export function NavLinks({ role }: { role: NavRole }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   if (role === "colaborador") {
     return (
       <nav className={styles.navSections}>
         {COLABORADOR_SIDEBAR.map((entry) =>
           isSidebarGroup(entry) ? (
-            <NavGroupItem key={entry.href} group={entry} pathname={pathname} />
+            <NavGroupItem key={entry.href} group={entry} pathname={pathname} searchParams={searchParams} />
           ) : (
             <ul className={styles.nav} key={entry.href}>
-              <NavLinkItem link={entry} pathname={pathname} />
+              <NavLinkItem link={entry} pathname={pathname} searchParams={searchParams} />
             </ul>
           ),
         )}
@@ -109,10 +142,10 @@ export function NavLinks({ role }: { role: NavRole }) {
       <nav className={styles.navSections}>
         <ul className={styles.nav}>
           {flatEntries.map((link) => (
-            <NavLinkItem key={link.href} link={link} pathname={pathname} />
+            <NavLinkItem key={link.href} link={link} pathname={pathname} searchParams={searchParams} />
           ))}
         </ul>
-        <NavGroupItem group={GESTOR_CAREER_GROUP} pathname={pathname} />
+        <NavGroupItem group={GESTOR_CAREER_GROUP} pathname={pathname} searchParams={searchParams} />
       </nav>
     );
   }
@@ -121,7 +154,7 @@ export function NavLinks({ role }: { role: NavRole }) {
     <nav>
       <ul className={styles.nav}>
         {NAV_SECTIONS.filter((section) => section.roles.includes(role)).map((section) => (
-          <NavLinkItem key={section.href} link={section} pathname={pathname} />
+          <NavLinkItem key={section.href} link={section} pathname={pathname} searchParams={searchParams} />
         ))}
       </ul>
     </nav>
