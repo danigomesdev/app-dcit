@@ -63,6 +63,10 @@ export function AvaliacoesSection({
 function CiclosSubSection({ userId, evaluations }: { userId: string; evaluations: Evaluation[] }) {
   return (
     <div className={styles.section}>
+      <p className={styles.description}>
+        Registros formais de avaliação de desempenho, com notas de 1 a 5 em proatividade, trabalho em equipe,
+        comunicação e liderança. A média dessas notas também conta para o indicador de promotabilidade.
+      </p>
       {evaluations.length === 0 ? (
         <p className={styles.empty}>Nenhuma avaliação registrada.</p>
       ) : (
@@ -105,6 +109,10 @@ function CiclosSubSection({ userId, evaluations }: { userId: string; evaluations
 function OneOnOneSubSection({ userId, oneOnOnes }: { userId: string; oneOnOnes: OneOnOne[] }) {
   return (
     <div className={styles.section}>
+      <p className={styles.description}>
+        Anotações das conversas individuais entre gestor e colaborador: a pauta discutida e os itens de ação
+        combinados, com status para acompanhar se cada um foi cumprido.
+      </p>
       {oneOnOnes.length === 0 ? (
         <p className={styles.empty}>Nenhum 1:1 registrado.</p>
       ) : (
@@ -153,6 +161,10 @@ function NineBoxSubSection({ userId, placements }: { userId: string; placements:
   const current = placements[0];
   return (
     <div className={styles.section}>
+      <p className={styles.description}>
+        Posiciona o colaborador numa matriz 3×3 cruzando desempenho atual (eixo horizontal) e potencial de
+        crescimento (eixo vertical) — usada para identificar talentos e apoiar decisões de sucessão e promoção.
+      </p>
       <p>
         {current
           ? `Posição atual: desempenho ${current.desempenho}, potencial ${current.potencial}`

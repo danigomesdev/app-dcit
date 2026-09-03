@@ -68,6 +68,11 @@
   color: var(--color-text-secondary);
 }
 
+.description {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
 .input {
   padding: 6px 10px;
   border-radius: 8px;
