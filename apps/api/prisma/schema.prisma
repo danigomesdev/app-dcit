@@ -275,3 +275,67 @@ model PushToken {
   token     String   @unique
   createdAt DateTime @default(now())
 }
+
+// --- Gestão de Carreiras -----------------------------------------------
+
+model CareerGoal {
+  id          String    @id @default(uuid())
+  userId      String    // colaborador dono da meta
+  tipo        String    // "pdi" | "entrega"
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      String    @default("pendente") // "pendente" | "andamento" | "concluida"
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model TrackRequirement {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  status    String   @default("pendente") // "pendente" | "andamento" | "concluido"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PerformanceEvaluation {
+  id             String   @id @default(uuid())
+  userId         String
+  evaluatorId    String
+  date           DateTime @default(now())
+  proatividade   Int
+  trabalhoEquipe Int
+  comunicacao    Int
+  lideranca      Int
+  comentario     String?
+  createdAt      DateTime @default(now())
+}
+
+model NineBoxPlacement {
+  id         String   @id @default(uuid())
+  userId     String
+  gestorId   String
+  desempenho String   // "baixo" | "medio" | "alto"
+  potencial  String   // "baixo" | "medio" | "alto"
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+model OneOnOne {
+  id          String    @id @default(uuid())
+  userId      String
+  gestorId    String
+  date        DateTime  @default(now())
+  pauta       String
+  proximaData DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model OneOnOneAcao {
+  id         String   @id @default(uuid())
+  oneOnOneId String
+  descricao  String
+  status     String   @default("pendente") // "pendente" | "concluido"
+  createdAt  DateTime @default(now())
+}
