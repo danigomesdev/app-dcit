@@ -62,7 +62,7 @@ export default async function HorasPage({
         ))}
       </nav>
 
-      <HorasChart data={resumo} />
+      <HorasChart data={resumo} metaTickets={periodo === "mes" ? 60 : undefined} />
 
       <div className={styles.formsRow}>
         <LancarHorasForm employees={employees.map(({ userId, name }) => ({ userId, name }))} />

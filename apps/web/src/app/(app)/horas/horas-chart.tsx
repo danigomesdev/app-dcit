@@ -67,14 +67,24 @@ function roundedTopRectPath(x: number, y: number, width: number, height: number,
   return `M${x},${y + height} L${x},${y + r} Q${x},${y} ${x + r},${y} L${x + width - r},${y} Q${x + width},${y} ${x + width},${y + r} L${x + width},${y + height} Z`;
 }
 
-export function HorasChart({ data }: { data: HorasResumoItem[] }) {
+export function HorasChart({ data, metaTickets }: { data: HorasResumoItem[]; metaTickets?: number }) {
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
+  const [visibleSeries, setVisibleSeries] = useState({ trabalhadas: true, tickets: true });
 
+  function toggleSeries(key: "trabalhadas" | "tickets") {
+    setVisibleSeries((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  // The scale stays fixed to the full underlying data (+ the meta line, if
+  // any) regardless of which series is toggled off — recomputing it on
+  // toggle would make the chart visibly jump/rescale every time a legend
+  // item is clicked, which reads as broken rather than as "hiding a series".
   const maxValue = useMemo(() => {
     const allValues = data.flatMap((item) => [item.horasTrabalhadas, item.horasTickets]);
+    if (metaTickets !== undefined) allValues.push(metaTickets);
     const max = Math.max(0, ...allValues);
     return max === 0 ? 10 : Math.ceil(max / 10) * 10;
-  }, [data]);
+  }, [data, metaTickets]);
 
   const { axisLabelWidth: AXIS_LABEL_WIDTH, labelBottomMargin: LABEL_BOTTOM_MARGIN } = useMemo(
     () => computeLabelMargins(data.map((item) => item.name)),
@@ -115,14 +125,24 @@ export function HorasChart({ data }: { data: HorasResumoItem[] }) {
   return (
     <div className={styles.chartWrapper}>
       <div className={styles.legend}>
-        <span className={styles.legendItem}>
+        <button
+          type="button"
+          className={visibleSeries.trabalhadas ? styles.legendItem : `${styles.legendItem} ${styles.legendItemHidden}`}
+          onClick={() => toggleSeries("trabalhadas")}
+          aria-pressed={visibleSeries.trabalhadas}
+        >
           <span className={`${styles.legendSwatch} ${styles.legendSwatchTrabalhadas}`} />
           Horas Trabalhadas
-        </span>
-        <span className={styles.legendItem}>
+        </button>
+        <button
+          type="button"
+          className={visibleSeries.tickets ? styles.legendItem : `${styles.legendItem} ${styles.legendItemHidden}`}
+          onClick={() => toggleSeries("tickets")}
+          aria-pressed={visibleSeries.tickets}
+        >
           <span className={`${styles.legendSwatch} ${styles.legendSwatchTickets}`} />
           Horas em Tickets
-        </span>
+        </button>
       </div>
       <div className={styles.chartScroll}>
         <svg
@@ -155,10 +175,14 @@ export function HorasChart({ data }: { data: HorasResumoItem[] }) {
                   onMouseLeave={() => setHoveredUserId((current) => (current === item.userId ? null : current))}
                 >
                   <rect x={x} y={0} width={BAR_WIDTH} height={plotHeight} fill="transparent" />
-                  <path d={roundedTopRectPath(x, barY, BAR_WIDTH, barHeight, 4)} className={styles.bar} />
-                  <text x={x + BAR_WIDTH / 2} y={barY - 6} textAnchor="middle" className={styles.barValueLabel}>
-                    {item.horasTrabalhadas}
-                  </text>
+                  {visibleSeries.trabalhadas ? (
+                    <>
+                      <path d={roundedTopRectPath(x, barY, BAR_WIDTH, barHeight, 4)} className={styles.bar} />
+                      <text x={x + BAR_WIDTH / 2} y={barY - 6} textAnchor="middle" className={styles.barValueLabel}>
+                        {item.horasTrabalhadas}
+                      </text>
+                    </>
+                  ) : null}
                   <text
                     x={x + BAR_WIDTH / 2}
                     y={plotHeight + 16}
@@ -177,15 +201,34 @@ export function HorasChart({ data }: { data: HorasResumoItem[] }) {
               );
             })}
 
-            <path d={linePath} className={styles.line} fill="none" />
-            {linePoints.map((point) => (
-              <circle key={point.item.userId} cx={point.x} cy={point.y} r={5} className={styles.marker} />
-            ))}
-            {linePoints.map((point) => (
-              <text key={point.item.userId} x={point.x} y={point.y - 10} textAnchor="middle" className={styles.lineValueLabel}>
-                {point.item.horasTickets}
-              </text>
-            ))}
+            {visibleSeries.tickets ? (
+              <>
+                <path d={linePath} className={styles.line} fill="none" />
+                {linePoints.map((point) => (
+                  <circle key={point.item.userId} cx={point.x} cy={point.y} r={5} className={styles.marker} />
+                ))}
+                {linePoints.map((point) => (
+                  <text key={point.item.userId} x={point.x} y={point.y - 10} textAnchor="middle" className={styles.lineValueLabel}>
+                    {point.item.horasTickets}
+                  </text>
+                ))}
+              </>
+            ) : null}
+
+            {metaTickets !== undefined ? (
+              <g>
+                <line
+                  x1={0}
+                  x2={chartWidth}
+                  y1={scaleY(metaTickets)}
+                  y2={scaleY(metaTickets)}
+                  className={styles.metaLine}
+                />
+                <text x={chartWidth} y={scaleY(metaTickets) - 6} textAnchor="end" className={styles.metaLabel}>
+                  Meta: {metaTickets}h em tickets
+                </text>
+              </g>
+            ) : null}
           </g>
         </svg>
       </div>
