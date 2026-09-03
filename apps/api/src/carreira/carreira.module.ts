@@ -3,11 +3,13 @@ import { CareerGoalsController } from './metas.controller';
 import { CareerGoalsService } from './metas.service';
 import { TrackRequirementsController } from './trilha.controller';
 import { TrackRequirementsService } from './trilha.service';
+import { PerformanceEvaluationsController } from './avaliacoes.controller';
+import { PerformanceEvaluationsService } from './avaliacoes.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [AuthModule],
-  controllers: [CareerGoalsController, TrackRequirementsController],
-  providers: [CareerGoalsService, TrackRequirementsService],
+  controllers: [CareerGoalsController, TrackRequirementsController, PerformanceEvaluationsController],
+  providers: [CareerGoalsService, TrackRequirementsService, PerformanceEvaluationsService],
 })
 export class CarreiraModule {}
