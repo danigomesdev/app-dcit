@@ -87,3 +87,5 @@ export type {
   OneOnOneCreateInput,
   OneOnOneAcaoUpdateInput,
 } from "./carreira";
+export { PERIODOS_HORAS, PeriodoHorasSchema, WorkedHoursEntryCreateSchema } from "./horas";
+export type { PeriodoHoras, WorkedHoursEntryCreateInput } from "./horas";
