@@ -1,6 +1,7 @@
 process.env.DATABASE_URL = 'file:./test.db';
 
 import { resolvePeriodoRange, sumEntriesByUser } from './horas.service';
+import { todaySaoPauloDateOnly } from '../common/sao-paulo-time';
 
 describe('resolvePeriodoRange (pure function)', () => {
   it('dia resolves to just today', () => {
@@ -121,7 +122,7 @@ describe('HorasService', () => {
   });
 
   it('resumo sums only entries inside the resolved period', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todaySaoPauloDateOnly();
     await service.lancar(
       { userId: 'horas-spec-user', date: today, horasTrabalhadas: 3, horasTickets: 1 },
       'horas-spec-gestor',
