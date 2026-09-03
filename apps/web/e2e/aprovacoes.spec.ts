@@ -54,9 +54,16 @@ test("lists pending atestados, vacation, adjustment and compensation requests fo
 
   await page.goto("/aprovacoes");
 
+  await page.getByRole("button", { name: "Atestados — Fila de aprovações" }).click();
   await expect(page.getByText("Carlos Colaborador")).toBeVisible();
+
+  await page.getByRole("button", { name: "Férias — Fila de aprovações" }).click();
   await expect(page.getByText("Diana Colaboradora")).toBeVisible();
+
+  await page.getByRole("button", { name: "Ajustes de ponto — Fila de aprovações" }).click();
   await expect(page.getByText("Elias Colaborador")).toBeVisible();
+
+  await page.getByRole("button", { name: "Banco de horas — Fila de aprovações" }).click();
   await expect(page.getByText("Fabia Colaboradora")).toBeVisible();
 });
 
@@ -74,6 +81,7 @@ test("approving an adjustment request calls the API", async ({ page, context, re
   });
 
   await page.goto("/aprovacoes");
+  await page.getByRole("button", { name: "Ajustes de ponto — Fila de aprovações" }).click();
   await page
     .locator("li", { hasText: "Elias Colaborador" })
     .getByRole("button", { name: "Aprovar" })
@@ -103,6 +111,7 @@ test("rejecting a compensation request calls the API", async ({ page, context, r
   });
 
   await page.goto("/aprovacoes");
+  await page.getByRole("button", { name: "Banco de horas — Fila de aprovações" }).click();
   const item = page.locator("li", { hasText: "Fabia Colaboradora" });
   await item.getByRole("button", { name: "Recusar" }).click();
   await page.getByLabel("Motivo da recusa").fill("Saldo insuficiente");
@@ -137,11 +146,18 @@ test("approving an atestado calls the API and refreshes the list", async ({
   });
 
   await page.goto("/aprovacoes");
+  await page.getByRole("button", { name: "Atestados — Fila de aprovações" }).click();
   await page
     .locator("li", { hasText: "Carlos Colaborador" })
     .getByRole("button", { name: "Aprovar" })
     .click();
 
+  // The fake API server echoes the PATCH body but never mutates its seeded
+  // atestados list, so the refreshed page still reports Carlos as pending —
+  // he stays under Fila, not Histórico. This test only ever verified the
+  // approve action's request payload; it never actually exercised the
+  // decided-item moving to history (that's covered by the dedicated
+  // "already-decided requests" test below, which seeds status directly).
   await expect(page.getByText("Carlos Colaborador")).toBeVisible();
 
   await expect
@@ -176,6 +192,7 @@ test("shows already-decided requests in the history section with their rejection
   await page.goto("/aprovacoes");
 
   await expect(page.getByRole("heading", { name: "Histórico de aprovações" })).toBeVisible();
+  await page.getByRole("button", { name: "Ajustes de ponto — Histórico de aprovações" }).click();
   const historyItem = page.locator("li", { hasText: "Gil Colaborador" });
   await expect(historyItem.getByText("Recusado")).toBeVisible();
   await expect(historyItem.getByText("Motivo: Sem batida correspondente")).toBeVisible();

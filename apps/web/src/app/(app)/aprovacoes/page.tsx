@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { AprovacoesAccordion } from "./aprovacoes-accordion";
 import { decideAdjustment, decideAtestado, decideCompensation, decideVacation } from "./actions";
 import { ApprovalSection } from "./approval-section";
 import { HistorySection } from "./history-section";
@@ -106,104 +107,149 @@ export default async function AprovacoesPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.heading}>Fila de aprovações</h1>
-
-      <ApprovalSection
-        title="Atestados"
-        emptyLabel="Nenhum atestado pendente."
-        onDecide={decideAtestado}
-        items={pendingAtestados.map((atestado) => ({
-          id: atestado.id,
-          name: atestado.userName,
-          detail: `${
-            atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"
-          } · enviado em ${formatTimestamp(atestado.createdAt)}`,
-        }))}
-      />
-
-      <ApprovalSection
-        title="Férias"
-        emptyLabel="Nenhuma solicitação de férias pendente."
-        onDecide={decideVacation}
-        items={pendingVacations.map((vacation) => ({
-          id: vacation.id,
-          name: vacation.userName,
-          detail: `${formatDateOnly(vacation.startDate)} a ${formatDateOnly(vacation.endDate)} · ${vacation.days} dia(s)`,
-        }))}
-      />
-
-      <ApprovalSection
-        title="Ajustes de ponto"
-        emptyLabel="Nenhum ajuste de ponto pendente."
-        onDecide={decideAdjustment}
-        items={pendingAdjustments.map((adjustment) => ({
-          id: adjustment.id,
-          name: adjustment.userName,
-          detail: `${adjustment.reason} · enviado em ${formatTimestamp(adjustment.createdAt)}`,
-        }))}
-      />
-
-      <ApprovalSection
-        title="Banco de horas"
-        emptyLabel="Nenhuma solicitação de compensação pendente."
-        onDecide={decideCompensation}
-        items={pendingCompensations.map((compensation) => ({
-          id: compensation.id,
-          name: compensation.userName,
-          detail: `${compensation.reason} · enviado em ${formatTimestamp(compensation.createdAt)}`,
-        }))}
-      />
-
-      <h1 className={styles.heading}>Histórico de aprovações</h1>
-
-      <HistorySection
-        title="Atestados"
-        emptyLabel="Nenhum atestado decidido ainda."
-        items={historyAtestados.map((atestado) => ({
-          id: atestado.id,
-          name: atestado.userName,
-          detail: `${
-            atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"
-          } · enviado em ${formatTimestamp(atestado.createdAt)}`,
-          status: atestado.status as "aprovado" | "recusado",
-          reviewNote: atestado.reviewNote,
-        }))}
-      />
-
-      <HistorySection
-        title="Férias"
-        emptyLabel="Nenhuma solicitação de férias decidida ainda."
-        items={historyVacations.map((vacation) => ({
-          id: vacation.id,
-          name: vacation.userName,
-          detail: `${formatDateOnly(vacation.startDate)} a ${formatDateOnly(vacation.endDate)} · ${vacation.days} dia(s)`,
-          status: vacation.status as "aprovado" | "recusado",
-          reviewNote: vacation.reviewNote,
-        }))}
-      />
-
-      <HistorySection
-        title="Ajustes de ponto"
-        emptyLabel="Nenhum ajuste de ponto decidido ainda."
-        items={historyAdjustments.map((adjustment) => ({
-          id: adjustment.id,
-          name: adjustment.userName,
-          detail: `${adjustment.reason} · enviado em ${formatTimestamp(adjustment.createdAt)}`,
-          status: adjustment.status as "aprovado" | "recusado",
-          reviewNote: adjustment.reviewNote,
-        }))}
-      />
-
-      <HistorySection
-        title="Banco de horas"
-        emptyLabel="Nenhuma solicitação de compensação decidida ainda."
-        items={historyCompensations.map((compensation) => ({
-          id: compensation.id,
-          name: compensation.userName,
-          detail: `${compensation.reason} · enviado em ${formatTimestamp(compensation.createdAt)}`,
-          status: compensation.status as "aprovado" | "recusado",
-          reviewNote: compensation.reviewNote,
-        }))}
+      <AprovacoesAccordion
+        groups={[
+          {
+            key: "fila",
+            label: "Fila de aprovações",
+            items: [
+              {
+                key: "atestados",
+                label: "Atestados",
+                content: (
+                  <ApprovalSection
+                    emptyLabel="Nenhum atestado pendente."
+                    onDecide={decideAtestado}
+                    items={pendingAtestados.map((atestado) => ({
+                      id: atestado.id,
+                      name: atestado.userName,
+                      detail: `${
+                        atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"
+                      } · enviado em ${formatTimestamp(atestado.createdAt)}`,
+                    }))}
+                  />
+                ),
+              },
+              {
+                key: "ferias",
+                label: "Férias",
+                content: (
+                  <ApprovalSection
+                    emptyLabel="Nenhuma solicitação de férias pendente."
+                    onDecide={decideVacation}
+                    items={pendingVacations.map((vacation) => ({
+                      id: vacation.id,
+                      name: vacation.userName,
+                      detail: `${formatDateOnly(vacation.startDate)} a ${formatDateOnly(vacation.endDate)} · ${vacation.days} dia(s)`,
+                    }))}
+                  />
+                ),
+              },
+              {
+                key: "ajustes",
+                label: "Ajustes de ponto",
+                content: (
+                  <ApprovalSection
+                    emptyLabel="Nenhum ajuste de ponto pendente."
+                    onDecide={decideAdjustment}
+                    items={pendingAdjustments.map((adjustment) => ({
+                      id: adjustment.id,
+                      name: adjustment.userName,
+                      detail: `${adjustment.reason} · enviado em ${formatTimestamp(adjustment.createdAt)}`,
+                    }))}
+                  />
+                ),
+              },
+              {
+                key: "banco-de-horas",
+                label: "Banco de horas",
+                content: (
+                  <ApprovalSection
+                    emptyLabel="Nenhuma solicitação de compensação pendente."
+                    onDecide={decideCompensation}
+                    items={pendingCompensations.map((compensation) => ({
+                      id: compensation.id,
+                      name: compensation.userName,
+                      detail: `${compensation.reason} · enviado em ${formatTimestamp(compensation.createdAt)}`,
+                    }))}
+                  />
+                ),
+              },
+            ],
+          },
+          {
+            key: "historico",
+            label: "Histórico de aprovações",
+            items: [
+              {
+                key: "atestados",
+                label: "Atestados",
+                content: (
+                  <HistorySection
+                    emptyLabel="Nenhum atestado decidido ainda."
+                    items={historyAtestados.map((atestado) => ({
+                      id: atestado.id,
+                      name: atestado.userName,
+                      detail: `${
+                        atestado.dias != null ? `${atestado.dias} dia(s)` : "Dias não informados"
+                      } · enviado em ${formatTimestamp(atestado.createdAt)}`,
+                      status: atestado.status as "aprovado" | "recusado",
+                      reviewNote: atestado.reviewNote,
+                    }))}
+                  />
+                ),
+              },
+              {
+                key: "ferias",
+                label: "Férias",
+                content: (
+                  <HistorySection
+                    emptyLabel="Nenhuma solicitação de férias decidida ainda."
+                    items={historyVacations.map((vacation) => ({
+                      id: vacation.id,
+                      name: vacation.userName,
+                      detail: `${formatDateOnly(vacation.startDate)} a ${formatDateOnly(vacation.endDate)} · ${vacation.days} dia(s)`,
+                      status: vacation.status as "aprovado" | "recusado",
+                      reviewNote: vacation.reviewNote,
+                    }))}
+                  />
+                ),
+              },
+              {
+                key: "ajustes",
+                label: "Ajustes de ponto",
+                content: (
+                  <HistorySection
+                    emptyLabel="Nenhum ajuste de ponto decidido ainda."
+                    items={historyAdjustments.map((adjustment) => ({
+                      id: adjustment.id,
+                      name: adjustment.userName,
+                      detail: `${adjustment.reason} · enviado em ${formatTimestamp(adjustment.createdAt)}`,
+                      status: adjustment.status as "aprovado" | "recusado",
+                      reviewNote: adjustment.reviewNote,
+                    }))}
+                  />
+                ),
+              },
+              {
+                key: "banco-de-horas",
+                label: "Banco de horas",
+                content: (
+                  <HistorySection
+                    emptyLabel="Nenhuma solicitação de compensação decidida ainda."
+                    items={historyCompensations.map((compensation) => ({
+                      id: compensation.id,
+                      name: compensation.userName,
+                      detail: `${compensation.reason} · enviado em ${formatTimestamp(compensation.createdAt)}`,
+                      status: compensation.status as "aprovado" | "recusado",
+                      reviewNote: compensation.reviewNote,
+                    }))}
+                  />
+                ),
+              },
+            ],
+          },
+        ]}
       />
     </div>
   );

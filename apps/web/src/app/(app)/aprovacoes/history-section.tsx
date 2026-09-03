@@ -13,13 +13,13 @@ export function HistorySection({
   emptyLabel,
   items,
 }: {
-  title: string;
+  title?: string;
   emptyLabel: string;
   items: HistoryItem[];
 }) {
   return (
     <section className={styles.section}>
-      <h2 className={styles.sectionTitle}>{title}</h2>
+      {title ? <h2 className={styles.sectionTitle}>{title}</h2> : null}
       {items.length === 0 ? (
         <p className={styles.sectionEmpty}>{emptyLabel}</p>
       ) : (
