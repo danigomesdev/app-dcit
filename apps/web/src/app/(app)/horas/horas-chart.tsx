@@ -10,35 +10,52 @@ const CHART_HEIGHT = 260;
 const BAR_WIDTH = 24;
 const BAR_GAP = 20;
 const LABEL_HEIGHT = 40;
-// Reserves room to the left of the first bar for the y-axis tick numbers,
-// plus a small buffer so the first employee's rotated name label
-// (text-anchor="end" + rotate(-35, ...) extends leftward from its bar)
-// doesn't shave its first character or two against local x=0. This is a
-// minor effect (~2-3px for this app's actual dev-seed names) — the much
-// bigger effect is vertical, handled by LABEL_BOTTOM_MARGIN below.
-const AXIS_LABEL_WIDTH = 48;
+
 // A rotated label doesn't just reach left of its pivot — it also reaches
 // *down* past it (rotate(-35, ...) on a text-anchor="end" string moves
 // its start point down-and-left, not just left). `.chartScroll`'s
-// `overflow-x: auto` was added in the previous fix round to handle wide
+// `overflow-x: auto` was added in a previous fix round to handle wide
 // (many-employee) charts, but CSS forces `overflow-y` to compute as
 // `auto` too whenever `overflow-x` isn't `visible` and `overflow-y` is
 // (an unavoidable coupling per the CSS Overflow spec — you cannot have
 // "auto" on one axis and "visible" on the other on the same element).
 // That silently clips anything that bleeds below the box's fixed height,
-// which is exactly what a long rotated label does. This was the *actual*
-// cause of the label clipping bug reported in review — not primarily the
-// horizontal reach AXIS_LABEL_WIDTH addresses above, which was the
-// initial hypothesis but didn't hold up under measurement (increasing it
-// from 32 to 400 barely changed what was visible). Verified by computing
-// each label's downward reach — pivotY(236) + sin(35°)*textLength — for
-// this app's real dev-seed names: only "Carla RH" (8 chars) stayed under
-// the old bottom edge (local y=260); "Ana Colaboradora", "Bruno Gestor",
-// and "Daniel Gomes de Oliveira" all exceeded it, worst-to-least exactly
-// matching the clipping severity seen in screenshots. Fix: make the box
-// tall enough that nothing needs to overflow in the first place — an
-// "auto" overflow that never triggers is visually identical to "visible".
-const LABEL_BOTTOM_MARGIN = 70;
+// which is exactly what a long rotated label does. Fix: make the box
+// tall (and wide) enough that nothing needs to overflow in the first
+// place — an "auto" overflow that never triggers is visually identical
+// to "visible".
+//
+// The reserved margins used to be fixed constants sized for this app's
+// dev-seed names (longest: "Daniel Gomes de Oliveira", 24 chars). Real
+// names vary a lot more, so both margins are now derived from the
+// longest employee name actually present in `data`. We don't have a
+// live DOM node to measure (no effects/two-pass render in this
+// component), so width is estimated from character count at the
+// label's font-size: 10px — AVG_CHAR_WIDTH_PX is a deliberate
+// upper-bound average for that size/font, so we overestimate margin
+// rather than clip. From that estimated pixel width, the same trig the
+// old fixed constants implicitly modeled gives the rotated (-35°)
+// reach: vertical reach (bottom margin) ≈ textWidthPx * sin(35°),
+// horizontal reach (left margin, shared with the y-axis tick numbers'
+// own offset) ≈ textWidthPx * cos(35°). Floors match the old fixed
+// values so short-name rosters (e.g. this app's dev-seed) don't regress
+// to a smaller, cramped chart.
+const AVG_CHAR_WIDTH_PX = 6;
+const ROTATION_RADIANS = (35 * Math.PI) / 180;
+const MARGIN_BUFFER_PX = 16;
+const MIN_AXIS_LABEL_WIDTH = 48;
+const MIN_LABEL_BOTTOM_MARGIN = 70;
+
+function computeLabelMargins(names: string[]): { axisLabelWidth: number; labelBottomMargin: number } {
+  const maxNameLength = names.reduce((max, name) => Math.max(max, name.length), 0);
+  const textWidthPx = maxNameLength * AVG_CHAR_WIDTH_PX;
+  const reachHorizontal = textWidthPx * Math.cos(ROTATION_RADIANS);
+  const reachVertical = textWidthPx * Math.sin(ROTATION_RADIANS);
+  return {
+    axisLabelWidth: Math.max(MIN_AXIS_LABEL_WIDTH, Math.ceil(reachHorizontal + MARGIN_BUFFER_PX)),
+    labelBottomMargin: Math.max(MIN_LABEL_BOTTOM_MARGIN, Math.ceil(reachVertical + MARGIN_BUFFER_PX)),
+  };
+}
 
 // Rounds only the top two corners of a bar (square baseline) — a plain
 // `rx` on a <rect> would round all four, which reads wrong for a bar that
@@ -58,6 +75,11 @@ export function HorasChart({ data }: { data: HorasResumoItem[] }) {
     const max = Math.max(0, ...allValues);
     return max === 0 ? 10 : Math.ceil(max / 10) * 10;
   }, [data]);
+
+  const { axisLabelWidth: AXIS_LABEL_WIDTH, labelBottomMargin: LABEL_BOTTOM_MARGIN } = useMemo(
+    () => computeLabelMargins(data.map((item) => item.name)),
+    [data],
+  );
 
   if (data.length === 0) {
     return <p className={styles.empty}>Nenhum colaborador ativo.</p>;
