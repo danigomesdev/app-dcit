@@ -65,6 +65,7 @@ export async function mockApi(
     jornadaAlerts?: unknown[];
     convencoes?: unknown[];
     promotabilidade?: Record<string, "verde" | "amarelo" | "branco">;
+    horasResumo?: unknown[];
     bancoDeHorasEquipe?: unknown[];
     holerites?: unknown[];
     bancoDeHorasMinhas?: unknown;
@@ -187,6 +188,11 @@ export async function mockApi(
   if (data.promotabilidade) {
     await request.post(`${FAKE_API_URL}/__seed`, {
       data: { path: "/carreira/promotabilidade", response: data.promotabilidade },
+    });
+  }
+  if (data.horasResumo) {
+    await request.post(`${FAKE_API_URL}/__seed`, {
+      data: { path: "/horas/resumo", response: data.horasResumo },
     });
   }
   if (data.bancoDeHorasEquipe) {

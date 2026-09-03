@@ -103,6 +103,18 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && url.pathname === "/carreira/promotabilidade") {
     return sendJson(res, 200, {});
   }
+  if (req.method === "GET" && url.pathname === "/horas/resumo") {
+    return sendJson(res, 200, []);
+  }
+  if (req.method === "GET" && url.pathname === "/horas") {
+    return sendJson(res, 200, []);
+  }
+  if (req.method === "POST" && url.pathname === "/horas") {
+    return sendJson(res, 201, { id: "generated-horas-id", ...body });
+  }
+  if (req.method === "DELETE" && /^\/horas\/[^/]+$/.test(url.pathname)) {
+    return sendJson(res, 204, null);
+  }
   if (req.method === "GET" && url.pathname === "/banco-de-horas/equipe") {
     return sendJson(res, 200, []);
   }
