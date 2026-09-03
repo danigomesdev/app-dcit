@@ -1,7 +1,7 @@
 process.env.DATABASE_URL = 'file:./test.db';
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { PromotabilidadeService, calcularStatusPromotabilidade } from './promotabilidade.service';
+import { PromotabilidadeService, calcularStatusPromotabilidade, calcularDetalhe } from './promotabilidade.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('calcularStatusPromotabilidade (pure function)', () => {
@@ -62,12 +62,23 @@ describe('calcularStatusPromotabilidade (pure function)', () => {
     expect(status).toBe('verde');
   });
 
-  it('returns amarelo (not verde) when track requirements are empty even though metas and avaliação qualify — no vacuous truth', () => {
+  it('returns verde when track requirements are empty but metas and avaliação qualify — vacuous truth is intentional for trilha', () => {
     const status = calcularStatusPromotabilidade({
       hireDate: new Date('2025-01-01'),
       now,
       requisitos: [],
       metasPdi: [{ status: 'concluida' }],
+      ultimaAvaliacao: { proatividade: 4, trabalhoEquipe: 4, comunicacao: 4, lideranca: 4 },
+    });
+    expect(status).toBe('verde');
+  });
+
+  it('returns amarelo (not verde) when PDI goals are empty even though requisitos and avaliação qualify — this gate is unchanged', () => {
+    const status = calcularStatusPromotabilidade({
+      hireDate: new Date('2025-01-01'),
+      now,
+      requisitos: [{ status: 'concluido' }],
+      metasPdi: [],
       ultimaAvaliacao: { proatividade: 4, trabalhoEquipe: 4, comunicacao: 4, lideranca: 4 },
     });
     expect(status).toBe('amarelo');
@@ -107,6 +118,32 @@ describe('calcularStatusPromotabilidade (pure function)', () => {
       ultimaAvaliacao: { proatividade: 4, trabalhoEquipe: 4, comunicacao: 4, lideranca: 4 },
     });
     expect(status).toBe('branco');
+  });
+});
+
+describe('calcularDetalhe (pure function)', () => {
+  const now = new Date('2026-09-02T00:00:00.000Z');
+
+  it('reports metasPdiRegistradas: false when no PDI goals exist', () => {
+    const detalhe = calcularDetalhe({
+      hireDate: new Date('2025-01-01'),
+      now,
+      requisitos: [],
+      metasPdi: [],
+      ultimaAvaliacao: null,
+    });
+    expect(detalhe.metasPdiRegistradas).toBe(false);
+  });
+
+  it('reports metasPdiRegistradas: true when at least one PDI goal exists', () => {
+    const detalhe = calcularDetalhe({
+      hireDate: new Date('2025-01-01'),
+      now,
+      requisitos: [],
+      metasPdi: [{ status: 'pendente' }],
+      ultimaAvaliacao: null,
+    });
+    expect(detalhe.metasPdiRegistradas).toBe(true);
   });
 });
 

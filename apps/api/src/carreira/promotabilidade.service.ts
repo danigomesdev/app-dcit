@@ -37,11 +37,16 @@ export function calcularStatusPromotabilidade(input: {
   const nadaRegistrado = input.requisitos.length === 0 && input.metasPdi.length === 0 && !input.ultimaAvaliacao;
   if (nadaRegistrado) return 'branco';
 
-  // `.every()` is vacuously true on an empty array, so each category must
-  // also be non-empty to count as genuinely fulfilled — otherwise an
-  // employee with e.g. zero track requirements could reach verde without a
-  // single requirement ever having been tracked for them.
-  const todosRequisitosOk = input.requisitos.length > 0 && input.requisitos.every((r) => r.status === 'concluido');
+  // `.every()` is vacuously true on an empty array. For track requirements
+  // this is intentional (product decision): a gestor who deliberately
+  // registers zero requirements for an employee (e.g. an already-senior
+  // hire with nothing left to check off) should be able to reach verde on
+  // that axis rather than being permanently blocked by an empty checklist.
+  // PDI goals are different — every employee is expected to have at least
+  // one active PDI goal, so an empty `metasPdi` almost always means the
+  // gestor hasn't set one up yet rather than "nothing left to do", and
+  // still gates verde below via the explicit `.length > 0` check.
+  const todosRequisitosOk = input.requisitos.every((r) => r.status === 'concluido');
   const todasMetasOk = input.metasPdi.length > 0 && input.metasPdi.every((m) => m.status === 'concluida');
   const mediaOk = input.ultimaAvaliacao !== null && mediaAvaliacao(input.ultimaAvaliacao) >= 4;
 
@@ -60,12 +65,18 @@ type DetalheInput = {
 // Shared by both getOne (single-employee fetch) and listAll (batched fetch) —
 // only the data-fetching differs between the two call sites; the branching
 // logic itself lives in exactly one place.
-function calcularDetalhe(input: DetalheInput) {
+export function calcularDetalhe(input: DetalheInput) {
   return {
     status: calcularStatusPromotabilidade(input),
     mesesDeCasa: diffInMonths(input.hireDate, input.now),
     requisitosPendentes: input.requisitos.filter((r) => r.status !== 'concluido').length,
     metasPendentes: input.metasPdi.filter((m) => m.status !== 'concluida').length,
+    // Now that an empty trilha no longer blocks verde, `metasPendentes: 0`
+    // is ambiguous on its own — it can mean "0 PDI goals pending" or "0 PDI
+    // goals registered at all". This flag lets callers (the frontend) tell
+    // those two cases apart instead of silently rendering the same "no
+    // pendências" message for both.
+    metasPdiRegistradas: input.metasPdi.length > 0,
     ultimaMediaAvaliacao: input.ultimaAvaliacao ? mediaAvaliacao(input.ultimaAvaliacao) : null,
   };
 }
