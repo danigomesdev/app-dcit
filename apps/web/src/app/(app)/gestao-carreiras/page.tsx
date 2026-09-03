@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { ColaboradorSelect } from "./colaborador-select";
 import styles from "./gestao-carreiras.module.css";
 import { MetasSection } from "./metas-section";
+import { TrilhaSection } from "./trilha-section";
 
 type Employee = { userId: string; name: string };
 type CareerGoal = { id: string; tipo: "pdi" | "entrega"; title: string; status: "pendente" | "andamento" | "concluida" };
@@ -56,6 +57,7 @@ export default async function GestaoCarreirasPage({
             ))}
           </nav>
           {aba === "pdi" ? <MetasTab userId={userId} /> : null}
+          {aba === "trilha" ? <TrilhaTab userId={userId} /> : null}
         </>
       )}
     </div>
@@ -65,4 +67,20 @@ export default async function GestaoCarreirasPage({
 async function MetasTab({ userId }: { userId: string }) {
   const goals = await apiFetchJson<CareerGoal[]>(`/carreira/metas?userId=${userId}`);
   return <MetasSection userId={userId} goals={goals} />;
+}
+
+async function TrilhaTab({ userId }: { userId: string }) {
+  const [requirements, promotabilidade] = await Promise.all([
+    apiFetchJson<{ id: string; title: string; status: "pendente" | "andamento" | "concluido" }[]>(
+      `/carreira/trilha?userId=${userId}`,
+    ),
+    apiFetchJson<{
+      status: "verde" | "amarelo" | "branco";
+      mesesDeCasa: number;
+      requisitosPendentes: number;
+      metasPendentes: number;
+      ultimaMediaAvaliacao: number | null;
+    }>(`/carreira/promotabilidade/${userId}`),
+  ]);
+  return <TrilhaSection userId={userId} requirements={requirements} promotabilidade={promotabilidade} />;
 }
