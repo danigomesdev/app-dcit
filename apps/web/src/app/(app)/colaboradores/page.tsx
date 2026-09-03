@@ -41,6 +41,11 @@ export default async function ColaboradoresPage() {
     apiFetchJson<{ id: string; nome: string }[]>("/convencoes").catch(() => []),
   ]);
 
+  const promotabilidade =
+    session.role === "gestor"
+      ? await apiFetchJson<Record<string, "verde" | "amarelo" | "branco">>("/carreira/promotabilidade")
+      : {};
+
   return (
     <div className={styles.page}>
       <div className={styles.headingRow}>
@@ -56,7 +61,12 @@ export default async function ColaboradoresPage() {
       ) : (
         <ul className={styles.list}>
           {employees.map((employee) => (
-            <ColaboradoresRow key={employee.userId} employee={employee} convencoes={convencoes} />
+            <ColaboradoresRow
+              key={employee.userId}
+              employee={employee}
+              convencoes={convencoes}
+              promotabilidade={promotabilidade[employee.userId]}
+            />
           ))}
         </ul>
       )}
