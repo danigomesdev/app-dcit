@@ -6,10 +6,10 @@ import styles from "./horas.module.css";
 
 type HorasResumoItem = { userId: string; name: string; horasTrabalhadas: number; horasTickets: number };
 
-const CHART_HEIGHT = 260;
-const BAR_WIDTH = 24;
-const BAR_GAP = 20;
-const LABEL_HEIGHT = 40;
+const CHART_HEIGHT = 130;
+const BAR_WIDTH = 30;
+const BAR_GAP = 24;
+const LABEL_HEIGHT = 28;
 
 // A rotated label doesn't just reach left of its pivot — it also reaches
 // *down* past it (rotate(-35, ...) on a text-anchor="end" string moves
@@ -34,17 +34,19 @@ const LABEL_HEIGHT = 40;
 // label's font-size: 10px — AVG_CHAR_WIDTH_PX is a deliberate
 // upper-bound average for that size/font, so we overestimate margin
 // rather than clip. From that estimated pixel width, the same trig the
-// old fixed constants implicitly modeled gives the rotated (-35°)
-// reach: vertical reach (bottom margin) ≈ textWidthPx * sin(35°),
+// old fixed constants implicitly modeled gives the rotated (-25°)
+// reach: vertical reach (bottom margin) ≈ textWidthPx * sin(25°),
 // horizontal reach (left margin, shared with the y-axis tick numbers'
-// own offset) ≈ textWidthPx * cos(35°). Floors match the old fixed
-// values so short-name rosters (e.g. this app's dev-seed) don't regress
-// to a smaller, cramped chart.
+// own offset) ≈ textWidthPx * cos(25°). A shallower rotation than the
+// original -35° trades a little horizontal room for a lot less vertical
+// reach — the whole page has to fit one screen without scrolling, and
+// vertical space is the scarcer budget here.
 const AVG_CHAR_WIDTH_PX = 6;
-const ROTATION_RADIANS = (35 * Math.PI) / 180;
-const MARGIN_BUFFER_PX = 16;
+const ROTATION_DEGREES = 25;
+const ROTATION_RADIANS = (ROTATION_DEGREES * Math.PI) / 180;
+const MARGIN_BUFFER_PX = 10;
 const MIN_AXIS_LABEL_WIDTH = 48;
-const MIN_LABEL_BOTTOM_MARGIN = 70;
+const MIN_LABEL_BOTTOM_MARGIN = 50;
 
 function computeLabelMargins(names: string[]): { axisLabelWidth: number; labelBottomMargin: number } {
   const maxNameLength = names.reduce((max, name) => Math.max(max, name.length), 0);
@@ -188,7 +190,7 @@ export function HorasChart({ data, metaTickets }: { data: HorasResumoItem[]; met
                     y={plotHeight + 16}
                     textAnchor="end"
                     className={styles.employeeLabel}
-                    transform={`rotate(-35, ${x + BAR_WIDTH / 2}, ${plotHeight + 16})`}
+                    transform={`rotate(-${ROTATION_DEGREES}, ${x + BAR_WIDTH / 2}, ${plotHeight + 16})`}
                   >
                     {item.name}
                   </text>
