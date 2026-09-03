@@ -91,9 +91,17 @@
   background: #d95926;
 }
 
+/* Scrolls horizontally instead of squishing when there are enough
+   employees for the chart's natural width to exceed the card — the
+   <svg> itself is sized to its exact pixel dimensions (see totalWidth/
+   totalHeight in horas-chart.tsx), not stretched via CSS, so this is
+   the only place width overflow is handled. */
+.chartScroll {
+  overflow-x: auto;
+}
+
 .chartSvg {
-  width: 100%;
-  height: auto;
+  display: block;
   overflow: visible;
 }
 

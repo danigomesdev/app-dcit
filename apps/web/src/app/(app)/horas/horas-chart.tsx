@@ -51,6 +51,17 @@ export function HorasChart({ data }: { data: HorasResumoItem[] }) {
 
   const yTicks = [0, maxValue / 2, maxValue];
 
+  // Explicit pixel width/height (matching the viewBox 1:1) instead of the
+  // CSS `width: 100%; height: auto` stretch this replaced: without an
+  // intrinsic size, a viewBox-only <svg> stretched to a wide container
+  // computes its height from the viewBox's aspect ratio, which — for a
+  // narrow chart (few employees) — blows the height up to several times
+  // the intended ~260px. Fixing the pixel size keeps height constant
+  // regardless of employee count; the scrollable wrapper handles the
+  // opposite edge (many employees making the chart wider than its card).
+  const totalWidth = chartWidth + AXIS_LABEL_WIDTH;
+  const totalHeight = CHART_HEIGHT + 20;
+
   return (
     <div className={styles.chartWrapper}>
       <div className={styles.legend}>
@@ -63,67 +74,71 @@ export function HorasChart({ data }: { data: HorasResumoItem[] }) {
           Horas em Tickets
         </span>
       </div>
-      <svg
-        viewBox={`0 -20 ${chartWidth + AXIS_LABEL_WIDTH} ${CHART_HEIGHT + 20}`}
-        className={styles.chartSvg}
-        role="img"
-        aria-label="Gráfico de horas trabalhadas e horas lançadas em tickets por colaborador"
-      >
-        <g transform={`translate(${AXIS_LABEL_WIDTH}, 0)`}>
-          {yTicks.map((tick) => (
-            <g key={tick}>
-              <line x1={0} x2={chartWidth} y1={scaleY(tick)} y2={scaleY(tick)} className={styles.gridline} />
-              <text x={-8} y={scaleY(tick)} textAnchor="end" dominantBaseline="middle" className={styles.axisLabel}>
-                {tick}
-              </text>
-            </g>
-          ))}
-
-          {data.map((item, index) => {
-            const x = BAR_GAP + index * (BAR_WIDTH + BAR_GAP);
-            const barY = scaleY(item.horasTrabalhadas);
-            const barHeight = plotHeight - barY;
-            const isHovered = hoveredUserId === item.userId;
-            return (
-              <g
-                key={item.userId}
-                onMouseEnter={() => setHoveredUserId(item.userId)}
-                onMouseLeave={() => setHoveredUserId((current) => (current === item.userId ? null : current))}
-              >
-                <rect x={x} y={0} width={BAR_WIDTH} height={plotHeight} fill="transparent" />
-                <path d={roundedTopRectPath(x, barY, BAR_WIDTH, barHeight, 4)} className={styles.bar} />
-                <text x={x + BAR_WIDTH / 2} y={barY - 6} textAnchor="middle" className={styles.barValueLabel}>
-                  {item.horasTrabalhadas}
+      <div className={styles.chartScroll}>
+        <svg
+          viewBox={`0 -20 ${totalWidth} ${totalHeight}`}
+          width={totalWidth}
+          height={totalHeight}
+          className={styles.chartSvg}
+          role="img"
+          aria-label="Gráfico de horas trabalhadas e horas lançadas em tickets por colaborador"
+        >
+          <g transform={`translate(${AXIS_LABEL_WIDTH}, 0)`}>
+            {yTicks.map((tick) => (
+              <g key={tick}>
+                <line x1={0} x2={chartWidth} y1={scaleY(tick)} y2={scaleY(tick)} className={styles.gridline} />
+                <text x={-8} y={scaleY(tick)} textAnchor="end" dominantBaseline="middle" className={styles.axisLabel}>
+                  {tick}
                 </text>
-                <text
-                  x={x + BAR_WIDTH / 2}
-                  y={plotHeight + 16}
-                  textAnchor="end"
-                  className={styles.employeeLabel}
-                  transform={`rotate(-35, ${x + BAR_WIDTH / 2}, ${plotHeight + 16})`}
-                >
-                  {item.name}
-                </text>
-                {isHovered ? (
-                  <text x={x + BAR_WIDTH / 2} y={plotHeight + 30} textAnchor="middle" className={styles.tooltip}>
-                    {item.horasTrabalhadas}h trabalhadas · {item.horasTickets}h em tickets
-                  </text>
-                ) : null}
               </g>
-            );
-          })}
+            ))}
 
-          <path d={linePath} className={styles.line} fill="none" />
-          {linePoints.map((point) => (
-            <circle key={point.item.userId} cx={point.x} cy={point.y} r={5} className={styles.marker} />
-          ))}
-          {linePoints.map((point) => (
-            <text key={point.item.userId} x={point.x} y={point.y - 10} textAnchor="middle" className={styles.lineValueLabel}>
-              {point.item.horasTickets}
-            </text>
-          ))}
-        </g>
-      </svg>
+            {data.map((item, index) => {
+              const x = BAR_GAP + index * (BAR_WIDTH + BAR_GAP);
+              const barY = scaleY(item.horasTrabalhadas);
+              const barHeight = plotHeight - barY;
+              const isHovered = hoveredUserId === item.userId;
+              return (
+                <g
+                  key={item.userId}
+                  onMouseEnter={() => setHoveredUserId(item.userId)}
+                  onMouseLeave={() => setHoveredUserId((current) => (current === item.userId ? null : current))}
+                >
+                  <rect x={x} y={0} width={BAR_WIDTH} height={plotHeight} fill="transparent" />
+                  <path d={roundedTopRectPath(x, barY, BAR_WIDTH, barHeight, 4)} className={styles.bar} />
+                  <text x={x + BAR_WIDTH / 2} y={barY - 6} textAnchor="middle" className={styles.barValueLabel}>
+                    {item.horasTrabalhadas}
+                  </text>
+                  <text
+                    x={x + BAR_WIDTH / 2}
+                    y={plotHeight + 16}
+                    textAnchor="end"
+                    className={styles.employeeLabel}
+                    transform={`rotate(-35, ${x + BAR_WIDTH / 2}, ${plotHeight + 16})`}
+                  >
+                    {item.name}
+                  </text>
+                  {isHovered ? (
+                    <text x={x + BAR_WIDTH / 2} y={plotHeight + 30} textAnchor="middle" className={styles.tooltip}>
+                      {item.horasTrabalhadas}h trabalhadas · {item.horasTickets}h em tickets
+                    </text>
+                  ) : null}
+                </g>
+              );
+            })}
+
+            <path d={linePath} className={styles.line} fill="none" />
+            {linePoints.map((point) => (
+              <circle key={point.item.userId} cx={point.x} cy={point.y} r={5} className={styles.marker} />
+            ))}
+            {linePoints.map((point) => (
+              <text key={point.item.userId} x={point.x} y={point.y - 10} textAnchor="middle" className={styles.lineValueLabel}>
+                {point.item.horasTickets}
+              </text>
+            ))}
+          </g>
+        </svg>
+      </div>
     </div>
   );
 }
