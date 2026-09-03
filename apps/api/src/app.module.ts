@@ -18,6 +18,7 @@ import { ConvencoesModule } from './convencoes/convencoes.module';
 import { BancoDeHorasModule } from './banco-de-horas/banco-de-horas.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PontoPerdidoModule } from './ponto-perdido/ponto-perdido.module';
+import { CarreiraModule } from './carreira/carreira.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -41,6 +42,7 @@ import { AppService } from './app.service';
     BancoDeHorasModule,
     NotificationsModule,
     PontoPerdidoModule,
+    CarreiraModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
