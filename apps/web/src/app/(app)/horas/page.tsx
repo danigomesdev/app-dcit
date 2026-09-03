@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { HorasChart } from "./horas-chart";
 import styles from "./horas.module.css";
 
 type HorasResumoItem = { userId: string; name: string; horasTrabalhadas: number; horasTickets: number };
@@ -51,20 +52,7 @@ export default async function HorasPage({
         ))}
       </nav>
 
-      {resumo.length === 0 ? (
-        <p className={styles.empty}>Nenhum colaborador ativo.</p>
-      ) : (
-        <ul className={styles.list}>
-          {resumo.map((item) => (
-            <li key={item.userId} className={styles.item}>
-              <span>{item.name}</span>
-              <span>
-                {item.horasTrabalhadas}h trabalhadas · {item.horasTickets}h em tickets
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <HorasChart data={resumo} />
     </div>
   );
 }

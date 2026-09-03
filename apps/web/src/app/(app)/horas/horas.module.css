@@ -53,3 +53,86 @@
   border-radius: 8px;
   background: var(--color-background-element);
 }
+
+.chartWrapper {
+  background: var(--color-background-element);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.legendSwatchTrabalhadas {
+  background: #3987e5;
+}
+
+.legendSwatchTickets {
+  background: #d95926;
+}
+
+.chartSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.bar {
+  fill: #3987e5;
+}
+
+.gridline {
+  stroke: var(--color-background-selected);
+  stroke-width: 1;
+}
+
+.axisLabel,
+.employeeLabel {
+  fill: var(--color-text-secondary);
+  font-size: 10px;
+}
+
+.barValueLabel,
+.lineValueLabel {
+  fill: var(--color-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.line {
+  stroke: #d95926;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.marker {
+  fill: #d95926;
+  stroke: var(--color-background-element);
+  stroke-width: 2;
+}
+
+.tooltip {
+  fill: var(--color-text);
+  font-size: 10px;
+}
