@@ -36,15 +36,15 @@ export default async function ColaboradoresPage() {
     return <EmptyState title="Sem permissão" description="Esta página é restrita a RH e gestores." />;
   }
 
-  const [employees, convencoes] = await Promise.all([
+  const [employees, convencoes, promotabilidade] = await Promise.all([
     apiFetchJson<Employee[]>("/employees"),
     apiFetchJson<{ id: string; nome: string }[]>("/convencoes").catch(() => []),
-  ]);
-
-  const promotabilidade =
     session.role === "gestor"
-      ? await apiFetchJson<Record<string, "verde" | "amarelo" | "branco">>("/carreira/promotabilidade")
-      : {};
+      ? apiFetchJson<Record<string, "verde" | "amarelo" | "branco">>("/carreira/promotabilidade").catch(
+          () => ({}) as Record<string, "verde" | "amarelo" | "branco">,
+        )
+      : Promise.resolve({} as Record<string, "verde" | "amarelo" | "branco">),
+  ]);
 
   return (
     <div className={styles.page}>
