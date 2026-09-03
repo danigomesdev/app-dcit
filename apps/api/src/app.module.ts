@@ -19,6 +19,7 @@ import { BancoDeHorasModule } from './banco-de-horas/banco-de-horas.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PontoPerdidoModule } from './ponto-perdido/ponto-perdido.module';
 import { CarreiraModule } from './carreira/carreira.module';
+import { HorasModule } from './horas/horas.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -43,6 +44,7 @@ import { AppService } from './app.service';
     NotificationsModule,
     PontoPerdidoModule,
     CarreiraModule,
+    HorasModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
