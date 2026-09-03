@@ -13,13 +13,6 @@ export class NineBoxService {
     });
   }
 
-  current(userId: string) {
-    return this.prisma.nineBoxPlacement.findFirst({
-      where: { userId },
-      orderBy: { date: 'desc' },
-    });
-  }
-
   create(gestorId: string, input: NineBoxPlacementCreateInput) {
     return this.prisma.nineBoxPlacement.create({
       data: {

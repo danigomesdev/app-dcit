@@ -81,21 +81,21 @@ function CiclosSubSection({ userId, evaluations }: { userId: string; evaluations
         <input type="hidden" name="userId" value={userId} />
         <label>
           Proatividade
-          <input type="number" name="proatividade" min={1} max={5} required />
+          <input type="number" name="proatividade" min={1} max={5} required className={styles.input} />
         </label>
         <label>
           Trabalho em equipe
-          <input type="number" name="trabalhoEquipe" min={1} max={5} required />
+          <input type="number" name="trabalhoEquipe" min={1} max={5} required className={styles.input} />
         </label>
         <label>
           Comunicação
-          <input type="number" name="comunicacao" min={1} max={5} required />
+          <input type="number" name="comunicacao" min={1} max={5} required className={styles.input} />
         </label>
         <label>
           Liderança
-          <input type="number" name="lideranca" min={1} max={5} required />
+          <input type="number" name="lideranca" min={1} max={5} required className={styles.input} />
         </label>
-        <input type="text" name="comentario" placeholder="Comentário (opcional)" />
+        <input type="text" name="comentario" placeholder="Comentário (opcional)" className={styles.input} />
         <button type="submit">Registrar avaliação</button>
       </form>
     </div>
@@ -131,13 +131,23 @@ function OneOnOneSubSection({ userId, oneOnOnes }: { userId: string; oneOnOnes: 
       )}
       <form action={createOneOnOne} className={styles.form}>
         <input type="hidden" name="userId" value={userId} />
-        <input type="text" name="pauta" placeholder="Pauta da conversa" required />
-        <textarea name="acoes" placeholder={"Itens de ação (um por linha)"} />
+        <input type="text" name="pauta" placeholder="Pauta da conversa" required className={styles.input} />
+        <textarea name="acoes" placeholder={"Itens de ação (um por linha)"} className={styles.input} />
         <button type="submit">Registrar 1:1</button>
       </form>
     </div>
   );
 }
+
+const NINE_BOX_AXIS_LABEL: Record<"baixo" | "medio" | "alto", string> = {
+  baixo: "Baixo",
+  medio: "Médio",
+  alto: "Alto",
+};
+// Rows = potencial, top ("alto") to bottom ("baixo"); columns = desempenho,
+// left ("baixo") to right ("alto") — standard nine-box orientation.
+const NINE_BOX_ROWS = ["alto", "medio", "baixo"] as const;
+const NINE_BOX_COLS = ["baixo", "medio", "alto"] as const;
 
 function NineBoxSubSection({ userId, placements }: { userId: string; placements: NineBoxPlacement[] }) {
   const current = placements[0];
@@ -148,11 +158,43 @@ function NineBoxSubSection({ userId, placements }: { userId: string; placements:
           ? `Posição atual: desempenho ${current.desempenho}, potencial ${current.potencial}`
           : "Nenhum posicionamento registrado."}
       </p>
+      <div className={styles.nineBoxAxis}>Potencial ↑ · Desempenho →</div>
+      <div className={styles.nineBoxLayout}>
+        <div className={styles.nineBoxRowLabels}>
+          {NINE_BOX_ROWS.map((potencial) => (
+            <div key={potencial} className={styles.nineBoxRowLabel}>
+              {NINE_BOX_AXIS_LABEL[potencial]}
+            </div>
+          ))}
+        </div>
+        <div>
+          <div className={styles.nineBoxGrid}>
+            {NINE_BOX_ROWS.flatMap((potencial) =>
+              NINE_BOX_COLS.map((desempenho) => {
+                const isActive = current?.potencial === potencial && current?.desempenho === desempenho;
+                return (
+                  <div
+                    key={`${potencial}-${desempenho}`}
+                    className={isActive ? `${styles.nineBoxCell} ${styles.nineBoxCellActive}` : styles.nineBoxCell}
+                  >
+                    {NINE_BOX_AXIS_LABEL[desempenho]} / {NINE_BOX_AXIS_LABEL[potencial]}
+                  </div>
+                );
+              }),
+            )}
+          </div>
+          <div className={styles.nineBoxColLabels}>
+            {NINE_BOX_COLS.map((desempenho) => (
+              <span key={desempenho}>{NINE_BOX_AXIS_LABEL[desempenho]}</span>
+            ))}
+          </div>
+        </div>
+      </div>
       <form action={createNineBoxPlacement} className={styles.form}>
         <input type="hidden" name="userId" value={userId} />
         <label>
           Desempenho
-          <select name="desempenho" required>
+          <select name="desempenho" required className={styles.input}>
             <option value="baixo">Baixo</option>
             <option value="medio">Médio</option>
             <option value="alto">Alto</option>
@@ -160,7 +202,7 @@ function NineBoxSubSection({ userId, placements }: { userId: string; placements:
         </label>
         <label>
           Potencial
-          <select name="potencial" required>
+          <select name="potencial" required className={styles.input}>
             <option value="baixo">Baixo</option>
             <option value="medio">Médio</option>
             <option value="alto">Alto</option>

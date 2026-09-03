@@ -31,17 +31,10 @@ describe('NineBoxService', () => {
     expect(placement.gestorId).toBe('gestor-1');
   });
 
-  it('never updates in place — a new placement is a new row, and current() returns the most recent', async () => {
+  it('never updates in place — each create() is a new row, all returned by list()', async () => {
     await service.create('gestor-1', { userId: 'ninebox-spec-user', desempenho: 'baixo', potencial: 'baixo' });
-    const newest = await service.create('gestor-1', { userId: 'ninebox-spec-user', desempenho: 'alto', potencial: 'alto' });
-    const current = await service.current('ninebox-spec-user');
-    expect(current?.id).toBe(newest.id);
+    await service.create('gestor-1', { userId: 'ninebox-spec-user', desempenho: 'alto', potencial: 'alto' });
     const history = await service.list('ninebox-spec-user');
     expect(history.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it('current() returns null when nothing was ever placed', async () => {
-    const current = await service.current('ninebox-spec-nobody');
-    expect(current).toBeNull();
   });
 });
