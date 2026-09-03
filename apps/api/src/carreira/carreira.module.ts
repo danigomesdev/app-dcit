@@ -9,6 +9,8 @@ import { NineBoxController } from './nine-box.controller';
 import { NineBoxService } from './nine-box.service';
 import { OneOnOnesController } from './one-on-ones.controller';
 import { OneOnOnesService } from './one-on-ones.service';
+import { PromotabilidadeController } from './promotabilidade.controller';
+import { PromotabilidadeService } from './promotabilidade.service';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
@@ -19,6 +21,7 @@ import { AuthModule } from '../auth/auth.module';
     PerformanceEvaluationsController,
     NineBoxController,
     OneOnOnesController,
+    PromotabilidadeController,
   ],
   providers: [
     CareerGoalsService,
@@ -26,6 +29,7 @@ import { AuthModule } from '../auth/auth.module';
     PerformanceEvaluationsService,
     NineBoxService,
     OneOnOnesService,
+    PromotabilidadeService,
   ],
 })
 export class CarreiraModule {}
