@@ -55,7 +55,7 @@ export default async function HorasPage({
           <a
             key={option}
             className={periodo === option ? `${styles.periodTab} ${styles.periodTabActive}` : styles.periodTab}
-            href={`/horas?periodo=${option}`}
+            href={`/horas?periodo=${option}${colaboradorId ? `&colaborador=${colaboradorId}` : ""}`}
           >
             {PERIODO_LABEL[option]}
           </a>
