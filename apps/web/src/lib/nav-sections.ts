@@ -23,6 +23,7 @@ export const NAV_SECTIONS: NavSection[] = [
   { href: "/operacional", label: "Operacional", roles: ["gestor", "rh"] },
   { href: "/alertas", label: "Alertas", roles: ["gestor", "rh"] },
   { href: "/convencoes", label: "Convenções", roles: ["rh"] },
+  { href: "/horas", label: "Horas", roles: ["gestor"] },
   { href: "/banco-de-horas", label: "Banco de Horas", roles: ["gestor", "rh", "colaborador"] },
   { href: "/ferias", label: "Férias", roles: ["colaborador"] },
   { href: "/holerites", label: "Holerites", roles: ["gestor", "rh"] },

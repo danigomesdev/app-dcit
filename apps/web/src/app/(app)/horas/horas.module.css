@@ -1,0 +1,55 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.periodTabs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.periodTab,
+.periodTabActive {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  background: var(--color-background-element);
+}
+
+.periodTab:hover {
+  color: var(--color-text);
+}
+
+.periodTabActive,
+.periodTabActive:hover {
+  background: var(--color-text);
+  color: var(--color-background);
+}
+
+.empty {
+  color: var(--color-text-secondary);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-background-element);
+}
