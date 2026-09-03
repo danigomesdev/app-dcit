@@ -2,6 +2,7 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { AvaliacoesSection } from "./avaliacoes-section";
 import { ColaboradorSelect } from "./colaborador-select";
 import styles from "./gestao-carreiras.module.css";
 import { MetasSection } from "./metas-section";
@@ -58,6 +59,9 @@ export default async function GestaoCarreirasPage({
           </nav>
           {aba === "pdi" ? <MetasTab userId={userId} /> : null}
           {aba === "trilha" ? <TrilhaTab userId={userId} /> : null}
+          {aba === "avaliacoes" ? (
+            <AvaliacoesTab userId={userId} sub={typeof params.sub === "string" ? params.sub : "ciclos"} />
+          ) : null}
         </>
       )}
     </div>
@@ -83,4 +87,19 @@ async function TrilhaTab({ userId }: { userId: string }) {
     }>(`/carreira/promotabilidade/${userId}`),
   ]);
   return <TrilhaSection userId={userId} requirements={requirements} promotabilidade={promotabilidade} />;
+}
+
+async function AvaliacoesTab({ userId, sub }: { userId: string; sub: string }) {
+  const [evaluations, placements, oneOnOnes] = await Promise.all([
+    apiFetchJson<
+      { id: string; date: string; proatividade: number; trabalhoEquipe: number; comunicacao: number; lideranca: number; comentario: string | null }[]
+    >(`/carreira/avaliacoes?userId=${userId}`),
+    apiFetchJson<{ id: string; date: string; desempenho: string; potencial: string }[]>(`/carreira/nine-box?userId=${userId}`),
+    apiFetchJson<
+      { id: string; date: string; pauta: string; proximaData: string | null; acoes: { id: string; descricao: string; status: "pendente" | "concluido" }[] }[]
+    >(`/carreira/one-on-ones?userId=${userId}`),
+  ]);
+  return (
+    <AvaliacoesSection userId={userId} sub={sub} evaluations={evaluations} placements={placements} oneOnOnes={oneOnOnes} />
+  );
 }
