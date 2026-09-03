@@ -20,7 +20,7 @@ export function MetasSection({ userId, goals }: { userId: string; goals: CareerG
       <form action={createCareerGoal} className={styles.form}>
         <input type="hidden" name="userId" value={userId} />
         <input type="hidden" name="tipo" value="pdi" />
-        <input type="text" name="title" placeholder="Nova meta de PDI" required />
+        <input type="text" name="title" placeholder="Nova meta de PDI" required className={styles.input} />
         <button type="submit">Adicionar</button>
       </form>
 
@@ -29,7 +29,7 @@ export function MetasSection({ userId, goals }: { userId: string; goals: CareerG
       <form action={createCareerGoal} className={styles.form}>
         <input type="hidden" name="userId" value={userId} />
         <input type="hidden" name="tipo" value="entrega" />
-        <input type="text" name="title" placeholder="Nova entrega/meta" required />
+        <input type="text" name="title" placeholder="Nova entrega/meta" required className={styles.input} />
         <button type="submit">Adicionar</button>
       </form>
     </div>

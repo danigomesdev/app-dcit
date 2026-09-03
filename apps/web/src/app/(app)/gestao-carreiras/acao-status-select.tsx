@@ -1,5 +1,7 @@
 "use client";
 
+import styles from "./gestao-carreiras.module.css";
+
 type Status = "pendente" | "concluido";
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -17,6 +19,7 @@ export function AcaoStatusSelect({ status }: { status: Status }) {
       name="status"
       defaultValue={status}
       onChange={(e) => e.currentTarget.form?.requestSubmit()}
+      className={styles.input}
     >
       {Object.entries(STATUS_LABEL).map(([value, label]) => (
         <option key={value} value={value}>
