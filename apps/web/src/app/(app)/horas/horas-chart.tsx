@@ -10,7 +10,35 @@ const CHART_HEIGHT = 260;
 const BAR_WIDTH = 24;
 const BAR_GAP = 20;
 const LABEL_HEIGHT = 40;
-const AXIS_LABEL_WIDTH = 32;
+// Reserves room to the left of the first bar for the y-axis tick numbers,
+// plus a small buffer so the first employee's rotated name label
+// (text-anchor="end" + rotate(-35, ...) extends leftward from its bar)
+// doesn't shave its first character or two against local x=0. This is a
+// minor effect (~2-3px for this app's actual dev-seed names) — the much
+// bigger effect is vertical, handled by LABEL_BOTTOM_MARGIN below.
+const AXIS_LABEL_WIDTH = 48;
+// A rotated label doesn't just reach left of its pivot — it also reaches
+// *down* past it (rotate(-35, ...) on a text-anchor="end" string moves
+// its start point down-and-left, not just left). `.chartScroll`'s
+// `overflow-x: auto` was added in the previous fix round to handle wide
+// (many-employee) charts, but CSS forces `overflow-y` to compute as
+// `auto` too whenever `overflow-x` isn't `visible` and `overflow-y` is
+// (an unavoidable coupling per the CSS Overflow spec — you cannot have
+// "auto" on one axis and "visible" on the other on the same element).
+// That silently clips anything that bleeds below the box's fixed height,
+// which is exactly what a long rotated label does. This was the *actual*
+// cause of the label clipping bug reported in review — not primarily the
+// horizontal reach AXIS_LABEL_WIDTH addresses above, which was the
+// initial hypothesis but didn't hold up under measurement (increasing it
+// from 32 to 400 barely changed what was visible). Verified by computing
+// each label's downward reach — pivotY(236) + sin(35°)*textLength — for
+// this app's real dev-seed names: only "Carla RH" (8 chars) stayed under
+// the old bottom edge (local y=260); "Ana Colaboradora", "Bruno Gestor",
+// and "Daniel Gomes de Oliveira" all exceeded it, worst-to-least exactly
+// matching the clipping severity seen in screenshots. Fix: make the box
+// tall enough that nothing needs to overflow in the first place — an
+// "auto" overflow that never triggers is visually identical to "visible".
+const LABEL_BOTTOM_MARGIN = 70;
 
 // Rounds only the top two corners of a bar (square baseline) — a plain
 // `rx` on a <rect> would round all four, which reads wrong for a bar that
@@ -60,7 +88,7 @@ export function HorasChart({ data }: { data: HorasResumoItem[] }) {
   // regardless of employee count; the scrollable wrapper handles the
   // opposite edge (many employees making the chart wider than its card).
   const totalWidth = chartWidth + AXIS_LABEL_WIDTH;
-  const totalHeight = CHART_HEIGHT + 20;
+  const totalHeight = CHART_HEIGHT + 20 + LABEL_BOTTOM_MARGIN;
 
   return (
     <div className={styles.chartWrapper}>
