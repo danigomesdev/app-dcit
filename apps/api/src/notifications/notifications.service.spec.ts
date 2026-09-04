@@ -325,4 +325,97 @@ describe('NotificationsService', () => {
       });
     });
   });
+
+  describe('sendMural', () => {
+    afterEach(async () => {
+      await prisma.employee.deleteMany({ where: { userId: { startsWith: 'user-mural-' } } });
+    });
+
+    it('notifies every active employee except the poster', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'user-mural-poster',
+          name: 'Paula Poster',
+          role: 'rh',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'user-mural-colaborador',
+          name: 'Carlos Colaborador',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'user-mural-gestor',
+          name: 'Gustavo Gestor',
+          role: 'gestor',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      // Deleted (inactive) employee must never receive a broadcast copy.
+      await prisma.employee.create({
+        data: {
+          userId: 'user-mural-inativo',
+          name: 'Inês Inativa',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+          deletedAt: new Date('2026-01-01'),
+        },
+      });
+
+      await service.sendMural('Boas-vindas!', 'user-mural-poster');
+
+      const notifications = await prisma.notification.findMany({
+        where: { type: 'mural' },
+        orderBy: { userId: 'asc' },
+      });
+      expect(notifications.map((n) => n.userId).sort()).toEqual(
+        ['user-mural-colaborador', 'user-mural-gestor'].sort(),
+      );
+      expect(notifications[0]).toMatchObject({
+        type: 'mural',
+        category: null,
+        message: '"Boas-vindas!" foi publicado no mural.',
+        link: '/mural',
+      });
+    });
+
+    it('sends a push to every recipient with the notification id and link in the data payload', async () => {
+      await prisma.employee.create({
+        data: {
+          userId: 'user-mural-poster',
+          name: 'Paula Poster',
+          role: 'rh',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+      await prisma.employee.create({
+        data: {
+          userId: 'user-mural-recipient',
+          name: 'Rita Recipient',
+          role: 'colaborador',
+          hireDate: new Date('2024-01-01'),
+        },
+      });
+
+      await service.sendMural('Aviso', 'user-mural-poster');
+      // Push dispatch is fire-and-forget (`void Promise.all(...)`) — give the
+      // microtask queue a turn before asserting, same pattern already used by
+      // the sendPagamento push-dispatch test in this file.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const notification = await prisma.notification.findFirstOrThrow({
+        where: { type: 'mural', userId: 'user-mural-recipient' },
+      });
+      expect(sendToUser).toHaveBeenCalledWith('user-mural-recipient', {
+        title: 'Ponto DCIT',
+        body: '"Aviso" foi publicado no mural.',
+        data: { notificationId: notification.id, link: '/mural' },
+      });
+    });
+  });
 });

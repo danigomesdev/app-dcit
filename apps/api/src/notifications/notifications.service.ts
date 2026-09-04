@@ -23,6 +23,8 @@ const PONTO_PERDIDO_MESSAGE_GESTOR: Record<PontoPerdidoTipo, (name: string, date
   ausencia: (name, dateBR) => `${name} não registrou nenhum ponto em ${dateBR}.`,
 };
 
+const muralMessage = (title: string) => `"${title}" foi publicado no mural.`;
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -130,6 +132,32 @@ export class NotificationsService {
         category: tipo,
         message: r.message,
         link: r.link,
+      })),
+    });
+
+    void Promise.all(
+      created.map((n) =>
+        this.expoPush.sendToUser(n.userId, {
+          title: 'Ponto DCIT',
+          body: n.message,
+          data: { notificationId: n.id, link: n.link },
+        }),
+      ),
+    );
+  }
+
+  async sendMural(postTitle: string, posterUserId: string): Promise<void> {
+    const recipients = await this.prisma.employee.findMany({
+      where: { deletedAt: null, userId: { not: posterUserId } },
+    });
+
+    const created = await this.prisma.notification.createManyAndReturn({
+      data: recipients.map((r) => ({
+        userId: r.userId,
+        type: 'mural',
+        category: null,
+        message: muralMessage(postTitle),
+        link: '/mural',
       })),
     });
 
