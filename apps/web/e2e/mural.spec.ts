@@ -270,3 +270,74 @@ test("clicking the reaction button toggles it via the API and reflects the new s
   await expect(toggled).toBeVisible();
   await expect(toggled).toHaveText("♥ 5");
 });
+
+test("colaborador does not see the Novo post button", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
+  await mockApi(request, { muralPosts: [], birthdays: [] });
+
+  await page.goto("/mural");
+
+  await expect(page.getByRole("button", { name: "+ Novo post" })).toHaveCount(0);
+});
+
+test("gestor sees the Novo post button even when the mural is empty", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request, { muralPosts: [], birthdays: [] });
+
+  await page.goto("/mural");
+
+  await expect(page.getByRole("heading", { name: "Mural" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "+ Novo post" })).toBeVisible();
+});
+
+test("rh creates a new mural post via the API", async ({ page, context, request }) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { muralPosts: [], birthdays: [] });
+
+  await page.goto("/mural");
+  await page.getByRole("button", { name: "+ Novo post" }).click();
+  await page.getByLabel("Emoji").fill("🎉");
+  await page.getByLabel("Título").fill("Boas-vindas!");
+  await page.getByLabel("Mensagem").fill("Damos as boas-vindas ao novo time de suporte.");
+  await page.getByRole("button", { name: "Publicar" }).click();
+
+  await expect
+    .poll(async () => {
+      const recorded = await getRecordedRequests(request);
+      return recorded.find((r) => r.method === "POST" && r.path === "/mural/posts")?.body;
+    })
+    .toEqual({
+      glyph: "🎉",
+      title: "Boas-vindas!",
+      body: "Damos as boas-vindas ao novo time de suporte.",
+    });
+});
+
+test("a failed post creation shows an inline error without closing the dialog", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request, { muralPosts: [], birthdays: [] });
+  await seedResponse(request, {
+    method: "POST",
+    path: "/mural/posts",
+    status: 500,
+    response: { message: "Internal server error" },
+  });
+
+  await page.goto("/mural");
+  await page.getByRole("button", { name: "+ Novo post" }).click();
+  await page.getByLabel("Emoji").fill("🎉");
+  await page.getByLabel("Título").fill("Boas-vindas!");
+  await page.getByLabel("Mensagem").fill("Corpo.");
+  await page.getByRole("button", { name: "Publicar" }).click();
+
+  await expect(page.getByText("Não foi possível publicar (código 500).")).toBeVisible();
+  await expect(page.getByRole("dialog")).toBeVisible();
+});

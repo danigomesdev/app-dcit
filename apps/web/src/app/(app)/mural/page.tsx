@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session";
 
 import { toggleMuralReaction } from "./actions";
 import styles from "./mural.module.css";
+import { NovoPostDialog } from "./novo-post-dialog";
 
 type MuralPost = {
   id: string;
@@ -77,18 +78,12 @@ async function TeamView() {
     apiFetchJson<Birthday[]>("/mural/birthdays"),
   ]);
 
-  if (posts.length === 0 && birthdays.length === 0) {
-    return (
-      <EmptyState
-        title="Mural"
-        description="Os comunicados publicados no mural vão aparecer aqui."
-      />
-    );
-  }
-
   return (
     <div className={styles.page}>
-      <h1 className={styles.heading}>Mural</h1>
+      <div className={styles.headingRow}>
+        <h1 className={styles.heading}>Mural</h1>
+        <NovoPostDialog />
+      </div>
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Aniversariantes</h2>

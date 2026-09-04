@@ -31,7 +31,12 @@ test("documentos page renders its empty state", async ({ page, request }) => {
   ).toBeVisible();
 });
 
-test("mural page renders its empty state", async ({ page, request }) => {
+test("mural page renders its empty state for a colaborador", async ({ page, context, request }) => {
+  // Gestor/rh no longer get an empty state here — they always see the
+  // heading plus the "+ Novo post" button (see mural.spec.ts's "gestor sees
+  // the Novo post button even when the mural is empty"). Only ColaboradorView
+  // still has this early-return EmptyState, so this test now exercises that.
+  await addSessionCookie(context, { sub: "colaborador-1", role: "colaborador", name: "Ana" });
   await mockApi(request);
   await page.goto("/mural");
   await expect(page.getByRole("heading", { name: "Mural" })).toBeVisible();
