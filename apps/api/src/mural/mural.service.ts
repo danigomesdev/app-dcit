@@ -1,9 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import type { MuralPostInput } from '@ponto-dcit/shared-types';
 
 @Injectable()
 export class MuralService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async listPosts(userId: string) {
     const [posts, myReactions] = await Promise.all([
@@ -49,5 +54,11 @@ export class MuralService {
 
   listBirthdays() {
     return this.prisma.birthday.findMany();
+  }
+
+  async createPost(input: MuralPostInput, posterUserId: string) {
+    const post = await this.prisma.muralPost.create({ data: input });
+    await this.notifications.sendMural(post.title, posterUserId);
+    return post;
   }
 }
