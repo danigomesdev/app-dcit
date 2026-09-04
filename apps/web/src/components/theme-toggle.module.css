@@ -1,0 +1,22 @@
+.iconButton {
+  appearance: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: var(--color-background-element);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-background-selected);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+}

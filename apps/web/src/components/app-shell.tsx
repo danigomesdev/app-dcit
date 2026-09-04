@@ -9,6 +9,7 @@ import { NotificationBell } from "./notification-bell";
 import { NotificationProvider } from "./notification-context";
 import type { NotificationRecord } from "./notification-list";
 import { SearchOverlay } from "./search-overlay";
+import { ThemeToggle } from "./theme-toggle";
 import styles from "./app-shell.module.css";
 
 const ROLE_LABELS: Record<Session["role"], string> = {
@@ -61,6 +62,7 @@ export function AppShell({
           <header className={styles.topbar}>
             <SearchOverlay role={user.role} />
             <div className={styles.topbarActions}>
+              <ThemeToggle />
               <NotificationBell />
               <details className={styles.userMenu}>
                 <summary className={styles.userMenuButton} aria-label="Menu do usuário">

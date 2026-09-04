@@ -161,23 +161,37 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background-image:
-    linear-gradient(rgba(8, 10, 16, 0.6), rgba(8, 10, 16, 0.6)),
-    url("/login-background.png?v=3");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
+  color: var(--color-text);
+}
 
-  /* Every page under the shell reads these tokens for its own text/card
-     colors — overriding them here, instead of touching each page, gives a
-     consistent readable "glass over photo" look no matter the OS theme. */
+/* Every page under the shell reads these tokens for its own text/card
+   colors — overriding them here, instead of touching each page, gives a
+   consistent readable "glass over photo" look that follows the chosen
+   theme instead of each page managing it individually. */
+[data-theme="dark"] .main {
+  background-image:
+    linear-gradient(rgba(8, 10, 16, 0.6), rgba(8, 10, 16, 0.6)),
+    url("/login-background.png?v=3");
   --color-background: rgba(10, 14, 22, 0.55);
   --color-text: #ffffff;
   --color-background-element: rgba(20, 24, 32, 0.72);
   --color-background-selected: rgba(255, 255, 255, 0.16);
   --color-text-secondary: rgba(255, 255, 255, 0.78);
-  color: var(--color-text);
+}
+
+[data-theme="light"] .main {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.55)),
+    url("/login-background.png?v=3");
+  --color-background: rgba(255, 255, 255, 0.65);
+  --color-text: #14161a;
+  --color-background-element: rgba(255, 255, 255, 0.82);
+  --color-background-selected: rgba(10, 14, 22, 0.1);
+  --color-text-secondary: rgba(20, 22, 26, 0.7);
 }
 
 .topbar {

@@ -4,11 +4,13 @@
  */
 
 import { Colors } from '@/constants/theme';
+import { useOptionalThemeContext } from '@/context/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export function useTheme() {
+  const override = useOptionalThemeContext();
   const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
+  const systemTheme = scheme === 'unspecified' ? 'light' : scheme;
 
-  return Colors[theme];
+  return Colors[override?.theme ?? systemTheme];
 }

@@ -1,9 +1,9 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, type Href } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 import { PontoProvider } from '@/context/ponto-context';
 import { NotificationProvider, useNotificationContext } from '@/context/notification-context';
+import { AppThemeProvider, useThemeContext } from '@/context/theme-context';
 import { configureNotificationHandler, addNotificationTapListener } from '@/lib/push';
 
 // Keeps login as the base of the stack for a cold, unauthenticated start;
@@ -35,16 +35,22 @@ function NotificationTapHandler() {
   return null;
 }
 
+function NavigationThemeProvider({ children }: { children: ReactNode }) {
+  const { theme } = useThemeContext();
+  return <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>{children}</ThemeProvider>;
+}
+
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <PontoProvider>
-        <NotificationProvider>
-          <NotificationTapHandler />
-          <Stack screenOptions={{ headerShown: false }} />
-        </NotificationProvider>
-      </PontoProvider>
-    </ThemeProvider>
+    <AppThemeProvider>
+      <NavigationThemeProvider>
+        <PontoProvider>
+          <NotificationProvider>
+            <NotificationTapHandler />
+            <Stack screenOptions={{ headerShown: false }} />
+          </NotificationProvider>
+        </PontoProvider>
+      </NavigationThemeProvider>
+    </AppThemeProvider>
   );
 }

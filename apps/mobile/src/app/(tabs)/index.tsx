@@ -10,6 +10,7 @@ import { PunchConfirmationModal } from "@/components/punch-confirmation-modal";
 import { ThemedButton } from "@/components/themed-button";
 import { ThemedText } from "@/components/themed-text";
 import { TabBackground } from "@/components/tab-background";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { formatMinutes, summarizeDay, usePonto } from "@/context/ponto-context";
 import { useNotificationContext } from "@/context/notification-context";
 import { useTheme } from "@/hooks/use-theme";
@@ -209,6 +210,7 @@ export default function HomeScreen() {
               accessibilityLabel="Buscar"
               onPress={() => router.push("/busca")}
             />
+            <ThemeToggle />
             <HeaderIconButton
               icon="notifications-outline"
               accessibilityLabel="Notificações"
