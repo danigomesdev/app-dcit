@@ -5,6 +5,8 @@ import { TrackRequirementsController } from './trilha.controller';
 import { TrackRequirementsService } from './trilha.service';
 import { PerformanceEvaluationsController } from './avaliacoes.controller';
 import { PerformanceEvaluationsService } from './avaliacoes.service';
+import { CareerEvaluationsController } from './evaluations.controller';
+import { CareerEvaluationsService } from './evaluations.service';
 import { NineBoxController } from './nine-box.controller';
 import { NineBoxService } from './nine-box.service';
 import { OneOnOnesController } from './one-on-ones.controller';
@@ -19,6 +21,7 @@ import { AuthModule } from '../auth/auth.module';
     CareerGoalsController,
     TrackRequirementsController,
     PerformanceEvaluationsController,
+    CareerEvaluationsController,
     NineBoxController,
     OneOnOnesController,
     PromotabilidadeController,
@@ -27,6 +30,7 @@ import { AuthModule } from '../auth/auth.module';
     CareerGoalsService,
     TrackRequirementsService,
     PerformanceEvaluationsService,
+    CareerEvaluationsService,
     NineBoxService,
     OneOnOnesService,
     PromotabilidadeService,
