@@ -340,6 +340,44 @@ model OneOnOneAcao {
   createdAt  DateTime @default(now())
 }
 
+model CareerEvaluation {
+  id            String    @id @default(uuid())
+  userId        String
+  evaluatorId   String
+  nivelAvaliado String    // nivel do colaborador no momento da avaliação
+  proximoNivel  String?   // próximo nível da escada nesse momento; null se já no topo
+  status        String    @default("salva") // "salva" | "decidida"
+  resultado     String?   // "promovido" | "em_desenvolvimento" — setado só quando status = "decidida"
+  mediaGeral    Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  decidedAt     DateTime?
+}
+
+model CareerPrincipioScore {
+  id            String  @id @default(uuid())
+  evaluationId  String
+  principio     String  // "clareza" | "meritocracia" | "equilibrio" | "transparencia" | "desenvolvimento"
+  nota          Int     // 0-10
+  justificativa String?
+}
+
+model CareerCompetenciaScore {
+  id           String @id @default(uuid())
+  evaluationId String
+  categoria    String // "hard" | "soft"
+  competencia  String // ver COMPETENCIA_KEYS em shared-types
+  nota         Int    // 0-10
+}
+
+model CareerRequisitoCheck {
+  id           String  @id @default(uuid())
+  evaluationId String
+  tipo         String  // "obrigatorio" | "eletivo"
+  label        String
+  atendido     Boolean @default(false)
+}
+
 model WorkedHoursEntry {
   id               String   @id @default(uuid())
   userId           String   // colaborador a quem o lançamento se refere
