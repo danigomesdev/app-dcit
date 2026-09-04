@@ -6,10 +6,14 @@ import { useState } from "react";
 
 import {
   COLABORADOR_SIDEBAR,
+  COLABORADORES_GROUP,
   GESTOR_CAREER_GROUP,
+  GESTOR_SIDEBAR_ORDER,
   isSidebarGroup,
   NAV_SECTIONS,
+  RH_SIDEBAR_ORDER,
   type NavRole,
+  type SidebarEntry,
   type SidebarGroup,
   type SidebarLink,
 } from "@/lib/nav-sections";
@@ -137,9 +141,16 @@ export function NavLinks({ role }: { role: NavRole }) {
   }
 
   if (role === "gestor") {
-    const flatEntries = NAV_SECTIONS.filter((section) => section.roles.includes("gestor"));
+    // Ponto, Banco de Horas, Holerites and Benefícios render inside
+    // COLABORADORES_GROUP instead of this flat list — see its comment in
+    // nav-sections.ts.
+    const flatEntries = NAV_SECTIONS.filter(
+      (section) =>
+        section.roles.includes("gestor") && GESTOR_SIDEBAR_ORDER.includes(section.href),
+    ).sort((a, b) => GESTOR_SIDEBAR_ORDER.indexOf(a.href) - GESTOR_SIDEBAR_ORDER.indexOf(b.href));
     return (
       <nav className={styles.navSections}>
+        <NavGroupItem group={COLABORADORES_GROUP} pathname={pathname} searchParams={searchParams} />
         <ul className={styles.nav}>
           {flatEntries.map((link) => (
             <NavLinkItem key={link.href} link={link} pathname={pathname} searchParams={searchParams} />
@@ -150,13 +161,29 @@ export function NavLinks({ role }: { role: NavRole }) {
     );
   }
 
+  // Only remaining role at this point is "rh" — same idea as gestor
+  // (Ponto/Banco de Horas/Holerites/Benefícios nest inside Colaboradores),
+  // but Colaboradores keeps its place inline in RH_SIDEBAR_ORDER rather than
+  // always leading, so the group and the flat items interleave in one list.
+  const rhChildHrefs = COLABORADORES_GROUP.children.map((child) => child.href);
+  const rhEntries: SidebarEntry[] = NAV_SECTIONS.filter(
+    (section) => section.roles.includes(role) && !rhChildHrefs.includes(section.href),
+  )
+    .map((section): SidebarEntry =>
+      section.href === COLABORADORES_GROUP.href ? COLABORADORES_GROUP : section,
+    )
+    .sort((a, b) => RH_SIDEBAR_ORDER.indexOf(a.href) - RH_SIDEBAR_ORDER.indexOf(b.href));
   return (
     <nav>
-      <ul className={styles.nav}>
-        {NAV_SECTIONS.filter((section) => section.roles.includes(role)).map((section) => (
-          <NavLinkItem key={section.href} link={section} pathname={pathname} searchParams={searchParams} />
-        ))}
-      </ul>
+      {rhEntries.map((entry) =>
+        isSidebarGroup(entry) ? (
+          <NavGroupItem key={entry.href} group={entry} pathname={pathname} searchParams={searchParams} />
+        ) : (
+          <ul className={styles.nav} key={entry.href}>
+            <NavLinkItem link={entry} pathname={pathname} searchParams={searchParams} />
+          </ul>
+        ),
+      )}
     </nav>
   );
 }

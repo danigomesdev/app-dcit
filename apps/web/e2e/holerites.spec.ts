@@ -131,7 +131,7 @@ test("opens the dialog and creates a new holerite with the API", async ({
 
   await page.goto("/holerites");
   await page.getByRole("button", { name: "+ Novo holerite" }).click();
-  await page.getByLabel("Colaborador").selectOption("user-1");
+  await page.getByRole("dialog").getByLabel("Colaborador").selectOption("user-1");
   await page.getByLabel("Rótulo").fill("Setembro/2026");
   await page.getByLabel("Bruto (R$)").fill("6200");
   await page.getByLabel("INSS (R$)").fill("682");

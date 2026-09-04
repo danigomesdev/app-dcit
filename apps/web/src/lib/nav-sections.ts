@@ -20,14 +20,27 @@ export const NAV_SECTIONS: NavSection[] = [
   { href: "/beneficios", label: "Benefícios", roles: ["gestor", "rh"] },
   { href: "/pagamentos", label: "Pagamentos", roles: ["rh"] },
   { href: "/onboarding", label: "Onboarding", roles: ["gestor", "rh"] },
-  { href: "/operacional", label: "Operacional", roles: ["gestor", "rh"] },
-  { href: "/alertas", label: "Alertas", roles: ["gestor", "rh"] },
-  { href: "/convencoes", label: "Convenções", roles: ["rh"] },
   { href: "/horas", label: "Horas", roles: ["gestor"] },
   { href: "/banco-de-horas", label: "Banco de Horas", roles: ["gestor", "rh", "colaborador"] },
   { href: "/ferias", label: "Férias", roles: ["colaborador"] },
   { href: "/holerites", label: "Holerites", roles: ["gestor", "rh"] },
   { href: "/notificacoes", label: "Notificações", roles: ["colaborador", "gestor", "rh"] },
+];
+
+// RH's sidebar shows the same items NAV_SECTIONS already grants it — this
+// only controls their display order there (gestor's order and every role's
+// search results are unaffected). Ponto, Banco de Horas, Holerites and
+// Benefícios are excluded here — like for gestor, they render inside
+// COLABORADORES_GROUP instead of this flat list.
+export const RH_SIDEBAR_ORDER: string[] = [
+  "/colaboradores",
+  "/escala",
+  "/aprovacoes",
+  "/documentos",
+  "/pagamentos",
+  "/onboarding",
+  "/notificacoes",
+  "/mural",
 ];
 
 export type SidebarLink = { href: string; label: string };
@@ -61,6 +74,35 @@ export const COLABORADOR_SIDEBAR: SidebarEntry[] = [
   { href: "/ferias", label: "Férias" },
   { href: "/documentos", label: "Documentos" },
   { href: "/mural", label: "Mural" },
+  { href: "/notificacoes", label: "Notificações" },
+];
+
+// Shared by gestor and rh — Ponto, Banco de Horas, Holerites and Benefícios
+// nest inside Colaboradores (same expand-to-reveal idiom as the colaborador
+// sidebar's own Ponto group) so the top-level list stays short. The group's
+// own row still links straight to /colaboradores, like any other item.
+export const COLABORADORES_GROUP: SidebarGroup = {
+  href: "/colaboradores",
+  label: "Colaboradores",
+  children: [
+    { href: "/", label: "Ponto" },
+    { href: "/banco-de-horas", label: "Banco de Horas" },
+    { href: "/holerites", label: "Holerites" },
+    { href: "/beneficios", label: "Benefícios" },
+  ],
+};
+
+// The remaining gestor sidebar items, flat, in this curated order — the
+// four above (Ponto, Banco de Horas, Holerites, Benefícios) and Colaboradores
+// itself are excluded here since they render via COLABORADORES_GROUP instead.
+export const GESTOR_SIDEBAR_ORDER: string[] = [
+  "/escala",
+  "/aprovacoes",
+  "/documentos",
+  "/onboarding",
+  "/horas",
+  "/notificacoes",
+  "/mural",
 ];
 
 // Gestor-only — deliberately not shared with rh (see the Gestão de Carreiras

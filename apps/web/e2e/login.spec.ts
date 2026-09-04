@@ -27,7 +27,7 @@ test("logs in with email/password and lands on the app", async ({ page, request 
   await page.getByRole("button", { name: "Entrar" }).click();
 
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: "Ponto", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Colaboradores", exact: true })).toBeVisible();
 });
 
 test("shows an inline error for wrong credentials, without navigating away", async ({ page }) => {

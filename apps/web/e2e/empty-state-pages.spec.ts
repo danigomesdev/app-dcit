@@ -57,12 +57,3 @@ test("onboarding page renders its empty state", async ({ page, request }) => {
     page.getByText("O progresso de integração dos colaboradores vai aparecer aqui.")
   ).toBeVisible();
 });
-
-test("operacional page renders its empty state", async ({ page, request }) => {
-  await mockApi(request);
-  await page.goto("/operacional");
-  await expect(page.getByRole("heading", { name: "Operacional" })).toBeVisible();
-  await expect(
-    page.getByText("O status de sobreaviso e os deslocamentos da equipe vão aparecer aqui.")
-  ).toBeVisible();
-});

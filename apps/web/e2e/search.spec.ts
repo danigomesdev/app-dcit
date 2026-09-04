@@ -30,14 +30,14 @@ test("only shows screens the viewer's role can access", async ({ page, context, 
   await page.goto("/");
 
   await page.getByRole("button", { name: "Buscar" }).click();
-  await page.getByPlaceholder("Buscar telas...").fill("conven");
+  await page.getByPlaceholder("Buscar telas...").fill("pagamentos");
   await expect(page.getByText("Nada encontrado")).toBeVisible();
 
   await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
   await page.goto("/");
   await page.getByRole("button", { name: "Buscar" }).click();
-  await page.getByPlaceholder("Buscar telas...").fill("conven");
-  await expect(page.getByRole("button", { name: "Convenções" })).toBeVisible();
+  await page.getByPlaceholder("Buscar telas...").fill("pagamentos");
+  await expect(page.getByRole("button", { name: "Pagamentos" })).toBeVisible();
 });
 
 test("colaborador can find Ponto via search", async ({ page, context }) => {

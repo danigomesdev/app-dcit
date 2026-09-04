@@ -2,6 +2,73 @@ import { test, expect } from "@playwright/test";
 
 import { addSessionCookie, mockApi } from "./test-session";
 
+test("rh sidebar shows items in the curated order, with Colaboradores expandable", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request);
+  await page.goto("/");
+
+  const labels = await page.locator("aside").getByRole("link").allTextContents();
+
+  expect(labels).toEqual([
+    "Colaboradores",
+    "Plantão",
+    "Aprovações",
+    "Documentos",
+    "Pagamentos",
+    "Onboarding",
+    "Notificações",
+    "Mural",
+  ]);
+
+  await page.getByRole("button", { name: "Expandir Colaboradores" }).click();
+
+  await expect(page.getByRole("link", { name: "Ponto", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Banco de Horas" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Holerites" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Benefícios" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Colaboradores", exact: true }).click();
+  await expect(page).toHaveURL(/\/colaboradores$/);
+});
+
+test("gestor sidebar shows items in the curated order, with Colaboradores expandable", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request);
+  await page.goto("/");
+
+  const labels = await page.locator("aside").getByRole("link").allTextContents();
+
+  expect(labels).toEqual([
+    "Colaboradores",
+    "Plantão",
+    "Aprovações",
+    "Documentos",
+    "Onboarding",
+    "Horas",
+    "Notificações",
+    "Mural",
+    "Gestão de Carreiras",
+  ]);
+
+  await page.getByRole("button", { name: "Expandir Colaboradores" }).click();
+
+  await expect(page.getByRole("link", { name: "Ponto", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Banco de Horas" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Holerites" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Benefícios" })).toBeVisible();
+
+  await page.getByRole("link", { name: "Colaboradores", exact: true }).click();
+  await expect(page).toHaveURL(/\/colaboradores$/);
+});
+
 test("sidebar renders both sections and navigates between them", async ({
   page,
   context,
@@ -11,21 +78,25 @@ test("sidebar renders both sections and navigates between them", async ({
   await mockApi(request);
   await page.goto("/");
 
-  await expect(page.getByRole("link", { name: "Ponto", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Colaboradores" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Colaboradores", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Plantão" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Aprovações" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Documentos" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Mural" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Benefícios" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Onboarding" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Operacional" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Alertas" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Banco de Horas" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Holerites" })).toBeVisible();
 
-  // rh-only and colaborador-only items don't show up for gestor.
+  // Ponto, Banco de Horas, Holerites and Benefícios live inside the
+  // collapsed Colaboradores group — see the dedicated ordering test below.
+  await expect(page.getByRole("link", { name: "Ponto", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Banco de Horas" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Holerites" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Benefícios" })).toHaveCount(0);
+
+  // rh-only and colaborador-only items don't show up for gestor; Convenções,
+  // Alertas and Operacional were removed entirely — nobody has access anymore.
   await expect(page.getByRole("link", { name: "Convenções" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Alertas" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Operacional" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Folha de Ponto" })).toHaveCount(0);
 
@@ -36,10 +107,6 @@ test("sidebar renders both sections and navigates between them", async ({
   await page.getByRole("link", { name: "Documentos" }).click();
   await expect(page).toHaveURL(/\/documentos$/);
   await expect(page.getByRole("heading", { name: "Documentos e atestados" })).toBeVisible();
-
-  await page.getByRole("link", { name: "Operacional" }).click();
-  await expect(page).toHaveURL(/\/operacional$/);
-  await expect(page.getByRole("heading", { name: "Operacional" })).toBeVisible();
 });
 
 test("colaborador sees a curated, grouped sidebar instead of the gestor/rh menu", async ({
@@ -55,6 +122,7 @@ test("colaborador sees a curated, grouped sidebar instead of the gestor/rh menu"
   await expect(page.getByRole("link", { name: "Férias" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Documentos" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Mural" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Notificações" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Histórico de Pontos" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Folha de Ponto" })).toHaveCount(0);
 
@@ -94,6 +162,7 @@ test("highlights the active nav link and only the active one", async ({
   await addSessionCookie(context);
   await mockApi(request);
   await page.goto("/");
+  await page.getByRole("button", { name: "Expandir Colaboradores" }).click();
 
   await expect(page.getByRole("link", { name: "Ponto", exact: true })).toHaveAttribute(
     "aria-current",
