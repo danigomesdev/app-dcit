@@ -315,6 +315,8 @@ test("rh creates a new mural post via the API", async ({ page, context, request 
       title: "Boas-vindas!",
       body: "Damos as boas-vindas ao novo time de suporte.",
     });
+
+  await expect(page.getByRole("dialog")).not.toBeVisible();
 });
 
 test("a failed post creation shows an inline error without closing the dialog", async ({

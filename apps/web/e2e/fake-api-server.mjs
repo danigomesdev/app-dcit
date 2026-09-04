@@ -127,6 +127,9 @@ const server = http.createServer(async (req, res) => {
   ) {
     return sendJson(res, 200, []);
   }
+  if (req.method === "POST" && url.pathname === "/mural/posts") {
+    return sendJson(res, 201, { id: "generated-post-id", ...body });
+  }
   if (
     req.method === "GET" &&
     ["/beneficios/saldos/equipe", "/beneficios/parceiros"].includes(url.pathname)

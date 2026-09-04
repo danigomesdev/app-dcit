@@ -149,6 +149,7 @@ export class NotificationsService {
   async sendMural(postTitle: string, posterUserId: string): Promise<void> {
     const recipients = await this.prisma.employee.findMany({
       where: { deletedAt: null, userId: { not: posterUserId } },
+      select: { userId: true },
     });
 
     const created = await this.prisma.notification.createManyAndReturn({
