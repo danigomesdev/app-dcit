@@ -1,4 +1,16 @@
+import Constants from "expo-constants";
+
 import { registerPushToken, unregisterPushToken } from "@/lib/push-api";
+
+// expo-notifications' remote-notification functionality was removed from
+// Expo Go on Android with SDK 53 — requiring the module there throws as a
+// side effect of its own top-level registration code, asynchronously and
+// outside of any try/catch around the require() call itself, which is why
+// callers below cannot simply catch it. Skip loading the module entirely
+// when running in Expo Go instead of attempting to load and recover from it.
+function isExpoGo(): boolean {
+  return Constants.appOwnership === "expo";
+}
 
 /**
  * See reminders.ts for why expo-notifications is imported lazily: it
@@ -9,7 +21,8 @@ import { registerPushToken, unregisterPushToken } from "@/lib/push-api";
  * require() (rather than a dynamic import()) so the lazy load also works
  * under Jest without --experimental-vm-modules.
  */
-function loadNotifications(): typeof import("expo-notifications") {
+function loadNotifications(): typeof import("expo-notifications") | null {
+  if (isExpoGo()) return null;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require("expo-notifications");
 }
@@ -23,6 +36,7 @@ function loadNotifications(): typeof import("expo-notifications") {
 export async function registerForPushNotifications(sessionToken: string): Promise<void> {
   try {
     const Notifications = loadNotifications();
+    if (!Notifications) return;
     const permission = await Notifications.requestPermissionsAsync();
     if (!permission.granted) return;
 
@@ -44,6 +58,7 @@ export async function registerForPushNotifications(sessionToken: string): Promis
 export async function unregisterPushNotifications(sessionToken: string): Promise<void> {
   try {
     const Notifications = loadNotifications();
+    if (!Notifications) return;
     const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync();
     if (!expoPushToken) return;
 
@@ -63,6 +78,7 @@ export async function unregisterPushNotifications(sessionToken: string): Promise
 export function configureNotificationHandler(): void {
   try {
     const Notifications = loadNotifications();
+    if (!Notifications) return;
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
         shouldShowBanner: true,
@@ -89,6 +105,7 @@ export function configureNotificationHandler(): void {
 export function addNotificationTapListener(onTap: (data: unknown) => void): () => void {
   try {
     const Notifications = loadNotifications();
+    if (!Notifications) return () => {};
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       onTap(response.notification.request.content.data);
     });
