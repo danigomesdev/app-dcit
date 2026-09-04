@@ -89,3 +89,5 @@ export type {
 } from "./carreira";
 export { PERIODOS_HORAS, PeriodoHorasSchema, WorkedHoursEntryCreateSchema } from "./horas";
 export type { PeriodoHoras, WorkedHoursEntryCreateInput } from "./horas";
+export { MuralPostInputSchema } from "./mural";
+export type { MuralPostInput } from "./mural";
