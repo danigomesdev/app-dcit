@@ -61,6 +61,8 @@ const CARGO_LABELS: Record<(typeof CARGOS)[number], string> = {
 
 const NIVEIS = ["junior", "pleno", "senior", "especialista"] as const;
 
+const TEAM_SUGGESTIONS = ["SG MONITOR", "SGN 360", "SGM365", "SGP PORTAL"] as const;
+
 const NIVEL_LABELS: Record<(typeof NIVEIS)[number], string> = {
   junior: "Júnior",
   pleno: "Pleno",
@@ -240,9 +242,17 @@ export function ColaboradorFormFields({
         <input
           type="text"
           name="team"
+          list="team-suggestions"
           defaultValue={defaults.team ?? ""}
           className={styles.fieldInput}
         />
+        <datalist id="team-suggestions">
+          {TEAM_SUGGESTIONS.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
+          ))}
+        </datalist>
       </label>
       <label className={styles.field}>
         <span className={styles.fieldLabel}>Data de nascimento</span>

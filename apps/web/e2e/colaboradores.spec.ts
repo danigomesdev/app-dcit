@@ -281,6 +281,28 @@ test("a duplicate CPF shows an inline error without closing the dialog", async (
   await expect(page.getByRole("dialog")).toBeVisible();
 });
 
+test("shows the four suggested teams and still accepts free text", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
+  await mockApi(request, { employees: [] });
+
+  await page.goto("/colaboradores");
+  await page.getByRole("button", { name: "+ Novo colaborador" }).click();
+
+  const teamInput = page.getByLabel("Time");
+  const listId = await teamInput.getAttribute("list");
+  expect(listId).toBeTruthy();
+
+  const options = await page.locator(`#${listId} option`).allTextContents();
+  expect(options).toEqual(["SG MONITOR", "SGN 360", "SGM365", "SGP PORTAL"]);
+
+  await teamInput.fill("Um Time Qualquer Digitado");
+  await expect(teamInput).toHaveValue("Um Time Qualquer Digitado");
+});
+
 test("filling a CEP autofills the address from ViaCEP", async ({ page, context, request }) => {
   await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
   await mockApi(request, { employees: [] });
