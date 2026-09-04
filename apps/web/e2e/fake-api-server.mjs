@@ -127,6 +127,15 @@ const server = http.createServer(async (req, res) => {
   ) {
     return sendJson(res, 200, []);
   }
+  if (req.method === "GET" && url.pathname === "/carreira/evaluations") {
+    return sendJson(res, 200, null);
+  }
+  if (req.method === "POST" && url.pathname === "/carreira/evaluations") {
+    return sendJson(res, 201, { id: "generated-evaluation-id", ...body });
+  }
+  if (req.method === "POST" && /^\/carreira\/evaluations\/[^/]+\/decidir$/.test(url.pathname)) {
+    return sendJson(res, 200, { id: "generated-evaluation-id", status: "decidida", ...body });
+  }
   if (req.method === "POST" && url.pathname === "/mural/posts") {
     return sendJson(res, 201, { id: "generated-post-id", ...body });
   }

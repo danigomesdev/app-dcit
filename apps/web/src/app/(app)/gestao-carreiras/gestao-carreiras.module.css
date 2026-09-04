@@ -143,3 +143,86 @@
   font-size: 12px;
   color: var(--color-text-secondary);
 }
+
+.summaryCard {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--color-background-element);
+}
+
+.evaluationForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scoreBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 14px;
+}
+
+.finalPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--color-background-element);
+}
+
+.badgeElegivel {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.badgeDesenvolvimento {
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.saveButton {
+  appearance: none;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-background);
+  background: var(--color-text);
+  cursor: pointer;
+}
+
+.saveButton:hover {
+  opacity: 0.85;
+}
+
+.linkButton {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-decoration: none;
+  padding: 8px 16px;
+  border: 1px solid var(--color-background-selected);
+  border-radius: 8px;
+}
+
+.linkButton:hover {
+  background: var(--color-background-selected);
+}

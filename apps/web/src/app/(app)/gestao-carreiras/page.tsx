@@ -2,24 +2,27 @@ import { EmptyState } from "@/components/empty-state";
 import { apiFetchJson } from "@/lib/api";
 import { getSession } from "@/lib/session";
 
+import { AvaliacaoCarreiraSection } from "./avaliacao-carreira-section";
 import { AvaliacoesSection } from "./avaliacoes-section";
 import { ColaboradorSelect } from "./colaborador-select";
 import styles from "./gestao-carreiras.module.css";
 import { MetasSection } from "./metas-section";
 import { TrilhaSection } from "./trilha-section";
 
-type Employee = { userId: string; name: string };
+type Employee = { userId: string; name: string; nivel: string | null; salarioMensal: number | null };
 type CareerGoal = { id: string; tipo: "pdi" | "entrega"; title: string; status: "pendente" | "andamento" | "concluida" };
 
 const TABS = [
   { value: "pdi", label: "PDI & Metas" },
   { value: "trilha", label: "Trilha de Carreira" },
+  { value: "avaliacao-carreira", label: "Avaliação de Carreira" },
   { value: "avaliacoes", label: "Avaliações de Desempenho" },
 ] as const;
 
 const ABA_TITLES: Record<string, string> = {
   pdi: "PDI & Metas",
   trilha: "Matriz de Promoção / Trilhas de Carreira",
+  "avaliacao-carreira": "Avaliação de Carreira",
   avaliacoes: "Avaliações de Desempenho",
 };
 
@@ -65,6 +68,7 @@ export default async function GestaoCarreirasPage({
           </nav>
           {aba === "pdi" ? <MetasTab userId={userId} /> : null}
           {aba === "trilha" ? <TrilhaTab userId={userId} /> : null}
+          {aba === "avaliacao-carreira" ? <AvaliacaoCarreiraTab userId={userId} employees={employees} /> : null}
           {aba === "avaliacoes" ? (
             <AvaliacoesTab userId={userId} sub={typeof params.sub === "string" ? params.sub : "ciclos"} />
           ) : null}
@@ -94,6 +98,31 @@ async function TrilhaTab({ userId }: { userId: string }) {
     }>(`/carreira/promotabilidade/${userId}`),
   ]);
   return <TrilhaSection userId={userId} requirements={requirements} promotabilidade={promotabilidade} />;
+}
+
+async function AvaliacaoCarreiraTab({ userId, employees }: { userId: string; employees: Employee[] }) {
+  const colaborador = employees.find((e) => e.userId === userId);
+  const [promotabilidade, evaluation] = await Promise.all([
+    apiFetchJson<{ mesesDeCasa: number }>(`/carreira/promotabilidade/${userId}`),
+    apiFetchJson<{
+      id: string;
+      mediaGeral: number | null;
+      proximoNivel: string | null;
+      principios: { principio: string; nota: number; justificativa: string | null }[];
+      competencias: { competencia: string; nota: number }[];
+      requisitos: { tipo: "obrigatorio" | "eletivo"; label: string; atendido: boolean }[];
+    } | null>(`/carreira/evaluations?userId=${userId}`),
+  ]);
+  return (
+    <AvaliacaoCarreiraSection
+      userId={userId}
+      colaboradorNome={colaborador?.name ?? ""}
+      nivel={colaborador?.nivel ?? null}
+      salarioMensal={colaborador?.salarioMensal ?? null}
+      mesesDeCasa={promotabilidade.mesesDeCasa}
+      evaluation={evaluation}
+    />
+  );
 }
 
 async function AvaliacoesTab({ userId, sub }: { userId: string; sub: string }) {
