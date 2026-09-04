@@ -19,6 +19,25 @@ type Holerite = {
 
 type Employee = { userId: string; name: string };
 
+type HoleriteGroup = { userId: string; userName: string; holerites: Holerite[] };
+
+function groupByColaborador(holerites: Holerite[]): HoleriteGroup[] {
+  const groups = new Map<string, HoleriteGroup>();
+  for (const holerite of holerites) {
+    const group = groups.get(holerite.userId);
+    if (group) {
+      group.holerites.push(holerite);
+    } else {
+      groups.set(holerite.userId, {
+        userId: holerite.userId,
+        userName: holerite.userName,
+        holerites: [holerite],
+      });
+    }
+  }
+  return [...groups.values()].sort((a, b) => a.userName.localeCompare(b.userName, "pt-BR"));
+}
+
 export default async function HoleritesPage() {
   const session = await getSession();
   if (!session || session.role === "colaborador") {
@@ -41,11 +60,20 @@ export default async function HoleritesPage() {
       {holerites.length === 0 ? (
         <p className={styles.subheading}>Nenhum holerite cadastrado ainda.</p>
       ) : (
-        <ul className={styles.list}>
-          {holerites.map((holerite) => (
-            <HoleritesRow key={holerite.id} holerite={holerite} />
+        <div className={styles.list}>
+          {groupByColaborador(holerites).map((group) => (
+            <details key={group.userId} className={styles.group}>
+              <summary className={styles.groupSummary}>
+                {group.userName} ({group.holerites.length})
+              </summary>
+              <ul className={styles.list}>
+                {group.holerites.map((holerite) => (
+                  <HoleritesRow key={holerite.id} holerite={holerite} />
+                ))}
+              </ul>
+            </details>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

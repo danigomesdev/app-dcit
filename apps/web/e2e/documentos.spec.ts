@@ -12,6 +12,7 @@ test("rh sees clinical detail; gestor sees the same atestado without it", async 
     atestados: [
       {
         id: "at-1",
+        userId: "user-carlos",
         userName: "Carlos Colaborador",
         cid: "J11",
         crm: "CRM-MG 12345",
@@ -24,7 +25,8 @@ test("rh sees clinical detail; gestor sees the same atestado without it", async 
   });
 
   await page.goto("/documentos");
-  await expect(page.getByText("Carlos Colaborador")).toBeVisible();
+  await expect(page.getByText("Carlos Colaborador (1)", { exact: true })).toBeVisible();
+  await page.getByText("Carlos Colaborador (1)", { exact: true }).click();
   await expect(page.getByText("J11")).toBeVisible();
   await expect(page.getByText("Dr. Teste")).toBeVisible();
 
@@ -36,6 +38,7 @@ test("rh sees clinical detail; gestor sees the same atestado without it", async 
     atestados: [
       {
         id: "at-1",
+        userId: "user-carlos",
         userName: "Carlos Colaborador",
         cid: null,
         crm: null,
@@ -48,7 +51,8 @@ test("rh sees clinical detail; gestor sees the same atestado without it", async 
   });
 
   await page.goto("/documentos");
-  await expect(page.getByText("Carlos Colaborador")).toBeVisible();
+  await page.getByText("Carlos Colaborador (1)", { exact: true }).click();
+  await expect(page.getByText("Carlos Colaborador", { exact: true })).toBeVisible();
   await expect(page.getByText("J11")).toHaveCount(0);
   await expect(page.getByText("Dr. Teste")).toHaveCount(0);
 });
@@ -63,6 +67,7 @@ test("rh can view the atestado photo; gestor never sees the button", async ({
     atestados: [
       {
         id: "at-1",
+        userId: "user-carlos",
         userName: "Carlos Colaborador",
         cid: "J11",
         crm: "CRM-MG 12345",
@@ -80,6 +85,7 @@ test("rh can view the atestado photo; gestor never sees the button", async ({
   });
 
   await page.goto("/documentos");
+  await page.getByText("Carlos Colaborador (1)", { exact: true }).click();
   await page.getByRole("button", { name: "Ver foto" }).click();
   await expect(page.getByAltText("Foto do atestado")).toBeVisible();
   await expect(page.getByAltText("Foto do atestado")).toHaveAttribute(
@@ -92,6 +98,7 @@ test("rh can view the atestado photo; gestor never sees the button", async ({
     atestados: [
       {
         id: "at-1",
+        userId: "user-carlos",
         userName: "Carlos Colaborador",
         cid: null,
         crm: null,
@@ -104,6 +111,7 @@ test("rh can view the atestado photo; gestor never sees the button", async ({
   });
 
   await page.goto("/documentos");
+  await page.getByText("Carlos Colaborador (1)", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Ver foto" })).toHaveCount(0);
 });
 
@@ -139,9 +147,15 @@ test("lists admission documents and certifications submitted by the team", async
   await page.goto("/documentos");
 
   await expect(page.getByRole("heading", { name: "Documentos admissionais" })).toBeVisible();
-  await expect(page.getByText("Diana Colaboradora")).toBeVisible();
+  await expect(page.getByText("Diana Colaboradora (1)", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Certificações" })).toBeVisible();
-  await expect(page.getByText("Elias Colaborador")).toBeVisible();
+  await expect(page.getByText("Elias Colaborador (1)", { exact: true })).toBeVisible();
+
+  await page.getByText("Diana Colaboradora (1)", { exact: true }).click();
+  await expect(page.getByText("Comprovante de residência")).toBeVisible();
+
+  await page.getByText("Elias Colaborador (1)", { exact: true }).click();
+  await expect(page.getByText("AWS Certified")).toBeVisible();
 });
 
 test("shows a certification's UTC calendar day, not a day shifted by local timezone", async ({
@@ -173,7 +187,8 @@ test("shows a certification's UTC calendar day, not a day shifted by local timez
 
   await page.goto("/documentos");
 
-  await expect(page.getByText("Gabriela Colaboradora")).toBeVisible();
+  await expect(page.getByText("Gabriela Colaboradora (1)", { exact: true })).toBeVisible();
+  await page.getByText("Gabriela Colaboradora (1)", { exact: true }).click();
   await expect(page.getByText("válida até 01/10/2026")).toBeVisible();
   await expect(page.getByText("válida até 30/09/2026")).toHaveCount(0);
 });
@@ -199,7 +214,8 @@ test("shows a proper label instead of the raw status for an admissionais documen
 
   await page.goto("/documentos");
 
-  await expect(page.getByText("Fábio Colaborador")).toBeVisible();
+  await expect(page.getByText("Fábio Colaborador (1)", { exact: true })).toBeVisible();
+  await page.getByText("Fábio Colaborador (1)", { exact: true }).click();
   await expect(page.getByText("Enviado", { exact: true })).toBeVisible();
   await expect(page.getByText("enviado", { exact: true })).toHaveCount(0);
 });

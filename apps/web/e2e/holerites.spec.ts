@@ -32,11 +32,77 @@ test("gestor sees the holerites list", async ({ page, context, request }) => {
   await page.goto("/holerites");
 
   await expect(page.getByRole("heading", { name: "Holerites" })).toBeVisible();
+  await expect(page.getByText("Fernanda Colaboradora (1)", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Fernanda Colaboradora · Agosto/2026", { exact: true })
+  ).not.toBeVisible();
+
+  await page.getByText("Fernanda Colaboradora (1)", { exact: true }).click();
+
   await expect(
     page.getByText("Fernanda Colaboradora · Agosto/2026", { exact: true })
   ).toBeVisible();
   await expect(page.getByText(/Bruto: R\$\s?6\.200,00/)).toBeVisible();
   await expect(page.getByText(/Líquido: R\$\s?4\.728,00/)).toBeVisible();
+});
+
+test("groups holerites by colaborador instead of listing them all flat", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context, { sub: "gestor-1", role: "gestor", name: "Bruno Gestor" });
+  await mockApi(request, {
+    holerites: [
+      {
+        id: "hol-1",
+        userId: "user-1",
+        userName: "Fernanda Colaboradora",
+        label: "Agosto/2026",
+        gross: 6200,
+        inss: 682,
+        irrf: 410,
+        benefits: 380,
+      },
+      {
+        id: "hol-2",
+        userId: "user-1",
+        userName: "Fernanda Colaboradora",
+        label: "Setembro/2026",
+        gross: 6200,
+        inss: 682,
+        irrf: 410,
+        benefits: 380,
+      },
+      {
+        id: "hol-3",
+        userId: "user-2",
+        userName: "Gustavo Colaborador",
+        label: "Agosto/2026",
+        gross: 5000,
+        inss: 550,
+        irrf: 200,
+        benefits: 300,
+      },
+    ],
+  });
+
+  await page.goto("/holerites");
+
+  await expect(page.getByText("Fernanda Colaboradora (2)", { exact: true })).toBeVisible();
+  await expect(page.getByText("Gustavo Colaborador (1)", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Fernanda Colaboradora · Agosto/2026", { exact: true })
+  ).not.toBeVisible();
+
+  await page.getByText("Gustavo Colaborador (1)", { exact: true }).click();
+
+  await expect(
+    page.getByText("Gustavo Colaborador · Agosto/2026", { exact: true })
+  ).toBeVisible();
+  await expect(
+    page.getByText("Fernanda Colaboradora · Agosto/2026", { exact: true })
+  ).not.toBeVisible();
 });
 
 test("shows an empty state when no holerite is cadastrado", async ({
@@ -111,6 +177,7 @@ test("editing a holerite calls the API with the updated values", async ({
   });
 
   await page.goto("/holerites");
+  await page.getByText("Fernanda Colaboradora (1)", { exact: true }).click();
   await page.getByRole("button", { name: "Editar" }).click();
   await page.getByRole("dialog").getByLabel("Bruto (R$)").fill("6500");
   await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
@@ -149,6 +216,7 @@ test("removing a holerite calls the API", async ({ page, context, request }) => 
   });
 
   await page.goto("/holerites");
+  await page.getByText("Fernanda Colaboradora (1)", { exact: true }).click();
   await page.getByRole("button", { name: "Excluir" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Excluir" }).click();
 
