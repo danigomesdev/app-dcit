@@ -418,4 +418,34 @@ describe('NotificationsService', () => {
       });
     });
   });
+
+  describe('sendCareerLevelUp', () => {
+    it('creates one notification for the colaborador with the sub-nível, salary and nota final', async () => {
+      await service.sendCareerLevelUp('user-career-colaborador', 'Júnior 3', 3400, 7.5);
+
+      const notification = await prisma.notification.findFirstOrThrow({
+        where: { type: 'carreira', userId: 'user-career-colaborador' },
+      });
+      expect(notification).toMatchObject({
+        type: 'carreira',
+        category: null,
+        message: '🚀 Parabéns! Você avançou para Júnior 3. Novo salário: R$ 3.400,00. Sua nota final: 7,5/10.',
+        link: null,
+      });
+    });
+
+    it('sends a push to the colaborador with the notification id in the data payload', async () => {
+      await service.sendCareerLevelUp('user-career-colaborador-2', 'Pleno 2', 4700, 6.2);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const notification = await prisma.notification.findFirstOrThrow({
+        where: { type: 'carreira', userId: 'user-career-colaborador-2' },
+      });
+      expect(sendToUser).toHaveBeenCalledWith('user-career-colaborador-2', {
+        title: 'Ponto DCIT',
+        body: notification.message,
+        data: { notificationId: notification.id, link: null },
+      });
+    });
+  });
 });

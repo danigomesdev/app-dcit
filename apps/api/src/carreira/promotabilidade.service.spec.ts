@@ -166,59 +166,14 @@ describe('PromotabilidadeService', () => {
         hireDate: new Date('2025-01-01'),
       },
     });
-    await prisma.employee.create({
-      data: {
-        userId: 'promotabilidade-spec-user-2',
-        name: 'Promotabilidade Spec 2',
-        role: 'colaborador',
-        hireDate: new Date('2025-01-01'),
-      },
-    });
-    await prisma.trackRequirement.create({
-      data: { userId: 'promotabilidade-spec-user-2', title: 'Requisito', status: 'concluido' },
-    });
-    await prisma.careerGoal.create({
-      data: { userId: 'promotabilidade-spec-user-2', tipo: 'pdi', title: 'Meta', status: 'concluida' },
-    });
-    await prisma.performanceEvaluation.create({
-      data: {
-        userId: 'promotabilidade-spec-user-2',
-        evaluatorId: 'promotabilidade-spec-evaluator',
-        proatividade: 4,
-        trabalhoEquipe: 4,
-        comunicacao: 4,
-        lideranca: 4,
-      },
-    });
   });
 
   afterAll(async () => {
-    await prisma.performanceEvaluation.deleteMany({
-      where: { userId: { in: ['promotabilidade-spec-user', 'promotabilidade-spec-user-2'] } },
-    });
-    await prisma.trackRequirement.deleteMany({
-      where: { userId: { in: ['promotabilidade-spec-user', 'promotabilidade-spec-user-2'] } },
-    });
-    await prisma.careerGoal.deleteMany({
-      where: { userId: { in: ['promotabilidade-spec-user', 'promotabilidade-spec-user-2'] } },
-    });
     await prisma.employee.delete({ where: { userId: 'promotabilidade-spec-user' } });
-    await prisma.employee.delete({ where: { userId: 'promotabilidade-spec-user-2' } });
     await prisma.onModuleDestroy();
   });
 
-  it('listAll includes a branco entry for an employee with nothing registered', async () => {
-    const all = await service.listAll();
-    expect(all['promotabilidade-spec-user']).toBe('branco');
-  });
-
-  it('listAll reports each employee independently from batched queries (no cross-contamination)', async () => {
-    const all = await service.listAll();
-    expect(all['promotabilidade-spec-user']).toBe('branco');
-    expect(all['promotabilidade-spec-user-2']).toBe('verde');
-  });
-
-  it('getOne reports the same status as listAll for the same employee', async () => {
+  it('getOne reports branco for an employee with nothing registered', async () => {
     const detail = await service.getOne('promotabilidade-spec-user');
     expect(detail.status).toBe('branco');
   });

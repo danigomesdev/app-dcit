@@ -1,11 +1,23 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CareerEvaluationSaveInput } from '@ponto-dcit/shared-types';
-import { CAREER_LADDER, COMPETENCIA_CATEGORIA, ELEGIBILIDADE_MEDIA_MINIMA, calcularMediaGeral, type NivelEscada } from '@ponto-dcit/shared-types';
+import {
+  CAREER_LADDER,
+  COMPETENCIA_CATEGORIA,
+  ELEGIBILIDADE_MEDIA_MINIMA,
+  calcularMediaGeral,
+  calcularSubNivelIndex,
+  subNivelLabel,
+  type NivelEscada,
+} from '@ponto-dcit/shared-types';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CareerEvaluationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   async getOpen(userId: string) {
     const evaluation = await this.prisma.careerEvaluation.findFirst({
@@ -34,6 +46,14 @@ export class CareerEvaluationsService {
       ...input.principios.map((p) => p.nota),
       ...input.competencias.map((c) => c.nota),
     ]);
+    // Every save re-derives which fixed degrau this cycle's média lands on,
+    // and moves salarioMensal there — but never downward (a weaker cycle
+    // must not cut pay that a stronger earlier cycle already earned).
+    const subNivelIndex = calcularSubNivelIndex(mediaGeral);
+    const salarioSubNivel = CAREER_LADDER[nivelAvaliado].degraus[subNivelIndex];
+    const salarioAtual = employee.salarioMensal ?? 0;
+    const novoSalario = Math.max(salarioAtual, salarioSubNivel);
+    const salarioAumentou = novoSalario > salarioAtual;
 
     const evaluation = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.careerEvaluation.findFirst({
@@ -70,6 +90,7 @@ export class CareerEvaluationsService {
           categoria: COMPETENCIA_CATEGORIA[c.competencia],
           competencia: c.competencia,
           nota: c.nota,
+          justificativa: c.justificativa,
         })),
       });
       if (requisitosLadder.length > 0) {
@@ -83,8 +104,21 @@ export class CareerEvaluationsService {
         });
       }
 
+      if (salarioAumentou) {
+        await tx.employee.update({ where: { userId: input.userId }, data: { salarioMensal: novoSalario } });
+      }
+
       return evaluation;
     });
+
+    if (salarioAumentou) {
+      await this.notifications.sendCareerLevelUp(
+        input.userId,
+        subNivelLabel(nivelAvaliado, subNivelIndex),
+        novoSalario,
+        mediaGeral,
+      );
+    }
 
     return this.withChildren(evaluation);
   }

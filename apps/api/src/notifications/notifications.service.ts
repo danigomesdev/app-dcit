@@ -25,6 +25,9 @@ const PONTO_PERDIDO_MESSAGE_GESTOR: Record<PontoPerdidoTipo, (name: string, date
 
 const muralMessage = (title: string) => `"${title}" foi publicado no mural.`;
 
+const careerLevelUpMessage = (subNivel: string, novoSalario: number, notaFinal: number) =>
+  `🚀 Parabéns! Você avançou para ${subNivel}. Novo salário: R$ ${novoSalario.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}. Sua nota final: ${notaFinal.toFixed(1).replace('.', ',')}/10.`;
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -171,5 +174,23 @@ export class NotificationsService {
         }),
       ),
     );
+  }
+
+  async sendCareerLevelUp(userId: string, subNivel: string, novoSalario: number, notaFinal: number): Promise<void> {
+    const created = await this.prisma.notification.create({
+      data: {
+        userId,
+        type: 'carreira',
+        category: null,
+        message: careerLevelUpMessage(subNivel, novoSalario, notaFinal),
+        link: null,
+      },
+    });
+
+    void this.expoPush.sendToUser(created.userId, {
+      title: 'Ponto DCIT',
+      body: created.message,
+      data: { notificationId: created.id, link: created.link },
+    });
   }
 }

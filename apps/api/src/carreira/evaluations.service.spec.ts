@@ -3,6 +3,8 @@ process.env.DATABASE_URL = 'file:./test.db';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CareerEvaluationsService } from './evaluations.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ExpoPushService } from '../push/expo-push.service';
 
 const USER_ID = 'evaluations-spec-user';
 
@@ -12,7 +14,12 @@ describe('CareerEvaluationsService', () => {
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [CareerEvaluationsService, PrismaService],
+      providers: [
+        CareerEvaluationsService,
+        PrismaService,
+        NotificationsService,
+        { provide: ExpoPushService, useValue: { sendToUser: jest.fn() } },
+      ],
     }).compile();
     service = module.get(CareerEvaluationsService);
     prisma = module.get(PrismaService);
@@ -29,6 +36,7 @@ describe('CareerEvaluationsService', () => {
     await prisma.careerCompetenciaScore.deleteMany({ where: { evaluationId: { in: evaluationIds } } });
     await prisma.careerRequisitoCheck.deleteMany({ where: { evaluationId: { in: evaluationIds } } });
     await prisma.careerEvaluation.deleteMany({ where: { userId: USER_ID } });
+    await prisma.notification.deleteMany({ where: { userId: USER_ID } });
     await prisma.employee.delete({ where: { userId: USER_ID } });
     await prisma.onModuleDestroy();
   });
@@ -41,7 +49,7 @@ describe('CareerEvaluationsService', () => {
     { principio: 'desenvolvimento', nota: 8 },
   ];
   const COMPETENCIAS_NOTAS = [
-    { competencia: 'dominio_tecnico', nota: 6 },
+    { competencia: 'dominio_tecnico', nota: 6, justificativa: 'Domínio sólido, ainda em evolução.' },
     { competencia: 'qualidade_solucoes', nota: 6 },
     { competencia: 'kpis_tecnicos', nota: 6 },
     { competencia: 'comunicacao_postura', nota: 6 },
@@ -64,6 +72,8 @@ describe('CareerEvaluationsService', () => {
     expect(evaluation.mediaGeral).toBeCloseTo(6.9, 1);
     expect(evaluation.principios).toHaveLength(5);
     expect(evaluation.competencias).toHaveLength(6);
+    const dominioTecnico = evaluation.competencias.find((c) => c.competencia === 'dominio_tecnico');
+    expect(dominioTecnico?.justificativa).toBe('Domínio sólido, ainda em evolução.');
   });
 
   it('save() persists every requisito of the próximo nível, ignoring atendido labels that belong to a different nível', async () => {
@@ -155,6 +165,7 @@ describe('CareerEvaluationsService', () => {
   ];
 
   it('decidir() promotes the employee (nivel + salarioMensal) when eligible and confirmarPromocao is true', async () => {
+    await prisma.employee.update({ where: { userId: USER_ID }, data: { nivel: 'pleno', salarioMensal: 4700 } });
     const evaluation = await service.save('gestor-1', {
       userId: USER_ID,
       principios: PRINCIPIOS_NOTAS.map((p) => ({ ...p, nota: 10 })),
@@ -165,7 +176,11 @@ describe('CareerEvaluationsService', () => {
     expect(decided.resultado).toBe('promovido');
     const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: USER_ID } });
     expect(employee.nivel).toBe('senior');
-    expect(employee.salarioMensal).toBe(6000); // senior's first degrau
+    // média 10 already pushed pleno's own sub-nível to its top degrau (6200)
+    // during save(), before decidir() ran — decidir()'s own floor-protection
+    // (Math.max against senior's first degrau, 6000) then keeps the higher
+    // value, so the promotion lands at 6200, not senior's bare starting degrau.
+    expect(employee.salarioMensal).toBe(6200);
   });
 
   it('decidir() computes resultado promovido but does NOT touch Employee when confirmarPromocao is false', async () => {
@@ -195,5 +210,63 @@ describe('CareerEvaluationsService', () => {
     const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: USER_ID } });
     expect(employee.nivel).toBe('senior');
     expect(employee.salarioMensal).toBe(6200); // NOT reset down to senior's degrau[0] of 6000
+  });
+
+  describe('sub-nível salary progression on save()', () => {
+    it('advances salarioMensal to the degrau matching the média of this cycle', async () => {
+      await prisma.employee.update({ where: { userId: USER_ID }, data: { nivel: 'junior', salarioMensal: 2500 } });
+      // média 7.0 -> subNivelIndex 2 -> junior's 3rd degrau (3400)
+      await service.save('gestor-1', {
+        userId: USER_ID,
+        principios: PRINCIPIOS_NOTAS.map((p) => ({ ...p, nota: 7 })),
+        competencias: COMPETENCIAS_NOTAS.map((c) => ({ ...c, nota: 7 })),
+        requisitosAtendidos: [],
+      });
+      const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: USER_ID } });
+      expect(employee.salarioMensal).toBe(3400);
+    });
+
+    it('never reduces salarioMensal even when a later cycle submits a lower média', async () => {
+      await prisma.employee.update({ where: { userId: USER_ID }, data: { nivel: 'junior', salarioMensal: 3400 } });
+      // média 2.0 -> subNivelIndex 0 -> junior's 1st degrau (2500), well below the current 3400
+      await service.save('gestor-1', {
+        userId: USER_ID,
+        principios: PRINCIPIOS_NOTAS.map((p) => ({ ...p, nota: 2 })),
+        competencias: COMPETENCIAS_NOTAS.map((c) => ({ ...c, nota: 2 })),
+        requisitosAtendidos: [],
+      });
+      const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: USER_ID } });
+      expect(employee.salarioMensal).toBe(3400);
+    });
+
+    it('sends a career-level-up notification when the sub-nível-driven salary increases', async () => {
+      await prisma.employee.update({ where: { userId: USER_ID }, data: { nivel: 'junior', salarioMensal: 2500 } });
+      await service.save('gestor-1', {
+        userId: USER_ID,
+        principios: PRINCIPIOS_NOTAS.map((p) => ({ ...p, nota: 7 })),
+        competencias: COMPETENCIAS_NOTAS.map((c) => ({ ...c, nota: 7 })),
+        requisitosAtendidos: [],
+      });
+      const notification = await prisma.notification.findFirstOrThrow({
+        where: { type: 'carreira', userId: USER_ID },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(notification.message).toBe(
+        '🚀 Parabéns! Você avançou para Júnior 3. Novo salário: R$ 3.400,00. Sua nota final: 7,0/10.',
+      );
+    });
+
+    it('does not send a notification when the computed salary does not increase', async () => {
+      await prisma.employee.update({ where: { userId: USER_ID }, data: { nivel: 'junior', salarioMensal: 3400 } });
+      await prisma.notification.deleteMany({ where: { userId: USER_ID } });
+      await service.save('gestor-1', {
+        userId: USER_ID,
+        principios: PRINCIPIOS_NOTAS.map((p) => ({ ...p, nota: 2 })),
+        competencias: COMPETENCIAS_NOTAS.map((c) => ({ ...c, nota: 2 })),
+        requisitosAtendidos: [],
+      });
+      const notification = await prisma.notification.findFirst({ where: { type: 'carreira', userId: USER_ID } });
+      expect(notification).toBeNull();
+    });
   });
 });

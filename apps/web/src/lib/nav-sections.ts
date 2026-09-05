@@ -107,13 +107,10 @@ export const GESTOR_SIDEBAR_ORDER: string[] = [
 
 // Gestor-only — deliberately not shared with rh (see the Gestão de Carreiras
 // design spec: the original request was explicit that this is manager-only,
-// unlike most other gestor+rh shared team screens in this app).
-export const GESTOR_CAREER_GROUP: SidebarGroup = {
+// unlike most other gestor+rh shared team screens in this app). A single
+// flat link — the page has just one screen (Avaliação de Carreira), so no
+// expandable group/children is needed.
+export const GESTOR_CAREER_LINK: SidebarLink = {
   href: "/gestao-carreiras",
   label: "Gestão de Carreiras",
-  children: [
-    { href: "/gestao-carreiras?aba=pdi", label: "PDI & Metas" },
-    { href: "/gestao-carreiras?aba=trilha", label: "Matriz de Promoção / Trilhas de Carreira" },
-    { href: "/gestao-carreiras?aba=avaliacoes", label: "Avaliações de Desempenho" },
-  ],
 };

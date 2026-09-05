@@ -20,49 +20,6 @@ test("gestor sees the roster like rh does", async ({ page, context, request }) =
   await expect(page.getByText("Ana Colaboradora", { exact: true })).toBeVisible();
 });
 
-test("gestor sees a promotabilidade badge next to each name", async ({
-  page,
-  context,
-  request,
-}) => {
-  await addSessionCookie(context, { sub: "gestor-1", role: "gestor", name: "Bruno Gestor" });
-  await mockApi(request, {
-    employees: [{ userId: "colaborador-1", name: "Ana Colaboradora", expectedStartTime: "09:00" }],
-    promotabilidade: { "colaborador-1": "verde" },
-  });
-
-  await page.goto("/colaboradores");
-
-  await expect(page.getByLabel("Promotabilidade: verde")).toBeVisible();
-
-  const recorded = await getRecordedRequests(request);
-  expect(
-    recorded.find((r) => r.method === "GET" && r.path === "/carreira/promotabilidade")
-  ).toBeTruthy();
-});
-
-test("rh sees no promotabilidade badge and triggers no request to /carreira/promotabilidade", async ({
-  page,
-  context,
-  request,
-}) => {
-  await addSessionCookie(context, { sub: "rh-1", role: "rh", name: "Carla RH" });
-  await mockApi(request, {
-    employees: [{ userId: "colaborador-1", name: "Ana Colaboradora", expectedStartTime: "09:00" }],
-    promotabilidade: { "colaborador-1": "verde" },
-  });
-
-  await page.goto("/colaboradores");
-
-  await expect(page.getByText("Ana Colaboradora", { exact: true })).toBeVisible();
-  await expect(page.getByLabel(/Promotabilidade/)).toHaveCount(0);
-
-  const recorded = await getRecordedRequests(request);
-  expect(
-    recorded.find((r) => r.method === "GET" && r.path === "/carreira/promotabilidade")
-  ).toBeUndefined();
-});
-
 test("rh sees the roster with the current expected start time prefilled", async ({
   page,
   context,

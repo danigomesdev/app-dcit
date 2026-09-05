@@ -18,6 +18,7 @@ export const CareerEvaluationSaveSchema = z.object({
       z.object({
         competencia: z.enum(COMPETENCIA_KEYS),
         nota: z.number().int().min(0).max(10),
+        justificativa: z.string().optional(),
       }),
     )
     .length(COMPETENCIA_KEYS.length),

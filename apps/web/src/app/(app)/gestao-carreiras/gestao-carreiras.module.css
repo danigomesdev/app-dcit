@@ -165,6 +165,20 @@
   gap: 0.35rem;
 }
 
+.competenciaColumns {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.competenciaColumn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .checkboxRow {
   display: flex;
   align-items: center;
@@ -225,4 +239,55 @@
 
 .linkButton:hover {
   background: var(--color-background-selected);
+}
+
+.group {
+  border-radius: 8px;
+  background: var(--color-background-element);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.groupSummary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.35rem;
+  list-style: none;
+}
+
+.groupSummary::-webkit-details-marker {
+  display: none;
+}
+
+.groupChevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+details[open] > .groupSummary .groupChevron {
+  transform: rotate(180deg);
+}
+
+.justificativaInput {
+  width: 25%;
+  min-width: 160px;
+  min-height: 1.8em;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-background-selected);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  field-sizing: content;
 }

@@ -62,9 +62,6 @@ type DetalheInput = {
   ultimaAvaliacao: Avaliacao | null;
 };
 
-// Shared by both getOne (single-employee fetch) and listAll (batched fetch) —
-// only the data-fetching differs between the two call sites; the branching
-// logic itself lives in exactly one place.
 export function calcularDetalhe(input: DetalheInput) {
   return {
     status: calcularStatusPromotabilidade(input),
@@ -81,62 +78,9 @@ export function calcularDetalhe(input: DetalheInput) {
   };
 }
 
-function agruparPorUsuario<T extends { userId: string }>(rows: T[]): Map<string, T[]> {
-  const map = new Map<string, T[]>();
-  for (const row of rows) {
-    const lista = map.get(row.userId);
-    if (lista) lista.push(row);
-    else map.set(row.userId, [row]);
-  }
-  return map;
-}
-
-function maisRecentePorUsuario<T extends { userId: string; date: Date }>(rows: T[]): Map<string, T> {
-  const map = new Map<string, T>();
-  for (const row of rows) {
-    const atual = map.get(row.userId);
-    if (!atual || row.date > atual.date) map.set(row.userId, row);
-  }
-  return map;
-}
-
 @Injectable()
 export class PromotabilidadeService {
   constructor(private readonly prisma: PrismaService) {}
-
-  // Batched: one findMany per data source across the whole roster, then
-  // in-memory grouping/lookup per employee — matches this codebase's
-  // established pattern for whole-roster summaries (see
-  // onboarding.service.ts's listTeamProgress) instead of N sequential
-  // per-employee query rounds.
-  async listAll(): Promise<Record<string, StatusPromotabilidade>> {
-    const now = new Date();
-    const employees = await this.prisma.employee.findMany({ where: { deletedAt: null } });
-    const userIds = employees.map((e) => e.userId);
-
-    const [requisitos, metasPdi, avaliacoes] = await Promise.all([
-      this.prisma.trackRequirement.findMany({ where: { userId: { in: userIds } } }),
-      this.prisma.careerGoal.findMany({ where: { userId: { in: userIds }, tipo: 'pdi' } }),
-      this.prisma.performanceEvaluation.findMany({ where: { userId: { in: userIds } } }),
-    ]);
-
-    const requisitosByUser = agruparPorUsuario(requisitos);
-    const metasByUser = agruparPorUsuario(metasPdi);
-    const ultimaAvaliacaoByUser = maisRecentePorUsuario(avaliacoes);
-
-    const result: Record<string, StatusPromotabilidade> = {};
-    for (const employee of employees) {
-      const detalhe = calcularDetalhe({
-        hireDate: employee.hireDate,
-        now,
-        requisitos: requisitosByUser.get(employee.userId) ?? [],
-        metasPdi: metasByUser.get(employee.userId) ?? [],
-        ultimaAvaliacao: ultimaAvaliacaoByUser.get(employee.userId) ?? null,
-      });
-      result[employee.userId] = detalhe.status;
-    }
-    return result;
-  }
 
   async getOne(userId: string) {
     const employee = await this.prisma.employee.findUniqueOrThrow({ where: { userId } });

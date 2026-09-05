@@ -6,15 +6,32 @@ import {
   ELEGIBILIDADE_MEDIA_MINIMA,
   PRINCIPIO_KEYS,
   PRINCIPIOS,
+  subNivelIndexFromSalario,
+  subNivelLabel,
+  subNivelStatus,
   type NivelEscada,
 } from "@ponto-dcit/shared-types";
 
 import { saveCareerEvaluation } from "./actions";
+import { AutoExpandOnInvalid } from "./auto-expand-on-invalid";
 import styles from "./gestao-carreiras.module.css";
 import { SubmeterButton } from "./submeter-button";
 
+// Same chevron used by the sidebar's expandable groups (nav-links.tsx) — a
+// <details>/<summary> element has no built-in way to put its native
+// disclosure marker on the right or restyle it, so this replaces it
+// entirely (marker hidden via CSS) and rotates via the `details[open]`
+// selector instead of JS state, since <details> is already uncontrolled.
+function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 type PrincipioScore = { principio: string; nota: number; justificativa: string | null };
-type CompetenciaScore = { competencia: string; nota: number };
+type CompetenciaScore = { competencia: string; nota: number; justificativa: string | null };
 type RequisitoCheck = { tipo: "obrigatorio" | "eletivo"; label: string; atendido: boolean };
 type OpenEvaluation = {
   id: string;
@@ -48,11 +65,15 @@ export function AvaliacaoCarreiraSection({
   const proximoNivel = nivelInfo.proximoNivel;
   const proximoNivelInfo = proximoNivel ? CAREER_LADDER[proximoNivel] : null;
 
+  const subNivelIndex = subNivelIndexFromSalario(nivelEscada, salarioMensal ?? nivelInfo.degraus[0]);
+  const subNivelAtualLabel = subNivelLabel(nivelEscada, subNivelIndex);
+  const subNivelAtualStatus = subNivelStatus(nivelEscada, subNivelIndex);
+
   const isOpen = evaluation?.status === "salva";
   const formEvaluation = isOpen ? evaluation : null;
 
   const notaPorPrincipio = new Map(formEvaluation?.principios.map((p) => [p.principio, p]) ?? []);
-  const notaPorCompetencia = new Map(formEvaluation?.competencias.map((c) => [c.competencia, c.nota]) ?? []);
+  const notaPorCompetencia = new Map(formEvaluation?.competencias.map((c) => [c.competencia, c]) ?? []);
   const requisitosAtendidos = new Set(formEvaluation?.requisitos.filter((r) => r.atendido).map((r) => r.label) ?? []);
 
   const obrigatoriosOk =
@@ -69,8 +90,8 @@ export function AvaliacaoCarreiraSection({
     <div className={styles.section}>
       <div className={styles.summaryCard}>
         <div>
-          <strong>Cargo Atual</strong>
-          <p>{nivelInfo.label}</p>
+          <strong>Nível Atual</strong>
+          <p>{subNivelAtualLabel}</p>
         </div>
         <div>
           <strong>Tempo de Casa</strong>
@@ -91,6 +112,10 @@ export function AvaliacaoCarreiraSection({
         </div>
       </div>
 
+      <p className={subNivelIndex === 0 ? styles.badgeDesenvolvimento : styles.badgeElegivel}>
+        {subNivelAtualStatus.toUpperCase()}
+      </p>
+
       {evaluation && !isOpen ? (
         <p className={styles.description}>
           Última avaliação decidida em{" "}
@@ -100,73 +125,117 @@ export function AvaliacaoCarreiraSection({
         </p>
       ) : null}
 
+      <AutoExpandOnInvalid>
       <form action={saveCareerEvaluation} className={styles.evaluationForm}>
         <input type="hidden" name="userId" value={userId} />
 
-        <h2>5 Princípios Essenciais</h2>
-        {PRINCIPIO_KEYS.map((key) => {
-          const info = PRINCIPIOS[key];
-          const current = notaPorPrincipio.get(key);
-          return (
-            <div key={key} className={styles.scoreBlock}>
-              <label>
-                <strong>{info.label}</strong> — {info.descricao}
-                <input
-                  type="number"
-                  name={`nota-${key}`}
-                  min={0}
-                  max={10}
-                  required
-                  defaultValue={current?.nota ?? ""}
-                  className={styles.input}
+        <details className={styles.group}>
+          <summary className={styles.groupSummary}>
+            5 Princípios Essenciais
+            <ChevronIcon className={styles.groupChevron} />
+          </summary>
+          {PRINCIPIO_KEYS.map((key) => {
+            const info = PRINCIPIOS[key];
+            const current = notaPorPrincipio.get(key);
+            return (
+              <div key={key} className={styles.scoreBlock}>
+                <label>
+                  <strong>{info.label}</strong> — {info.descricao}
+                  <input
+                    type="number"
+                    name={`nota-${key}`}
+                    min={0}
+                    max={10}
+                    required
+                    defaultValue={current?.nota ?? ""}
+                    className={styles.input}
+                  />
+                </label>
+                <textarea
+                  name={`justificativa-${key}`}
+                  placeholder="Observações/Justificativa"
+                  defaultValue={current?.justificativa ?? ""}
+                  rows={1}
+                  className={styles.justificativaInput}
                 />
-              </label>
-              <input
-                type="text"
-                name={`justificativa-${key}`}
-                placeholder="Observações/Justificativa"
-                defaultValue={current?.justificativa ?? ""}
-                className={styles.input}
-              />
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
+        </details>
 
-        <h2>Competências</h2>
-        <h3>Hard Skills</h3>
-        {COMPETENCIA_KEYS.filter((key) => COMPETENCIA_CATEGORIA[key] === "hard").map((key) => (
-          <label key={key} className={styles.scoreBlock}>
-            {COMPETENCIA_LABELS[key]}
-            <input
-              type="number"
-              name={`nota-${key}`}
-              min={0}
-              max={10}
-              required
-              defaultValue={notaPorCompetencia.get(key) ?? ""}
-              className={styles.input}
-            />
-          </label>
-        ))}
-        <h3>Soft Skills</h3>
-        {COMPETENCIA_KEYS.filter((key) => COMPETENCIA_CATEGORIA[key] === "soft").map((key) => (
-          <label key={key} className={styles.scoreBlock}>
-            {COMPETENCIA_LABELS[key]}
-            <input
-              type="number"
-              name={`nota-${key}`}
-              min={0}
-              max={10}
-              required
-              defaultValue={notaPorCompetencia.get(key) ?? ""}
-              className={styles.input}
-            />
-          </label>
-        ))}
+        <details className={styles.group}>
+          <summary className={styles.groupSummary}>
+            Competências
+            <ChevronIcon className={styles.groupChevron} />
+          </summary>
+          <div className={styles.competenciaColumns}>
+          <div className={styles.competenciaColumn}>
+          <h3>Hard Skills</h3>
+          {COMPETENCIA_KEYS.filter((key) => COMPETENCIA_CATEGORIA[key] === "hard").map((key) => {
+            const current = notaPorCompetencia.get(key);
+            return (
+              <div key={key} className={styles.scoreBlock}>
+                <label>
+                  {COMPETENCIA_LABELS[key]}
+                  <input
+                    type="number"
+                    name={`nota-${key}`}
+                    min={0}
+                    max={10}
+                    required
+                    defaultValue={current?.nota ?? ""}
+                    className={styles.input}
+                  />
+                </label>
+                <textarea
+                  name={`justificativa-${key}`}
+                  placeholder="Observações/Justificativa"
+                  defaultValue={current?.justificativa ?? ""}
+                  rows={1}
+                  className={styles.justificativaInput}
+                />
+              </div>
+            );
+          })}
+          </div>
+          <div className={styles.competenciaColumn}>
+          <h3>Soft Skills</h3>
+          {COMPETENCIA_KEYS.filter((key) => COMPETENCIA_CATEGORIA[key] === "soft").map((key) => {
+            const current = notaPorCompetencia.get(key);
+            return (
+              <div key={key} className={styles.scoreBlock}>
+                <label>
+                  {COMPETENCIA_LABELS[key]}
+                  <input
+                    type="number"
+                    name={`nota-${key}`}
+                    min={0}
+                    max={10}
+                    required
+                    defaultValue={current?.nota ?? ""}
+                    className={styles.input}
+                  />
+                </label>
+                <textarea
+                  name={`justificativa-${key}`}
+                  placeholder="Observações/Justificativa"
+                  defaultValue={current?.justificativa ?? ""}
+                  rows={1}
+                  className={styles.justificativaInput}
+                />
+              </div>
+            );
+          })}
+          </div>
+          </div>
+        </details>
 
         {proximoNivelInfo ? (
-          <>
-            <h2>Checklist de Requisitos para o Próximo Nível</h2>
+          <details className={styles.group}>
+            <summary className={styles.groupSummary}>
+              Checklist de Requisitos para o Próximo Nível
+              <ChevronIcon className={styles.groupChevron} />
+            </summary>
             <h3>Obrigatórios</h3>
             {proximoNivelInfo.requisitos
               .filter((r) => r.tipo === "obrigatorio")
@@ -199,7 +268,7 @@ export function AvaliacaoCarreiraSection({
                   ))}
               </>
             ) : null}
-          </>
+          </details>
         ) : (
           <p className={styles.empty}>Não há checklist a exibir — este colaborador já está no topo da escada.</p>
         )}
@@ -208,6 +277,7 @@ export function AvaliacaoCarreiraSection({
           Salvar Avaliação
         </button>
       </form>
+      </AutoExpandOnInvalid>
 
       <div className={styles.finalPanel}>
         <h2>Painel Final</h2>
@@ -224,9 +294,6 @@ export function AvaliacaoCarreiraSection({
               colaboradorNome={colaboradorNome}
             />
           ) : null}
-          <a href={`/gestao-carreiras?aba=avaliacoes&sub=1a1&userId=${userId}`} className={styles.linkButton}>
-            Agendar Reunião de 1:1
-          </a>
         </div>
       </div>
     </div>

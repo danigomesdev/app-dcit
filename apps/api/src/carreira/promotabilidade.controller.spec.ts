@@ -6,7 +6,7 @@ import { AuthGuard } from '../auth/auth-guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { ROLES_KEY } from '../auth/roles.decorator';
 
-const GUARDED_HANDLERS = ['listAll', 'getOne'] as const;
+const GUARDED_HANDLERS = ['getOne'] as const;
 
 describe('PromotabilidadeController guard metadata', () => {
   it.each(GUARDED_HANDLERS)('applies AuthGuard + RolesGuard(gestor) to %s', (handlerName) => {
@@ -28,7 +28,7 @@ describe('PromotabilidadeController guard metadata', () => {
 
 describe('PromotabilidadeController', () => {
   let controller: PromotabilidadeController;
-  const serviceMock = { listAll: jest.fn(), getOne: jest.fn() };
+  const serviceMock = { getOne: jest.fn() };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -40,12 +40,6 @@ describe('PromotabilidadeController', () => {
       .useValue({ canActivate: () => true })
       .compile();
     controller = module.get(PromotabilidadeController);
-  });
-
-  it('returns the batch map', async () => {
-    serviceMock.listAll.mockResolvedValue({ 'user-1': 'verde' });
-    const result = await controller.listAll();
-    expect(result).toEqual({ 'user-1': 'verde' });
   });
 
   it('returns the detail for a single userId', async () => {

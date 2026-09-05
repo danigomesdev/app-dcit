@@ -62,29 +62,6 @@ export type {
 } from "./password-auth";
 export { PAGAMENTO_CATEGORIAS, SendPagamentoSchema } from "./notifications";
 export type { PagamentoCategoria, SendPagamentoInput } from "./notifications";
-export {
-  CAREER_GOAL_TIPOS,
-  STATUS_TAREFA,
-  STATUS_REQUISITO,
-  NIVEL_NINE_BOX,
-  STATUS_ACAO,
-  CareerGoalCreateSchema,
-  CareerGoalUpdateSchema,
-  TrackRequirementCreateSchema,
-  TrackRequirementUpdateSchema,
-  NineBoxPlacementCreateSchema,
-  OneOnOneCreateSchema,
-  OneOnOneAcaoUpdateSchema,
-} from "./carreira";
-export type {
-  CareerGoalCreateInput,
-  CareerGoalUpdateInput,
-  TrackRequirementCreateInput,
-  TrackRequirementUpdateInput,
-  NineBoxPlacementCreateInput,
-  OneOnOneCreateInput,
-  OneOnOneAcaoUpdateInput,
-} from "./carreira";
 export { PERIODOS_HORAS, PeriodoHorasSchema, WorkedHoursEntryCreateSchema } from "./horas";
 export type { PeriodoHoras, WorkedHoursEntryCreateInput } from "./horas";
 export { MuralPostInputSchema } from "./mural";
@@ -99,7 +76,12 @@ export {
   COMPETENCIA_CATEGORIA,
   COMPETENCIA_LABELS,
   ELEGIBILIDADE_MEDIA_MINIMA,
+  SUB_NIVEL_NOME_BASE,
   calcularMediaGeral,
+  calcularSubNivelIndex,
+  subNivelIndexFromSalario,
+  subNivelLabel,
+  subNivelStatus,
 } from "./career-ladder";
 export type { NivelEscada, RequisitoLadder, NivelLadder, PrincipioKey, CompetenciaKey } from "./career-ladder";
 export { CareerEvaluationSaveSchema, CareerEvaluationDecidirSchema } from "./career-evaluation";

@@ -29,20 +29,12 @@ type Employee = {
   enderecoCep: string | null;
 };
 
-const PROMOTABILIDADE_BADGE: Record<"verde" | "amarelo" | "branco", string> = {
-  verde: "🟢",
-  amarelo: "🟡",
-  branco: "⚪",
-};
-
 export function ColaboradoresRow({
   employee,
   convencoes,
-  promotabilidade,
 }: {
   employee: Employee;
   convencoes: { id: string; nome: string }[];
-  promotabilidade?: "verde" | "amarelo" | "branco";
 }) {
   const [state, formAction, pending] = useActionState(updateSchedule, { error: null });
   const confirmDeleteRef = useRef<HTMLDialogElement>(null);
@@ -51,12 +43,6 @@ export function ColaboradoresRow({
     <li className={styles.item}>
       <span className={styles.itemName}>
         {employee.name}
-        {promotabilidade ? (
-          <span aria-label={`Promotabilidade: ${promotabilidade}`} title={`Promotabilidade: ${promotabilidade}`}>
-            {" "}
-            {PROMOTABILIDADE_BADGE[promotabilidade]}
-          </span>
-        ) : null}
       </span>
       <form action={formAction} className={styles.form}>
         <input type="hidden" name="userId" value={employee.userId} />

@@ -363,11 +363,12 @@ model CareerPrincipioScore {
 }
 
 model CareerCompetenciaScore {
-  id           String @id @default(uuid())
-  evaluationId String
-  categoria    String // "hard" | "soft"
-  competencia  String // ver COMPETENCIA_KEYS em shared-types
-  nota         Int    // 0-10
+  id            String  @id @default(uuid())
+  evaluationId  String
+  categoria     String  // "hard" | "soft"
+  competencia   String  // ver COMPETENCIA_KEYS em shared-types
+  nota          Int     // 0-10
+  justificativa String?
 }
 
 model CareerRequisitoCheck {

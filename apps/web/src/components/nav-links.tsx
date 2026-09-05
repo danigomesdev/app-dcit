@@ -7,7 +7,7 @@ import { useState } from "react";
 import {
   COLABORADOR_SIDEBAR,
   COLABORADORES_GROUP,
-  GESTOR_CAREER_GROUP,
+  GESTOR_CAREER_LINK,
   GESTOR_SIDEBAR_ORDER,
   isSidebarGroup,
   NAV_SECTIONS,
@@ -156,7 +156,9 @@ export function NavLinks({ role }: { role: NavRole }) {
             <NavLinkItem key={link.href} link={link} pathname={pathname} searchParams={searchParams} />
           ))}
         </ul>
-        <NavGroupItem group={GESTOR_CAREER_GROUP} pathname={pathname} searchParams={searchParams} />
+        <ul className={styles.nav}>
+          <NavLinkItem link={GESTOR_CAREER_LINK} pathname={pathname} searchParams={searchParams} />
+        </ul>
       </nav>
     );
   }

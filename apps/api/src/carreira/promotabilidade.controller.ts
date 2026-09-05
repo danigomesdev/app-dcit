@@ -10,13 +10,6 @@ export class PromotabilidadeController {
 
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('gestor')
-  @Get()
-  async listAll() {
-    return this.promotabilidade.listAll();
-  }
-
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles('gestor')
   @Get(':userId')
   async getOne(@Param('userId') userId: string) {
     return this.promotabilidade.getOne(userId);
