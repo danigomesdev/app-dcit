@@ -181,4 +181,19 @@ describe('CareerEvaluationsService', () => {
     const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: USER_ID } });
     expect(employee.nivel).toBe('pleno'); // unchanged — gestor did not confirm
   });
+
+  it('decidir() never reduces salary — promoting from the top of a level does not reset salarioMensal downward', async () => {
+    await prisma.employee.update({ where: { userId: USER_ID }, data: { nivel: 'pleno', salarioMensal: 6200 } }); // pleno's top step
+    const evaluation = await service.save('gestor-1', {
+      userId: USER_ID,
+      principios: PRINCIPIOS_NOTAS.map((p) => ({ ...p, nota: 10 })),
+      competencias: COMPETENCIAS_NOTAS.map((c) => ({ ...c, nota: 10 })),
+      requisitosAtendidos: SENIOR_OBRIGATORIOS,
+    });
+    const decided = await service.decidir(evaluation.id, true);
+    expect(decided.resultado).toBe('promovido');
+    const employee = await prisma.employee.findUniqueOrThrow({ where: { userId: USER_ID } });
+    expect(employee.nivel).toBe('senior');
+    expect(employee.salarioMensal).toBe(6200); // NOT reset down to senior's degrau[0] of 6000
+  });
 });

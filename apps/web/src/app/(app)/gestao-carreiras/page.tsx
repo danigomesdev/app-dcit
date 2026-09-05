@@ -106,6 +106,9 @@ async function AvaliacaoCarreiraTab({ userId, employees }: { userId: string; emp
     apiFetchJson<{ mesesDeCasa: number }>(`/carreira/promotabilidade/${userId}`),
     apiFetchJson<{
       id: string;
+      status: string;
+      resultado: string | null;
+      decidedAt: string | null;
       mediaGeral: number | null;
       proximoNivel: string | null;
       principios: { principio: string; nota: number; justificativa: string | null }[];

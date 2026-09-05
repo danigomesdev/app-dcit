@@ -101,6 +101,7 @@ test("shows the Elegível badge and confirms before promoting when eligible", as
     path: "/carreira/evaluations",
     response: {
       id: "ev-existing",
+      status: "salva",
       mediaGeral: 8.5,
       proximoNivel: "senior",
       principios: [],
@@ -142,6 +143,7 @@ test("cancelling the confirm dialog does not submit the decision", async ({ page
     path: "/carreira/evaluations",
     response: {
       id: "ev-existing",
+      status: "salva",
       mediaGeral: 8.5,
       proximoNivel: "senior",
       principios: [],
@@ -159,6 +161,7 @@ test("cancelling the confirm dialog does not submit the decision", async ({ page
   page.once("dialog", (dialog) => dialog.dismiss());
   await page.getByRole("button", { name: "Submeter para Decisão da Diretoria" }).click();
 
+  await page.waitForTimeout(1000);
   const recorded = await getRecordedRequests(request);
   expect(recorded.some((r) => r.method === "POST" && r.path.includes("/decidir"))).toBe(false);
 });
@@ -177,4 +180,44 @@ test("hides the Submeter button when no evaluation has been saved yet", async ({
 
   await expect(page.getByRole("button", { name: "Submeter para Decisão da Diretoria" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Agendar Reunião de 1:1" })).toBeVisible();
+});
+
+test("shows a read-only summary and a blank form when the most recent evaluation is already decidida", async ({
+  page,
+  context,
+  request,
+}) => {
+  await addSessionCookie(context);
+  await mockApi(request);
+  await seedResponse(request, { method: "GET", path: "/employees", response: EMPLOYEES });
+  await seedResponse(request, {
+    method: "GET",
+    path: "/carreira/promotabilidade/colab-1",
+    response: { status: "amarelo", mesesDeCasa: 14, requisitosPendentes: 0, metasPendentes: 0, metasPdiRegistradas: true, ultimaMediaAvaliacao: null },
+  });
+  await seedResponse(request, {
+    method: "GET",
+    path: "/carreira/evaluations",
+    response: {
+      id: "ev-decided",
+      status: "decidida",
+      resultado: "em_desenvolvimento",
+      decidedAt: "2026-08-01T12:00:00.000Z",
+      mediaGeral: 5.5,
+      proximoNivel: "senior",
+      principios: [],
+      competencias: [],
+      requisitos: [],
+    },
+  });
+
+  await page.goto("/gestao-carreiras?aba=avaliacao-carreira&userId=colab-1");
+
+  // Both the read-only summary and the (always-present) elegibility badge can
+  // legitimately say "Em Desenvolvimento" when there's no open evaluation to
+  // drive elegivel — so anchor on the summary's unique lead-in text instead of
+  // the ambiguous phrase alone, which would violate Playwright's strict mode.
+  await expect(page.getByText("Última avaliação decidida em", { exact: false })).toContainText("Em desenvolvimento");
+  await expect(page.getByRole("button", { name: "Submeter para Decisão da Diretoria" })).toHaveCount(0);
+  await expect(page.locator('input[name="nota-clareza"]')).toHaveValue("");
 });

@@ -18,6 +18,9 @@ type CompetenciaScore = { competencia: string; nota: number };
 type RequisitoCheck = { tipo: "obrigatorio" | "eletivo"; label: string; atendido: boolean };
 type OpenEvaluation = {
   id: string;
+  status: string;
+  resultado: string | null;
+  decidedAt: string | null;
   mediaGeral: number | null;
   proximoNivel: string | null;
   principios: PrincipioScore[];
@@ -45,15 +48,18 @@ export function AvaliacaoCarreiraSection({
   const proximoNivel = nivelInfo.proximoNivel;
   const proximoNivelInfo = proximoNivel ? CAREER_LADDER[proximoNivel] : null;
 
-  const notaPorPrincipio = new Map(evaluation?.principios.map((p) => [p.principio, p]) ?? []);
-  const notaPorCompetencia = new Map(evaluation?.competencias.map((c) => [c.competencia, c.nota]) ?? []);
-  const requisitosAtendidos = new Set(evaluation?.requisitos.filter((r) => r.atendido).map((r) => r.label) ?? []);
+  const isOpen = evaluation?.status === "salva";
+  const formEvaluation = isOpen ? evaluation : null;
+
+  const notaPorPrincipio = new Map(formEvaluation?.principios.map((p) => [p.principio, p]) ?? []);
+  const notaPorCompetencia = new Map(formEvaluation?.competencias.map((c) => [c.competencia, c.nota]) ?? []);
+  const requisitosAtendidos = new Set(formEvaluation?.requisitos.filter((r) => r.atendido).map((r) => r.label) ?? []);
 
   const obrigatoriosOk =
     proximoNivelInfo !== null &&
     proximoNivelInfo.requisitos.filter((r) => r.tipo === "obrigatorio").every((r) => requisitosAtendidos.has(r.label));
-  const mediaOk = (evaluation?.mediaGeral ?? 0) >= ELEGIBILIDADE_MEDIA_MINIMA;
-  const elegivel = evaluation !== null && proximoNivel !== null && obrigatoriosOk && mediaOk;
+  const mediaOk = (formEvaluation?.mediaGeral ?? 0) >= ELEGIBILIDADE_MEDIA_MINIMA;
+  const elegivel = formEvaluation !== null && proximoNivel !== null && obrigatoriosOk && mediaOk;
 
   function faixaLabel(degraus: number[]): string {
     return `R$ ${degraus[0].toLocaleString("pt-BR")} – R$ ${degraus[degraus.length - 1].toLocaleString("pt-BR")}`;
@@ -84,6 +90,15 @@ export function AvaliacaoCarreiraSection({
           <p>{proximoNivelInfo ? `${proximoNivelInfo.label} (${faixaLabel(proximoNivelInfo.degraus)})` : "Nível máximo atingido"}</p>
         </div>
       </div>
+
+      {evaluation && !isOpen ? (
+        <p className={styles.description}>
+          Última avaliação decidida em{" "}
+          {evaluation.decidedAt ? new Date(evaluation.decidedAt).toLocaleDateString("pt-BR") : "—"}:{" "}
+          {evaluation.resultado === "promovido" ? "Promovido(a)" : "Em desenvolvimento"}
+          {evaluation.mediaGeral != null ? ` (média ${evaluation.mediaGeral.toFixed(1)})` : ""}
+        </p>
+      ) : null}
 
       <form action={saveCareerEvaluation} className={styles.evaluationForm}>
         <input type="hidden" name="userId" value={userId} />
@@ -196,12 +211,12 @@ export function AvaliacaoCarreiraSection({
 
       <div className={styles.finalPanel}>
         <h2>Painel Final</h2>
-        <p>Média Geral: {evaluation?.mediaGeral != null ? evaluation.mediaGeral.toFixed(1) : "—"} / 10</p>
+        <p>Média Geral: {formEvaluation?.mediaGeral != null ? formEvaluation.mediaGeral.toFixed(1) : "—"} / 10</p>
         <p className={elegivel ? styles.badgeElegivel : styles.badgeDesenvolvimento}>
           {proximoNivel === null ? "Nível Máximo" : elegivel ? "Elegível para Promoção" : "Em Desenvolvimento"}
         </p>
         <div className={styles.actions}>
-          {evaluation ? (
+          {isOpen && evaluation ? (
             <SubmeterButton
               evaluationId={evaluation.id}
               elegivel={elegivel}

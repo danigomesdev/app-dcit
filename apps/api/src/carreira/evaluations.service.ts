@@ -9,7 +9,7 @@ export class CareerEvaluationsService {
 
   async getOpen(userId: string) {
     const evaluation = await this.prisma.careerEvaluation.findFirst({
-      where: { userId, status: 'salva' },
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     });
     if (!evaluation) return null;
@@ -35,56 +35,56 @@ export class CareerEvaluationsService {
       ...input.competencias.map((c) => c.nota),
     ]);
 
-    const existing = await this.prisma.careerEvaluation.findFirst({
-      where: { userId: input.userId, status: 'salva' },
-      orderBy: { createdAt: 'desc' },
-    });
+    const evaluation = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.careerEvaluation.findFirst({
+        where: { userId: input.userId, status: 'salva' },
+        orderBy: { createdAt: 'desc' },
+      });
 
-    const evaluation = existing
-      ? await this.prisma.careerEvaluation.update({
-          where: { id: existing.id },
-          data: { evaluatorId, nivelAvaliado, proximoNivel, mediaGeral },
-        })
-      : await this.prisma.careerEvaluation.create({
-          data: { userId: input.userId, evaluatorId, nivelAvaliado, proximoNivel, mediaGeral, status: 'salva' },
-        });
+      const evaluation = existing
+        ? await tx.careerEvaluation.update({
+            where: { id: existing.id },
+            data: { evaluatorId, nivelAvaliado, proximoNivel, mediaGeral },
+          })
+        : await tx.careerEvaluation.create({
+            data: { userId: input.userId, evaluatorId, nivelAvaliado, proximoNivel, mediaGeral, status: 'salva' },
+          });
 
-    if (existing) {
-      await Promise.all([
-        this.prisma.careerPrincipioScore.deleteMany({ where: { evaluationId: evaluation.id } }),
-        this.prisma.careerCompetenciaScore.deleteMany({ where: { evaluationId: evaluation.id } }),
-        this.prisma.careerRequisitoCheck.deleteMany({ where: { evaluationId: evaluation.id } }),
-      ]);
-    }
+      if (existing) {
+        await tx.careerPrincipioScore.deleteMany({ where: { evaluationId: evaluation.id } });
+        await tx.careerCompetenciaScore.deleteMany({ where: { evaluationId: evaluation.id } });
+        await tx.careerRequisitoCheck.deleteMany({ where: { evaluationId: evaluation.id } });
+      }
 
-    await Promise.all([
-      this.prisma.careerPrincipioScore.createMany({
+      await tx.careerPrincipioScore.createMany({
         data: input.principios.map((p) => ({
           evaluationId: evaluation.id,
           principio: p.principio,
           nota: p.nota,
           justificativa: p.justificativa,
         })),
-      }),
-      this.prisma.careerCompetenciaScore.createMany({
+      });
+      await tx.careerCompetenciaScore.createMany({
         data: input.competencias.map((c) => ({
           evaluationId: evaluation.id,
           categoria: COMPETENCIA_CATEGORIA[c.competencia],
           competencia: c.competencia,
           nota: c.nota,
         })),
-      }),
-      requisitosLadder.length > 0
-        ? this.prisma.careerRequisitoCheck.createMany({
-            data: requisitosLadder.map((r) => ({
-              evaluationId: evaluation.id,
-              tipo: r.tipo,
-              label: r.label,
-              atendido: input.requisitosAtendidos.includes(r.label),
-            })),
-          })
-        : Promise.resolve({ count: 0 }),
-    ]);
+      });
+      if (requisitosLadder.length > 0) {
+        await tx.careerRequisitoCheck.createMany({
+          data: requisitosLadder.map((r) => ({
+            evaluationId: evaluation.id,
+            tipo: r.tipo,
+            label: r.label,
+            atendido: input.requisitosAtendidos.includes(r.label),
+          })),
+        });
+      }
+
+      return evaluation;
+    });
 
     return this.withChildren(evaluation);
   }
@@ -107,9 +107,11 @@ export class CareerEvaluationsService {
       });
       if (resultado === 'promovido' && confirmarPromocao && evaluation.proximoNivel) {
         const primeiroDegrau = CAREER_LADDER[evaluation.proximoNivel as NivelEscada].degraus[0];
+        const employeeAtual = await tx.employee.findUniqueOrThrow({ where: { userId: evaluation.userId } });
+        const novoSalario = Math.max(employeeAtual.salarioMensal ?? 0, primeiroDegrau);
         await tx.employee.update({
           where: { userId: evaluation.userId },
-          data: { nivel: evaluation.proximoNivel, salarioMensal: primeiroDegrau },
+          data: { nivel: evaluation.proximoNivel, salarioMensal: novoSalario },
         });
       }
       return decided;
