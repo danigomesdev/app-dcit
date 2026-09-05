@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { CareerEvaluationsController } from './evaluations.controller';
 import { CareerEvaluationsService } from './evaluations.service';
 import { AuthGuard } from '../auth/auth-guard';
@@ -48,8 +48,34 @@ describe('CareerEvaluationsController', () => {
     return { user: { sub, role: 'gestor', name: 'Gestor Teste' } } as Request & { user: AuthenticatedUser };
   }
 
+  function mockRes(): Response {
+    const res = { status: jest.fn(), json: jest.fn() };
+    res.status.mockReturnValue(res);
+    return res as unknown as Response;
+  }
+
   it('rejects a request missing userId on getOpen', async () => {
-    await expect(controller.getOpen(undefined)).rejects.toThrow('userId é obrigatório');
+    await expect(controller.getOpen(undefined, mockRes())).rejects.toThrow('userId é obrigatório');
+  });
+
+  it('sends a real "null" JSON body via res.json when no open evaluation exists, never an empty body', async () => {
+    // Regression test: Nest's default response handling treats a bare `null`
+    // return value as "no body" and sends a genuinely empty HTTP response,
+    // which broke every client calling res.json() on it ("Unexpected end of
+    // JSON input"). getOpen() must bypass that via @Res() and call res.json()
+    // itself so `null` is always serialized as the 4-byte JSON literal.
+    serviceMock.getOpen.mockResolvedValue(null);
+    const res = mockRes();
+    await controller.getOpen('user-1', res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(null);
+  });
+
+  it('sends the evaluation via res.json when an open evaluation exists', async () => {
+    serviceMock.getOpen.mockResolvedValue({ id: 'ev-1', status: 'salva' });
+    const res = mockRes();
+    await controller.getOpen('user-1', res);
+    expect(res.json).toHaveBeenCalledWith({ id: 'ev-1', status: 'salva' });
   });
 
   it('saves using evaluatorId from the session, not the body', async () => {

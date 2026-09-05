@@ -1,5 +1,5 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { BadRequestException, Body, Controller, Get, HttpCode, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import type { Request, Response } from 'express';
 import { CareerEvaluationSaveSchema, CareerEvaluationDecidirSchema } from '@ponto-dcit/shared-types';
 import { CareerEvaluationsService } from './evaluations.service';
 import { AuthGuard } from '../auth/auth-guard';
@@ -16,9 +16,15 @@ export class CareerEvaluationsController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('gestor')
   @Get()
-  async getOpen(@Query('userId') userId?: string) {
+  async getOpen(@Query('userId') userId: string | undefined, @Res() res: Response) {
     if (!userId) throw new BadRequestException('userId é obrigatório');
-    return this.evaluations.getOpen(userId);
+    const evaluation = await this.evaluations.getOpen(userId);
+    // Nest's default response handling treats a bare `null` return value as
+    // "no body" (isNil short-circuit in RouterResponseController), sending a
+    // genuinely empty HTTP body instead of the JSON literal "null" — which
+    // breaks any client calling `res.json()` on it ("Unexpected end of JSON
+    // input"). @Res() bypasses that so a real "null" body is always sent.
+    res.status(200).json(evaluation);
   }
 
   @UseGuards(AuthGuard, RolesGuard)
