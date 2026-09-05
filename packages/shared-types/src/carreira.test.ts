@@ -1,7 +1,6 @@
 import {
   CareerGoalCreateSchema,
   TrackRequirementCreateSchema,
-  PerformanceEvaluationCreateSchema,
   NineBoxPlacementCreateSchema,
   OneOnOneCreateSchema,
   OneOnOneAcaoUpdateSchema,
@@ -31,30 +30,6 @@ describe("TrackRequirementCreateSchema", () => {
   it("rejects an empty title", () => {
     const result = TrackRequirementCreateSchema.safeParse({ userId: "user-1", title: "" });
     expect(result.success).toBe(false);
-  });
-});
-
-describe("PerformanceEvaluationCreateSchema", () => {
-  it("rejects a score above 5", () => {
-    const result = PerformanceEvaluationCreateSchema.safeParse({
-      userId: "user-1",
-      proatividade: 6,
-      trabalhoEquipe: 5,
-      comunicacao: 5,
-      lideranca: 5,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts all scores at the boundary values 1 and 5", () => {
-    const result = PerformanceEvaluationCreateSchema.safeParse({
-      userId: "user-1",
-      proatividade: 1,
-      trabalhoEquipe: 5,
-      comunicacao: 1,
-      lideranca: 5,
-    });
-    expect(result.success).toBe(true);
   });
 });
 

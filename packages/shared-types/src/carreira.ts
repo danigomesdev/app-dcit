@@ -31,16 +31,6 @@ export const TrackRequirementUpdateSchema = z.object({
 });
 export type TrackRequirementUpdateInput = z.infer<typeof TrackRequirementUpdateSchema>;
 
-export const PerformanceEvaluationCreateSchema = z.object({
-  userId: z.string().min(1),
-  proatividade: z.number().int().min(1).max(5),
-  trabalhoEquipe: z.number().int().min(1).max(5),
-  comunicacao: z.number().int().min(1).max(5),
-  lideranca: z.number().int().min(1).max(5),
-  comentario: z.string().optional(),
-});
-export type PerformanceEvaluationCreateInput = z.infer<typeof PerformanceEvaluationCreateSchema>;
-
 export const NineBoxPlacementCreateSchema = z.object({
   userId: z.string().min(1),
   desempenho: z.enum(NIVEL_NINE_BOX),

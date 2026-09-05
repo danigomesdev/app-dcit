@@ -1,16 +1,7 @@
 import { AcaoStatusSelect } from "./acao-status-select";
-import { createEvaluation, createNineBoxPlacement, createOneOnOne, updateOneOnOneAcaoStatus } from "./actions";
+import { createNineBoxPlacement, createOneOnOne, updateOneOnOneAcaoStatus } from "./actions";
 import styles from "./gestao-carreiras.module.css";
 
-type Evaluation = {
-  id: string;
-  date: string;
-  proatividade: number;
-  trabalhoEquipe: number;
-  comunicacao: number;
-  lideranca: number;
-  comentario: string | null;
-};
 type NineBoxPlacement = { id: string; date: string; desempenho: string; potencial: string };
 type OneOnOne = {
   id: string;
@@ -21,7 +12,6 @@ type OneOnOne = {
 };
 
 const SUB_TABS = [
-  { value: "ciclos", label: "Ciclos de Avaliação" },
   { value: "1a1", label: "Registros de 1:1" },
   { value: "ninebox", label: "Matriz Nine Box" },
 ] as const;
@@ -29,13 +19,11 @@ const SUB_TABS = [
 export function AvaliacoesSection({
   userId,
   sub,
-  evaluations,
   placements,
   oneOnOnes,
 }: {
   userId: string;
   sub: string;
-  evaluations: Evaluation[];
   placements: NineBoxPlacement[];
   oneOnOnes: OneOnOne[];
 }) {
@@ -53,55 +41,8 @@ export function AvaliacoesSection({
         ))}
       </nav>
 
-      {sub === "ciclos" ? <CiclosSubSection userId={userId} evaluations={evaluations} /> : null}
       {sub === "1a1" ? <OneOnOneSubSection userId={userId} oneOnOnes={oneOnOnes} /> : null}
       {sub === "ninebox" ? <NineBoxSubSection userId={userId} placements={placements} /> : null}
-    </div>
-  );
-}
-
-function CiclosSubSection({ userId, evaluations }: { userId: string; evaluations: Evaluation[] }) {
-  return (
-    <div className={styles.section}>
-      <p className={styles.description}>
-        Registros formais de avaliação de desempenho, com notas de 1 a 5 em proatividade, trabalho em equipe,
-        comunicação e liderança. A média dessas notas também conta para o indicador de promotabilidade.
-      </p>
-      {evaluations.length === 0 ? (
-        <p className={styles.empty}>Nenhuma avaliação registrada.</p>
-      ) : (
-        <ul className={styles.list}>
-          {evaluations.map((evaluation) => (
-            <li key={evaluation.id} className={styles.item}>
-              <span>
-                Proatividade {evaluation.proatividade} · Trabalho em equipe {evaluation.trabalhoEquipe} · Comunicação{" "}
-                {evaluation.comunicacao} · Liderança {evaluation.lideranca}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <form action={createEvaluation} className={styles.form}>
-        <input type="hidden" name="userId" value={userId} />
-        <label>
-          Proatividade
-          <input type="number" name="proatividade" min={1} max={5} required className={styles.input} />
-        </label>
-        <label>
-          Trabalho em equipe
-          <input type="number" name="trabalhoEquipe" min={1} max={5} required className={styles.input} />
-        </label>
-        <label>
-          Comunicação
-          <input type="number" name="comunicacao" min={1} max={5} required className={styles.input} />
-        </label>
-        <label>
-          Liderança
-          <input type="number" name="lideranca" min={1} max={5} required className={styles.input} />
-        </label>
-        <input type="text" name="comentario" placeholder="Comentário (opcional)" className={styles.input} />
-        <button type="submit">Registrar avaliação</button>
-      </form>
     </div>
   );
 }

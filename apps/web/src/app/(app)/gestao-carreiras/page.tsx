@@ -70,7 +70,7 @@ export default async function GestaoCarreirasPage({
           {aba === "trilha" ? <TrilhaTab userId={userId} /> : null}
           {aba === "avaliacao-carreira" ? <AvaliacaoCarreiraTab userId={userId} employees={employees} /> : null}
           {aba === "avaliacoes" ? (
-            <AvaliacoesTab userId={userId} sub={typeof params.sub === "string" ? params.sub : "ciclos"} />
+            <AvaliacoesTab userId={userId} sub={typeof params.sub === "string" ? params.sub : "1a1"} />
           ) : null}
         </>
       )}
@@ -126,16 +126,11 @@ async function AvaliacaoCarreiraTab({ userId, employees }: { userId: string; emp
 }
 
 async function AvaliacoesTab({ userId, sub }: { userId: string; sub: string }) {
-  const [evaluations, placements, oneOnOnes] = await Promise.all([
-    apiFetchJson<
-      { id: string; date: string; proatividade: number; trabalhoEquipe: number; comunicacao: number; lideranca: number; comentario: string | null }[]
-    >(`/carreira/avaliacoes?userId=${userId}`),
+  const [placements, oneOnOnes] = await Promise.all([
     apiFetchJson<{ id: string; date: string; desempenho: string; potencial: string }[]>(`/carreira/nine-box?userId=${userId}`),
     apiFetchJson<
       { id: string; date: string; pauta: string; proximaData: string | null; acoes: { id: string; descricao: string; status: "pendente" | "concluido" }[] }[]
     >(`/carreira/one-on-ones?userId=${userId}`),
   ]);
-  return (
-    <AvaliacoesSection userId={userId} sub={sub} evaluations={evaluations} placements={placements} oneOnOnes={oneOnOnes} />
-  );
+  return <AvaliacoesSection userId={userId} sub={sub} placements={placements} oneOnOnes={oneOnOnes} />;
 }
